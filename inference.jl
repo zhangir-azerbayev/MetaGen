@@ -8,7 +8,7 @@ using Gen
 
 #pythonFile.hello_world()
 
-struct TruncatedPoisson <: Gen.Distributions{Int} end
+struct TruncatedPoisson <: Gen.Distribution{Int} end
 
 const trunc_poisson = TruncatedPoisson()
 
