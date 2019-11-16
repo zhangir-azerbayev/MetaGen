@@ -15,17 +15,17 @@ const trunc_poisson = TruncatedPoisson()
 function logpdf(::TruncatedPoisson, x::Int, lambda::U, low::U, high::U) where {U <: Real}
 	d = Distributions.Poisson(lambda)
 	td = Distributions.Truncated(d, low, high)
-    Distributions.logpdf(td, x)
+	Distributions.logpdf(td, x)
 end
 
 function logpdf_grad(::TruncatedPoisson, x::Int, lambda::U, low::U, high::U)  where {U <: Real}
-    gerror("Not implemented")
-    (nothing, nothing)
+	gerror("Not implemented")
+	(nothing, nothing)
 end
 
 function random(::TruncatedPoisson, lambda::U, low::U, high::U) where {U <: Real}
 	d = Distributions.Poisson(lambda)
-    rand(Distributions.Truncated(d, low, high)
+	rand(Distributions.Truncated(d, low, high)
 end
 
 (::TruncatedPoisson)(lambda, low, high) = random(TruncatedPoisson(), lambda, low, high)
@@ -33,12 +33,6 @@ is_discrete(::TruncatedPoisson) = true
 
 has_output_grad(::TruncatedPoisson) = false
 has_argument_grads(::TruncatedPoisson) = (false,)
-
-
-struct Frame
-	objects::Vector{String}
-end
-# Frame(your-list)
 
 @gen function sample_wo_repl(A,n)
     sample = Array{eltype(A)}(n)
@@ -49,44 +43,114 @@ end
     return sample
 end
 
-#define generative model gm
-@gen function gm(possible_objects::Vector{String}, n_frames::Int)
-	fa = @trace(Gen.beta(1, 2), :fa)
-	m = @trace(Gen.beta(11, 22), :m)
+# COCO Class names
+# Index of the class in the list is its ID. For example, to get ID of
+# the teddy bear class, use: class_names.index('teddy bear')
+class_names = ["BG", "person", "bicycle", "car", "motorcycle", "airplane",
+               "bus", "train", "truck", "boat", "traffic light",
+               "fire hydrant", "stop sign", "parking meter", "bench", "bird",
+               "cat", "dog", "horse", "sheep", "cow", "elephant", "bear",
+               "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie",
+               "suitcase", "frisbee", "skis", "snowboard", "sports ball",
+               "kite", "baseball bat", "baseball glove", "skateboard",
+               "surfboard", "tennis racket", "bottle", "wine glass", "cup",
+               "fork", "knife", "spoon", "bowl", "banana", "apple",
+               "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza",
+               "donut", "cake", "chair", "couch", "potted plant", "bed",
+               "dining table", "toilet", "tv", "laptop", "mouse", "remote",
+               "keyboard", "cell phone", "microwave", "oven", "toaster",
+               "sink", "refrigerator", "book", "clock", "vase", "scissors",
+               "teddy bear", "hair drier", "toothbrush"]
 
+#This function converts a list of category names to a list of category IDs. Specific to the COCO
+#categories. Must have access to class_names.
+function names_to_IDs(names::Vector{String})
+	IDs = Vector{Int}(undef, length(names))
+	for i in length(names)
+		#should only be one location of a given object
+		IDs[i] = findall(j -> j==names[i],class_names)
+	end
+	return IDs
+end
+
+#Define generative model gm. gm takes as input the possible objects and the number of frames.
+@gen function gm(possible_objects::Vector{String}, n_frames::Int)
+
+	#Determining visual system V
+	V = Matrix{float}(undef, length(possible_objects), 2)
+
+	for j = 1:length(possible_objects)
+		#set false alarm rate
+		V[j,1] = @trace(Gen.beta(1.909091, 107.99999999999999), :fa, j) #leads to false alarm rate of 0.01
+		#set miss rate
+		V[j,2] = @trace(Gen.beta(1.909091, 36.272727), :m, j) #leads to miss rate of 0.05
+	end
+
+	#Determining frame of reality R
 	lambda = 5
 	low = 1
 	high = 81
 
 	numObjects = @trace(TruncatedPoisson(lambda, low, high), :numObjects)
-    F = @trace(sample_wo_repl(class_names,numObjects), :obj_selection)
+    R = @trace(sample_wo_repl(class_names,numObjects), :obj_selection)
 
 
-
-	percept = Matrix{Bool}(undef, t, length(possible_objects))
+    #Determing the percept based on the visual system V and the reality frame R
+    #A percept is a matrix where each column is the percept for a frame.
+	percept = Matrix{Bool}(undef, length(possible_objects), n_frames)
 	for f = 1:n_frames
 		for j = 1:length(possible_objects)
-			percept[f,j] = @trace(bernoulli(fa), (:percept, f, j))
+			#if the object is in the reality R, it is detected according to 1 - its miss rate
+			if possible_objects(j) in R
+				M =  V[names_to_IDs(possible_objects(j)),2]
+				percept[j,f] = @trace(bernoulli(1-M), (:percept, f, j))
+			else
+				FA =  V[names_to_IDs(possible_objects(j)),1]
+				percept[j,f] = @trace(bernoulli(FA), (:percept, f, j))
+			end
 		end
 	end
-	return F
-        #if @trace(bernoulli(V[names_to_IDs_single_frame(frame)[i],1]), :data => i => :is_detected)
-        #    P.append(frame[i])
+
+
+	return R #returning reality R, (optional)
 end
+
+
+##############################################################################################
+#Defining observations / constraints
+
+possible_objects = ["person", "bicycle", "car","motorcycle", "airplane"]
+#Later, possible_objects will equal class_names
 
 # define some observations
 gt = Gen.choicemap()
-gt[:fa] = 1
-gt[:m] = 11
-gt_trace, _ = Gen.generate(gm, (possible_objects, 10), gt)
+
+# #VTrue is the real Visual system
+# VTrue = Matrix{float}(undef, length(possible_objects), 2)
+# #for loop to make V
+# for j = 1:length(possible_objects)
+# 		#set false alarm rate
+# 		VTrue[j,1] = @trace(Gen.beta(1.909091, 107.99999999999999), :fa, j) #leads to false alarm rate of 0.01
+# 		gt[:fa, j] = VTrue[j,1]
+# 		#set miss rate
+# 		VTrue[j,2] = @trace(Gen.beta(1.909091, 36.272727), :m, j) #leads to miss rate of 0.05
+# 		gt[:m, j] = VTrue[j,2]
+# 	end
+
+
+#initializing the generative model. It will create the ground truth V and R
+n_frames = 10
+gt_trace,_ = Gen.generate(gm, (possible_objects, n_frames))
 gt_reality = Gen.get_retval(gt_trace)
 gt_choices = Gen.get_choices(gt_trace)
+
+
+#get the percepts
 obs = Gen.get_submap(gt_choices, :percept)
-
-
+#initialize a new trace
 trace, _ = Gen.generate(gm, (xs,), obs)
-inference_history = Vector{typeof(trace)}(undef, N)
 
+inference_history = Vector{typeof(trace)}(undef, N)
 for i = 1:N
 	#selection = Gen.select(:fa, :m, :numObjects, :obj_selection)
 	trace,_ = Gen.hmc(trace)
