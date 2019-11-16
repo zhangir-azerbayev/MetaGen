@@ -26,7 +26,7 @@ function logpdf_grad(::TruncatedPoisson, x::Int, lambda::U, low::U, high::U)  wh
 	(nothing, nothing)
 end
 
-function random(::TruncatedPoisson, x::Int, lambda::U, low::U, high::U)  where {U <: Real}
+function random(::TruncatedPoisson, lambda::U, low::U, high::U)  where {U <: Real}
 	d = Distributions.Poisson(lambda)
 	rand(Distributions.Truncated(d, low, high))
 end
@@ -94,7 +94,7 @@ end
 	low = 1
 	high = 81
 
-	numObjects = @trace(TruncatedPoisson(lambda, low, high), :numObjects)
+	numObjects = @trace(trunc_poisson(lambda, low, high), :numObjects)
     R = @trace(sample_wo_repl(class_names,numObjects), :R)
 
 
