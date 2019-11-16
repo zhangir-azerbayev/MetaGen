@@ -8,6 +8,9 @@ using Gen
 
 #pythonFile.hello_world()
 
+##############################################################################################
+#Setting up helper functions
+
 struct TruncatedPoisson <: Gen.Distribution{Int} end
 
 const trunc_poisson = TruncatedPoisson()
@@ -77,13 +80,13 @@ end
 @gen function gm(possible_objects::Vector{String}, n_frames::Int)
 
 	#Determining visual system V
-	V = Matrix{float}(undef, length(possible_objects), 2)
+	V = Matrix{Float64}(undef, length(possible_objects), 2)
 
 	for j = 1:length(possible_objects)
 		#set false alarm rate
-		V[j,1] = @trace(Gen.beta(1.909091, 107.99999999999999), :fa, j) #leads to false alarm rate of 0.01
+		V[j,1] = @trace(Gen.beta(1.909091, 107.99999999999999), (:fa, j)) #leads to false alarm rate of 0.01
 		#set miss rate
-		V[j,2] = @trace(Gen.beta(1.909091, 36.272727), :m, j) #leads to miss rate of 0.05
+		V[j,2] = @trace(Gen.beta(1.909091, 36.272727), (:m, j)) #leads to miss rate of 0.05
 	end
 
 	#Determining frame of reality R
@@ -92,7 +95,7 @@ end
 	high = 81
 
 	numObjects = @trace(TruncatedPoisson(lambda, low, high), :numObjects)
-    R = @trace(sample_wo_repl(class_names,numObjects), :obj_selection)
+    R = @trace(sample_wo_repl(class_names,numObjects), :R)
 
 
     #Determing the percept based on the visual system V and the reality frame R
@@ -113,7 +116,7 @@ end
 
 
 	return R #returning reality R, (optional)
-end
+end;
 
 
 ##############################################################################################
