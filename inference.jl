@@ -23,9 +23,9 @@ function logpdf_grad(::TruncatedPoisson, x::Int, lambda::U, low::U, high::U)  wh
 	(nothing, nothing)
 end
 
-function random(::TruncatedPoisson, lambda::U, low::U, high::U) where {U <: Real}
+function random(::TruncatedPoisson, x::Int, lambda::U, low::U, high::U)  where {U <: Real}
 	d = Distributions.Poisson(lambda)
-	rand(Distributions.Truncated(d, low, high)
+	rand(Distributions.Truncated(d, low, high))
 end
 
 (::TruncatedPoisson)(lambda, low, high) = random(TruncatedPoisson(), lambda, low, high)
