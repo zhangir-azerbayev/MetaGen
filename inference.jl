@@ -80,10 +80,14 @@ end
 #Define generative model gm. gm takes as input the possible objects and the number of frames.
 @gen function gm(possible_objects::Vector{String}, n_frames::Int)
 
-	#Determining visual system V
-	V = Matrix{Float64}(undef, length(possible_objects), 2)
+	#need to make one possible_objects to change when replaced, another to not change?
+	possible_objects_immutable = copy(possible_objects)
+	possible_objects_mutable = copy(possible_objects)
 
-	for j = 1:length(possible_objects)
+	#Determining visual system V
+	V = Matrix{Float64}(undef, length(possible_objects_immutable), 2)
+
+	for j = 1:length(possible_objects_immutable)
 		#set false alarm rate
 		V[j,1] = @trace(Gen.beta(1.909091, 107.99999999999999), (:fa, j)) #leads to false alarm rate of 0.01
 		#set miss rate
@@ -91,31 +95,31 @@ end
 	end
 
 	#Determining frame of reality R
-	lambda = 5
+	lambda = 5 #must be <= length of possible_objects
 	low = 1
-	high = 81
+	high = length(possible_objects_immutable)
 
 	numObjects = @trace(trunc_poisson(lambda, low, high), :numObjects)
-    R = @trace(sample_wo_repl(class_names,numObjects), :R)
+    R = @trace(sample_wo_repl(possible_objects_mutable,numObjects), :R)
 
 	#Determing the percept based on the visual system V and the reality frame R
-    #A percept is a matrix where each column is the percept for a frame.
-	percept = Matrix{Bool}(undef, length(possible_objects), n_frames)
+    #A percept is a matrix where each row is the percept for a frame.
+	percept = Matrix{Bool}(undef, n_frames, length(possible_objects_immutable))
 	for f = 1:n_frames
-		for j = 1:length(possible_objects)
+		for j = 1:length(possible_objects_immutable)
 			#if the object is in the reality R, it is detected according to 1 - its miss rate
-			if possible_objects[j] in R
+			if possible_objects_immutable[j] in R
 				M =  V[j,2]
-				percept[j,f] = @trace(bernoulli(1-M), (:percept, f, j))
+				percept[f,j] = @trace(bernoulli(1-M), (:percept, f, j))
 			else
 				FA =  V[j,1]
-				percept[j,f] = @trace(bernoulli(FA), (:percept, f, j))
+				percept[f,j] = @trace(bernoulli(FA), (:percept, f, j))
 			end
 		end
 	end
 
 
-	return R #returning reality R, (optional)
+	return (R,percept) #returning reality R, (optional)
 end;
 
 
@@ -142,20 +146,33 @@ gt = Gen.choicemap()
 
 
 #initializing the generative model. It will create the ground truth V and R
+#generates the data and the model
 n_frames = 10
 gt_trace,_ = Gen.generate(gm, (possible_objects, n_frames))
-gt_reality = Gen.get_retval(gt_trace)
+gt_reality,gt_percept = Gen.get_retval(gt_trace)
+
+println("gt_reality is ",gt_reality)
+println("gt_percept is ",gt_percept) #could translate back into names
+
+# #Translating gt_percept back into names
+# percept = Matrix{String}(undef, n_frames, length(possible_objects))
+# for f = 1:n_frames
+# 	percept[f,:] = possible_objects[gt_percept[f,:]]
+# end
+# println("percept is ",percept)
+
 gt_choices = Gen.get_choices(gt_trace)
+println(gt_choices)
 
 
 #get the percepts
 obs = Gen.get_submap(gt_choices, :percept)
 #initialize a new trace
-trace, _ = Gen.generate(gm, (xs,), obs)
+trace, _ = Gen.generate(gm, (possible_objects, n_frames), obs)
 
-inference_history = Vector{typeof(trace)}(undef, N)
-for i = 1:N
-	#selection = Gen.select(:fa, :m, :numObjects, :obj_selection)
-	trace,_ = Gen.hmc(trace)
-	inference_history[i] = trace
-end
+# inference_history = Vector{typeof(trace)}(undef, N)
+# for i = 1:N
+# 	#selection = Gen.select(:fa, :m, :numObjects, :obj_selection)
+# 	trace,_ = Gen.hmc(trace)
+# 	inference_history[i] = trace
+# end
