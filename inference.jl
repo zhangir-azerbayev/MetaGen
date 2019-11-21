@@ -2,6 +2,8 @@
 
 using Gen
 using Distributions
+using FreqTables
+using Distances
 
 #push!(pyimport("sys")["path"], pwd());
 #pyimport("something.py")[:hello_world]()
@@ -39,12 +41,18 @@ has_output_grad(::TruncatedPoisson) = false
 has_argument_grads(::TruncatedPoisson) = (false,)
 
 @gen function sample_wo_repl(A,n)
+	A_immutable = copy(A)
+
     sample = Array{String}(undef,n)
     for i in 1:n
     	idx = @trace(Gen.uniform_discrete(1, length(A)), (:idx, i))
         sample[i] = splice!(A, idx)
     end
-    return sample
+    #want to rearrange so that the order of items in the sample matches the order of items that we're sampling from
+    sampleIdx = names_to_IDs(sample, A_immutable)
+    sorted = sort(sampleIdx)
+    ordered_sample = A_immutable[sorted]
+    return ordered_sample
 end
 
 # COCO Class names
@@ -72,7 +80,7 @@ function names_to_IDs(names::Vector{String}, possible_objects::Vector{String})
 	IDs = Vector{Int}(undef, length(names))
 	for i=1:length(names)
 		#should only be one location of a given object
-		IDs[i] = findfirst(isequal(names[i]),class_names)
+		IDs[i] = findfirst(isequal(names[i]),possible_objects)
 	end
 	return IDs
 end
@@ -95,12 +103,12 @@ end
 	end
 
 	#Determining frame of reality R
-	lambda = 5 #must be <= length of possible_objects
+	lambda = 4 #must be <= length of possible_objects
 	low = 1
 	high = length(possible_objects_immutable)
 
 	numObjects = @trace(trunc_poisson(lambda, low, high), :numObjects)
-    R = @trace(sample_wo_repl(possible_objects_mutable,numObjects), :R)
+    R = @trace(sample_wo_repl(possible_objects_mutable,numObjects), :R) #order gets mixed up
 
 	#Determing the percept based on the visual system V and the reality frame R
     #A percept is a matrix where each row is the percept for a frame.
@@ -119,7 +127,7 @@ end
 	end
 
 
-	return (R,percept) #returning reality R, (optional)
+	return (R,V,percept); #returning reality R, (optional)
 end;
 
 
@@ -132,24 +140,11 @@ possible_objects = ["person", "bicycle", "car","motorcycle", "airplane"]
 # define some observations
 gt = Gen.choicemap()
 
-# #VTrue is the real Visual system
-# VTrue = Matrix{float}(undef, length(possible_objects), 2)
-# #for loop to make V
-# for j = 1:length(possible_objects)
-# 		#set false alarm rate
-# 		VTrue[j,1] = @trace(Gen.beta(1.909091, 107.99999999999999), :fa, j) #leads to false alarm rate of 0.01
-# 		gt[:fa, j] = VTrue[j,1]
-# 		#set miss rate
-# 		VTrue[j,2] = @trace(Gen.beta(1.909091, 36.272727), :m, j) #leads to miss rate of 0.05
-# 		gt[:m, j] = VTrue[j,2]
-# 	end
-
-
 #initializing the generative model. It will create the ground truth V and R
 #generates the data and the model
 n_frames = 10
 gt_trace,_ = Gen.generate(gm, (possible_objects, n_frames))
-gt_reality,gt_percept = Gen.get_retval(gt_trace)
+gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
 
 println("gt_reality is ",gt_reality)
 println("gt_percept is ",gt_percept) #could translate back into names
@@ -166,9 +161,208 @@ println(gt_choices)
 
 
 #get the percepts
-obs = Gen.get_submap(gt_choices, :percept)
+#obs = Gen.get_submap(gt_choices, :percept)
+observations = Gen.choicemap()
+nrows,ncols = size(gt_percept)
+for i = 1:nrows
+	for j = 1:ncols
+			observations[(:percept,i,j)] = gt_percept[i,j]
+	end
+end
+
+
+##################################################################################################################
+
 #initialize a new trace
-trace, _ = Gen.generate(gm, (possible_objects, n_frames), obs)
+#trace, _ = Gen.generate(gm, (possible_objects, n_frames), obs)
+
+#Inference procedure 1: Importance resampling
+
+num_samples = 100
+
+#add log_norm_weights as middle return arguement for importance_sampling
+#(trace, lml_est) = Gen.importance_resampling(gm, (possible_objects, n_frames), observations, num_samples)
+#(traces, log_norm_weights, lml_est) = Gen.importance_sampling(gm, (possible_objects, n_frames), observations, num_samples)
+#for some reason importance_sampling seems not to account for observations
+
+#trying repeated importance_resampling
+# amount_of_computation_per_resample = 100
+# traces = []
+# log_probs = Array{Float64}(undef, num_samples)
+# for i = 1:num_samples
+#      (tr, lml_est) = Gen.importance_resampling(gm, (possible_objects, n_frames), observations, amount_of_computation_per_resample)
+#      push!(traces,tr)
+#      log_probs[i] = Gen.get_score(tr)
+# end
+
+
+#################################################################################################################################
+
+#trying Metropolis Hastings
+
+
+#(tr, _) = initialize(gm, (possible_objects, n_frames), observations)
+
+# # Perform a single block resimulation update of a trace.
+# function block_resimulation_update(tr)
+
+#     # Block 1: Update the reality
+#     reality = select(:R)
+#     (tr, _) = mh(tr, reality)
+    
+#     # Block 2: Update the visual system
+#     (possible_objects, n_frames) = get_args(tr)
+#     n = length(possible_objects)
+#     for i = 1:n
+#     	row_V = select((:(fa,i)),(:(m,i)))
+#     	(tr, _) = mh(tr, row_V)
+#         #(tr, _) = mh(tr, select(:(fa,i)))
+#         #(tr, _) = mh(tr, select(:(m,i)))
+#     end
+    
+#     # Return the updated trace
+#     tr
+# end;
+
+# function block_resimulation_inference((possible_objects, n_frames), observations)
+#     (tr, _) = generate(gm, (possible_objects, n_frames), observations)
+#     for iter=1:amount_of_computation_per_resample
+#         tr = block_resimulation_update(tr)
+#     end
+#     tr
+# end;
+
+
+# traces = []
+# for i=1:num_samples
+#     tr = block_resimulation_inference((possible_objects, n_frames), observations)
+#     push!(traces,tr)
+# end
+
+
+
+#################################################################################################################################
+
+
+#trying Hamiltonian MC
+
+
+#(tr, _) = initialize(gm, (possible_objects, n_frames), observations)
+
+# Perform a single block resimulation update of a trace.
+function block_resimulation_update(tr)
+
+    # Block 1: Update the reality
+    reality = select(:R)
+    (tr, _) = hmc(tr, reality)
+    
+    # Block 2: Update the visual system
+    (possible_objects, n_frames) = get_args(tr)
+    n = length(possible_objects)
+    for i = 1:n
+    	row_V = select((:(fa,i)),(:(m,i)))
+    	(tr, _) = hmc(tr, row_V)
+    end
+    
+    # Return the updated trace
+    tr
+end;
+
+function block_resimulation_inference((possible_objects, n_frames), observations)
+    (tr, _) = generate(gm, (possible_objects, n_frames), observations)
+    for iter=1:amount_of_computation_per_resample
+        tr = block_resimulation_update(tr)
+    end
+    tr
+end;
+
+
+traces = []
+for i=1:num_samples
+    tr = block_resimulation_inference((possible_objects, n_frames), observations)
+    push!(traces,tr)
+end
+
+
+#################################################################################################################################
+
+
+burnin = 50 #how many samples to ditch
+
+realities = Array{String}[]
+Vs = Array{Float64}[]
+for i = burnin+1:num_samples
+	reality,V,_ = Gen.get_retval(traces[i])
+	push!(realities,reality)
+	push!(Vs,V)
+end
+
+###################################################################################################################
+#Analysis
+
+#want to make a frequency table of the realities sampled
+ft = freqtable(realities)
+
+#compare means of Vs to gt_V
+#for false alarms
+euclidean(gt_V[1], mean(Vs)[1])
+#for hit rates
+euclidean(gt_V[2], mean(Vs)[2])
+
+
+#want, for each reality, to bin Vs
+unique_realities = unique(realities)
+avg_Vs_binned = Array{Float64}[]
+freq = Array{Float64}(undef, length(unique_realities))
+
+for j = 1:length(unique_realities)
+	index = findall(isequal(unique_realities[j]),realities)
+	#freq keeps track of how many there are
+	freq[j] = length(index)
+	push!(avg_Vs_binned, mean(Vs[index]))
+end
+
+#find avg_Vs_binned at most common realities and compute euclidean distances
+#index of most frequent reality
+idx = findfirst(isequal(maximum(freq)),freq)
+unique_realities[idx]
+
+#compare mean V of most frequent reality to gt_V
+#for false alarms
+euclidean(gt_V[1], Vs[idx][1])
+#for hit rates
+euclidean(gt_V[2], Vs[idx][2])
+
+#compare to least frequent reatlity
+#index of most frequent reality
+idx2 = findfirst(isequal(minimum(freq)),freq)
+unique_realities[idx2]
+
+#compare mean V of most frequent reality to gt_V
+#for false alarms
+euclidean(gt_V[1], Vs[idx2][1])
+#for hit rates
+euclidean(gt_V[2], Vs[idx2][2])
+
+
+
+
+
+#going to explode quickly as possible_objects gets larger and samples get larger
+
+
+
+#want to compare Vs sampled to ground V
+
+# for i=1:numIters
+#     (tr, _) = Gen.importance_resampling(gm, (possible_objects, n_frames), obs, 2000)
+#     putTrace!(viz, "t$(i)", serialize_trace(tr))
+#     log_probs[i] = Gen.get_score(tr)
+# end
+
+
+
+
 
 # inference_history = Vector{typeof(trace)}(undef, N)
 # for i = 1:N
