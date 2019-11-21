@@ -43,10 +43,16 @@ has_argument_grads(::TruncatedPoisson) = (false,)
 @gen function sample_wo_repl(A,n)
 	A_immutable = copy(A)
 
+	println("A is ", A)
+	println("n is ", n)
+
     sample = Array{String}(undef,n)
     for i in 1:n
+    	println("i is ", i)
+    	
     	idx = @trace(Gen.uniform_discrete(1, length(A)), (:idx, i))
         sample[i] = splice!(A, idx)
+        println("A is ", A)
     end
     #want to rearrange so that the order of items in the sample matches the order of items that we're sampling from
     sampleIdx = names_to_IDs(sample, A_immutable)
@@ -103,9 +109,11 @@ end
 	end
 
 	#Determining frame of reality R
-	lambda = 4 #must be <= length of possible_objects
+	lambda = 1 #must be <= length of possible_objects
 	low = 1
 	high = length(possible_objects_immutable)
+
+	println("possible_objects_mutable ", possible_objects_mutable)
 
 	numObjects = @trace(trunc_poisson(lambda, low, high), :numObjects)
     R = @trace(sample_wo_repl(possible_objects_mutable,numObjects), :R) #order gets mixed up
@@ -174,7 +182,7 @@ end
 ##################################################################################################################
 
 #initialize a new trace
-#trace, _ = Gen.generate(gm, (possible_objects, n_frames), obs)
+#trace, _ = Gen.generate(gm, (possible_objects, n_frames), observations)
 
 #Inference procedure 1: Importance resampling
 
@@ -201,7 +209,7 @@ num_samples = 100
 #trying Metropolis Hastings
 
 
-#(tr, _) = initialize(gm, (possible_objects, n_frames), observations)
+# trace, _ = Gen.generate(gm, (possible_objects, n_frames), observations)
 
 # # Perform a single block resimulation update of a trace.
 # function block_resimulation_update(tr)
@@ -247,9 +255,9 @@ num_samples = 100
 #trying Hamiltonian MC
 
 
-#(tr, _) = initialize(gm, (possible_objects, n_frames), observations)
+trace, _ = Gen.generate(gm, (possible_objects, n_frames), observations)
 
-# Perform a single block resimulation update of a trace.
+#Perform a single block resimulation update of a trace.
 function block_resimulation_update(tr)
 
     # Block 1: Update the reality
