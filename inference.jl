@@ -67,6 +67,28 @@ has_argument_grads(::TruncatedPoisson) = (false,)
     return ordered_sample
 end
 
+
+#########
+
+function metropolis_hastings2(trace, selection::Selection)
+    args = get_args(trace)
+    argdiffs = map((_) -> NoChange(), args)
+    (new_trace, weight) = regenerate(trace, args, argdiffs, selection)
+    r,v,p = Gen.get_retval(new_trace)
+    println(r)
+    println(weight)
+    if log(rand()) < weight
+        # accept
+        return (new_trace, true)
+    else
+        # reject
+        return (trace, false)
+    end
+end
+
+
+#########
+
 # COCO Class names
 # Index of the class in the list is its ID. For example, to get ID of
 # the teddy bear class, use: class_names.index('teddy bear')
@@ -171,21 +193,34 @@ gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
 # end
 # println("percept is ",percept)
 
-gt_choices = Gen.get_choices(gt_trace)
+#gt_choices = Gen.get_choices(gt_trace)
 #println(gt_choices)
 
 
-#get the percepts
-#obs = Gen.get_submap(gt_choices, :percept
+# #get the percepts
+# #obs = Gen.get_submap(gt_choices, :percept
+# observations = Gen.choicemap()
+# nrows,ncols = size(gt_percept)
+# for i = 1:nrows
+# 	for j = 1:ncols
+# 			observations[(:percept,i,j)] = gt_percept[i,j]
+# 	end
+# end
+
+
+fake_percept = zeros(n_frames,length(possible_objects))
+#all person now
+fake_percept[:,5] = [0,1,0,1,0,1,0,1,0,1] #airplane is fake
+fake_percept[:,2] = [1,0,1,0,1,0,1,0,1,0] #bicycle is fake
+
+#for now, make the percepts
 observations = Gen.choicemap()
-nrows,ncols = size(gt_percept)
+nrows,ncols = size(fake_percept)
 for i = 1:nrows
 	for j = 1:ncols
-			observations[(:percept,i,j)] = gt_percept[i,j]
+			observations[(:percept,i,j)] = fake_percept[i,j]
 	end
 end
-
-
 
 ##################################################################################################################
 
@@ -213,31 +248,78 @@ end
 
 #################################################################################################################################
 
-#trying Metropolis Hastings
-num_samples = 1000
-amount_of_computation_per_resample = 1 #????
+# #trying Metropolis Hastings
+# num_samples = 100
+# amount_of_computation_per_resample = 10 #????
 
-trace,_ = Gen.generate(gm, (possible_objects, n_frames), observations)
+# trace,_ = Gen.generate(gm, (possible_objects, n_frames), observations)
+
+# # Perform a single block resimulation update of a trace.
+# function block_resimulation_update(tr)
+
+#     # Block 1: Update the reality
+#     reality = select(:R)
+#     (tr, _) = mh(tr, reality)
+    
+#     # Block 2: Update the visual system
+#     (possible_objects, n_frames) = get_args(tr)
+#     n = length(possible_objects)
+#     for i = 1:n
+#     	row_V = select((:(fa,i)),(:(m,i)))
+#     	(tr, _) = mh(tr, row_V)
+#     end
+#     tr
+# end;
+
+# function block_resimulation_inference((possible_objects, n_frames), observations)
+#     (tr, _) = generate(gm, (possible_objects, n_frames), observations)
+#     for iter=1:amount_of_computation_per_resample
+#         tr = block_resimulation_update(tr)
+#     end
+#     tr
+# end;
+
+
+# traces = []
+# for i=1:num_samples
+#     tr = block_resimulation_inference((possible_objects, n_frames), observations)
+#     push!(traces,tr)
+# end
+
+#######################################################################################################################
+
+#Metropolis Hastings all in one block
+
+################
+#Helper functions
 
 # Perform a single block resimulation update of a trace.
-function block_resimulation_update(tr)
-
-    # Block 1: Update the reality
-    reality = select(:R)
-    (tr, _) = mh(tr, reality)
+function block_resimulation_update(trace)
     
-    # Block 2: Update the visual system
-    (possible_objects, n_frames) = get_args(tr)
+    (possible_objects, n_frames) = get_args(trace)
     n = length(possible_objects)
+
+    #selection will keep track of things to select
+    selection = select()
+
+    #adding visual system parameters to args
     for i = 1:n
-    	row_V = select((:(fa,i)),(:(m,i)))
-    	(tr, _) = mh(tr, row_V)
-        #(tr, _) = mh(tr, select(:(fa,i)))
-        #(tr, _) = mh(tr, select(:(m,i)))
+    	push!(selection, (:(fa,i)))
+        push!(selection,(:(m,i)))
     end
-    
-    # Return the updated trace
-    tr
+
+    #adding reality to selection
+    push!(selection, :R)
+    #adding numObjects to selection so the chain isn't stuck sampling the same numObjects each time
+    push!(selection, :numObjects)
+
+    r,v,p = Gen.get_retval(trace)
+    println("current state is ",r)
+
+
+    (trace, _) = metropolis_hastings2(trace, selection)
+
+    trace
 end;
 
 function block_resimulation_inference((possible_objects, n_frames), observations)
@@ -249,14 +331,36 @@ function block_resimulation_inference((possible_objects, n_frames), observations
 end;
 
 
-traces = []
-for i=1:num_samples
-    tr = block_resimulation_inference((possible_objects, n_frames), observations)
-    push!(traces,tr)
-end
+################
+
+#MH
+
+num_samples = 1
+amount_of_computation_per_resample = 10000 #????
+
+
+# traces = []
+# for i=1:num_samples
+#     tr = block_resimulation_inference((possible_objects, n_frames), observations)
+#     push!(traces,tr)
+# end
 
 
 
+#One chain, look at every step of it
+function every_step(possible_objects, n_frames, observations)
+	traces = []
+	(tr, _) = generate(gm, (possible_objects, n_frames), observations) #starting point
+	push!(traces,tr)
+	for i=1:amount_of_computation_per_resample
+    	tr = block_resimulation_update(tr)
+    	push!(traces,tr)
+	end
+	traces
+end;
+
+
+traces = every_step(possible_objects, n_frames, observations)
 #################################################################################################################################
 
 
@@ -303,11 +407,12 @@ end
 #################################################################################################################################
 
 
-burnin = num_samples/2 #how many samples to ditch
+burnin = 5000 #how many samples to ditch
 
 realities = Array{String}[]
 Vs = Array{Float64}[]
-for i = burnin+1:num_samples
+for i = burnin+1:10000
+#for i = 1:length(traces)
 	reality,V,_ = Gen.get_retval(traces[i])
 	push!(realities,reality)
 	push!(Vs,V)
@@ -358,7 +463,7 @@ unique_realities[idx2]
 #for false alarms
 euclidean(gt_V[1], Vs[idx2][1])
 #for hit rates
-euclidean(gt_V[2], Vs[idx2][2])
+euclidean(gt_V[2], Vs[idx2][2]);
 
 
 
