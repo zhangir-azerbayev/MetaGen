@@ -197,30 +197,30 @@ gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
 #println(gt_choices)
 
 
-# #get the percepts
-# #obs = Gen.get_submap(gt_choices, :percept
-# observations = Gen.choicemap()
-# nrows,ncols = size(gt_percept)
-# for i = 1:nrows
-# 	for j = 1:ncols
-# 			observations[(:percept,i,j)] = gt_percept[i,j]
-# 	end
-# end
-
-
-fake_percept = zeros(n_frames,length(possible_objects))
-#all person now
-fake_percept[:,5] = [0,1,0,1,0,1,0,1,0,1] #airplane is fake
-fake_percept[:,2] = [1,0,1,0,1,0,1,0,1,0] #bicycle is fake
-
-#for now, make the percepts
+#get the percepts
+#obs = Gen.get_submap(gt_choices, :percept
 observations = Gen.choicemap()
-nrows,ncols = size(fake_percept)
+nrows,ncols = size(gt_percept)
 for i = 1:nrows
 	for j = 1:ncols
-			observations[(:percept,i,j)] = fake_percept[i,j]
+			observations[(:percept,i,j)] = gt_percept[i,j]
 	end
 end
+
+
+# fake_percept = zeros(n_frames,length(possible_objects))
+# #all person now
+# fake_percept[:,5] = [0,1,0,1,0,1,0,1,0,1] #airplane is fake
+# fake_percept[:,2] = [1,0,1,0,1,0,1,0,1,0] #bicycle is fake
+
+# #for now, make the percepts
+# observations = Gen.choicemap()
+# nrows,ncols = size(fake_percept)
+# for i = 1:nrows
+# 	for j = 1:ncols
+# 			observations[(:percept,i,j)] = fake_percept[i,j]
+# 	end
+# end
 
 ##################################################################################################################
 
@@ -304,8 +304,8 @@ function block_resimulation_update(trace)
 
     #adding visual system parameters to args
     for i = 1:n
-    	push!(selection, (:(fa,i)))
-        push!(selection,(:(m,i)))
+    	push!(selection, (:fa,i))
+        push!(selection, (:m,i))
     end
 
     #adding reality to selection
@@ -317,7 +317,7 @@ function block_resimulation_update(trace)
     println("current state is ",r)
 
 
-    (trace, _) = metropolis_hastings2(trace, selection)
+    (trace, M) = metropolis_hastings2(trace, selection)
 
     trace
 end;
@@ -407,7 +407,7 @@ traces = every_step(possible_objects, n_frames, observations)
 #################################################################################################################################
 
 
-burnin = 5000 #how many samples to ditch
+burnin = 0 #how many samples to ditch
 
 realities = Array{String}[]
 Vs = Array{Float64}[]
@@ -450,9 +450,9 @@ unique_realities[idx]
 
 #compare mean V of most frequent reality to gt_V
 #for false alarms
-euclidean(gt_V[1], Vs[idx][1])
+euclidean(gt_V[1], avg_Vs_binned[idx][1])
 #for hit rates
-euclidean(gt_V[2], Vs[idx][2])
+euclidean(gt_V[2], avg_Vs_binned[idx][2])
 
 #compare to least frequent reatlity
 #index of most frequent reality
@@ -461,9 +461,9 @@ unique_realities[idx2]
 
 #compare mean V of most frequent reality to gt_V
 #for false alarms
-euclidean(gt_V[1], Vs[idx2][1])
+euclidean(gt_V[1], avg_Vs_binned[idx2][1])
 #for hit rates
-euclidean(gt_V[2], Vs[idx2][2]);
+euclidean(gt_V[2], avg_Vs_binned[idx2][2]);
 
 
 
