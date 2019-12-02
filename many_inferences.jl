@@ -258,8 +258,8 @@ gt = Gen.choicemap()
 #generates the data and the model
 n_frames = 10
 n_percepts = 2
-# gt_trace,_ = Gen.generate(gm, (possible_objects, n_frames, n_percepts))
-# gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
+gt_trace,_ = Gen.generate(gm, (possible_objects, n_frames, n_percepts))
+gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
 
 #println("gt_reality is ",gt_reality)
 #println("gt_percept is ",gt_percept) #could translate back into names
@@ -476,9 +476,8 @@ for i = burnin+1:10000
 	Rs,V,_ = Gen.get_retval(traces[i])
 	push!(Vs,V)
 
-    for p = 1:num_percepts
-        push!(realities,Rs)
-    end
+    push!(realities,Rs)
+
 end
 
 ###################################################################################################################
@@ -501,7 +500,6 @@ freq = Array{Float64}(undef, length(unique_realities))
 
 for j = 1:length(unique_realities)
 	index = findall(isequal(unique_realities[j]),realities)
-    print(index)
 	#freq keeps track of how many there are
 	freq[j] = length(index)
 	push!(avg_Vs_binned, mean(Vs[index]))
