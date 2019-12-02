@@ -55,7 +55,9 @@ has_argument_grads(::TruncatedPoisson) = (false,)
     	
     	idx = @trace(Gen.uniform_discrete(1, length(A_mutable)), (:idx, i))
     	#print("idx is ", idx)
-        sample[i] = splice!(A_mutable, idx)
+        #sample[i] = splice!(A_mutable, idx)
+        sample[i] = A_mutable[idx]
+        deleteat!(A_mutable, idx)
         #println("A_mutable is ", A_mutable)
     end
     #trying to reset A
@@ -83,6 +85,70 @@ function metropolis_hastings2(trace, selection::Selection)
     else
         # reject
         return (trace, false)
+    end
+end
+
+
+#########
+
+function sample_momenta(n::Int)
+    Float64[random(normal, 0, 1) for _=1:n]
+end
+
+function assess_momenta(momenta)
+    logprob = 0.
+    for val in momenta
+        logprob += logpdf(normal, val, 0, 1)
+    end
+    logprob
+end
+
+#########
+
+function hmc2(trace::U, selection::Selection;
+             L=10, eps=0.1) where {T,U}
+    prev_model_score = get_score(trace)
+    args = get_args(trace)
+    retval_grad = accepts_output_grad(get_gen_fn(trace)) ? zero(get_retval(trace)) : nothing
+    argdiffs = map((_) -> NoChange(), args)
+
+    # run leapfrog dynamics
+    new_trace = trace
+    (_, values_trie, gradient_trie) = choice_gradients(new_trace, selection, retval_grad)
+    values = to_array(values_trie, Float64)
+    gradient = to_array(gradient_trie, Float64)
+    momenta = sample_momenta(length(values))
+    prev_momenta_score = assess_momenta(momenta)
+    for step=1:L
+
+        # half step on momenta
+        momenta += (eps / 2) * gradient
+
+        # full step on positions
+        values += eps * momenta
+
+        # get new gradient
+        values_trie = from_array(values_trie, values)
+        (new_trace, _, _) = update(new_trace, args, argdiffs, values_trie)
+        (_, _, gradient_trie) = choice_gradients(new_trace, selection, retval_grad)
+        gradient = to_array(gradient_trie, Float64)
+
+        # half step on momenta
+        momenta += (eps / 2) * gradient
+    end
+
+    # assess new model score (negative potential energy)
+    new_model_score = get_score(new_trace)
+
+    # assess new momenta score (negative kinetic energy)
+    new_momenta_score = assess_momenta(-momenta)
+
+    # accept or reject
+    alpha = new_model_score - prev_model_score + new_momenta_score - prev_momenta_score
+    if log(rand()) < alpha
+        (new_trace, true)
+    else
+        (trace, false)
     end
 end
 
@@ -197,30 +263,30 @@ gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
 #println(gt_choices)
 
 
-#get the percepts
-#obs = Gen.get_submap(gt_choices, :percept
-observations = Gen.choicemap()
-nrows,ncols = size(gt_percept)
-for i = 1:nrows
-	for j = 1:ncols
-			observations[(:percept,i,j)] = gt_percept[i,j]
-	end
-end
-
-
-# fake_percept = zeros(n_frames,length(possible_objects))
-# #all person now
-# fake_percept[:,5] = [0,1,0,1,0,1,0,1,0,1] #airplane is fake
-# fake_percept[:,2] = [1,0,1,0,1,0,1,0,1,0] #bicycle is fake
-
-# #for now, make the percepts
+# #get the percepts
+# #obs = Gen.get_submap(gt_choices, :percept
 # observations = Gen.choicemap()
-# nrows,ncols = size(fake_percept)
+# nrows,ncols = size(gt_percept)
 # for i = 1:nrows
 # 	for j = 1:ncols
-# 			observations[(:percept,i,j)] = fake_percept[i,j]
+# 			observations[(:percept,i,j)] = gt_percept[i,j]
 # 	end
 # end
+
+
+fake_percept = zeros(n_frames,length(possible_objects))
+#all person now
+fake_percept[:,5] = [0,1,0,1,0,1,0,1,0,1] #airplane is fake
+fake_percept[:,2] = [1,0,1,0,1,0,1,0,1,0] #bicycle is fake
+
+# #for now, make the percepts
+observations = Gen.choicemap()
+nrows,ncols = size(fake_percept)
+for i = 1:nrows
+	for j = 1:ncols
+			observations[(:percept,i,j)] = fake_percept[i,j]
+	end
+end
 
 ##################################################################################################################
 
@@ -293,8 +359,9 @@ end
 ################
 #Helper functions
 
-# Perform a single block resimulation update of a trace.
-function block_resimulation_update(trace)
+# Perform a single block resimulation update of a trace. method is a string specifying whether this is using the 
+#metropolis_hastings or hamiltonian method
+function block_resimulation_update(trace, method)
     
     (possible_objects, n_frames) = get_args(trace)
     n = length(possible_objects)
@@ -316,8 +383,11 @@ function block_resimulation_update(trace)
     r,v,p = Gen.get_retval(trace)
     println("current state is ",r)
 
-
-    (trace, M) = metropolis_hastings2(trace, selection)
+    if isequal(method,"metropolis_hastings")
+    	(trace, M) = metropolis_hastings2(trace, selection)
+    elseif isequal(method,"hamiltonian")
+    	(trace, _) = hmc2(trace, selection, L=10, eps=0.1)
+    end
 
     trace
 end;
@@ -331,9 +401,12 @@ function block_resimulation_inference((possible_objects, n_frames), observations
 end;
 
 
+#################################################################################################################################
+
+
 ################
 
-#MH
+#Do sampling (works for MH or HMC)
 
 num_samples = 1
 amount_of_computation_per_resample = 10000 #????
@@ -345,7 +418,9 @@ amount_of_computation_per_resample = 10000 #????
 #     push!(traces,tr)
 # end
 
-
+#MH MCMC or HMC
+#metropolis_hastings or hamiltonian
+method = "metropolis_hastings"
 
 #One chain, look at every step of it
 function every_step(possible_objects, n_frames, observations)
@@ -353,7 +428,7 @@ function every_step(possible_objects, n_frames, observations)
 	(tr, _) = generate(gm, (possible_objects, n_frames), observations) #starting point
 	push!(traces,tr)
 	for i=1:amount_of_computation_per_resample
-    	tr = block_resimulation_update(tr)
+    	tr = block_resimulation_update(tr,method)
     	push!(traces,tr)
 	end
 	traces
@@ -361,47 +436,6 @@ end;
 
 
 traces = every_step(possible_objects, n_frames, observations)
-#################################################################################################################################
-
-
-#trying Hamiltonian MC
-
-
-# trace, _ = Gen.generate(gm, (possible_objects, n_frames), observations)
-
-# # #Perform a single block resimulation update of a trace.
-# function block_resimulation_update(tr)
-
-#     # Block 1: Update the reality
-#     reality = select(:R)
-#     (tr, _) = hmc(tr, reality)
-    
-#     # Block 2: Update the visual system
-#     (possible_objects, n_frames) = get_args(tr)
-#     n = length(possible_objects)
-#     for i = 1:n
-#     	row_V = select((:(fa,i)),(:(m,i)))
-#     	(tr, _) = hmc(tr, row_V)
-#     end
-    
-#     # Return the updated trace
-#     tr
-# end;
-
-# function block_resimulation_inference((possible_objects, n_frames), observations)
-#     (tr, _) = generate(gm, (possible_objects, n_frames), observations)
-#     for iter=1:amount_of_computation_per_resample
-#         tr = block_resimulation_update(tr)
-#     end
-#     tr
-# end;
-
-
-# traces = []
-# for i=1:num_samples
-#     tr = block_resimulation_inference((possible_objects, n_frames), observations)
-#     push!(traces,tr)
-# end
 
 
 #################################################################################################################################
