@@ -55,9 +55,9 @@ has_argument_grads(::TruncatedPoisson) = (false,)
     	
     	idx = @trace(Gen.uniform_discrete(1, length(A_mutable)), (:idx, i))
     	#print("idx is ", idx)
-        #sample[i] = splice!(A_mutable, idx)
-        sample[i] = A_mutable[idx]
-        deleteat!(A_mutable, idx)
+        sample[i] = splice!(A_mutable, idx)
+        #sample[i] = A_mutable[idx]
+        #deleteat!(A_mutable, idx)
         #println("A_mutable is ", A_mutable)
     end
     #trying to reset A
@@ -420,7 +420,7 @@ amount_of_computation_per_resample = 10000 #????
 
 #MH MCMC or HMC
 #metropolis_hastings or hamiltonian
-method = "metropolis_hastings"
+method = "hamiltonian"
 
 #One chain, look at every step of it
 function every_step(possible_objects, n_frames, observations)
