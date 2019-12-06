@@ -186,6 +186,25 @@ num_samples = 1000
 
 
 ##############################################################################################
+
+#std controls the standard deviation of the normal perpurbations of the fa and miss rates
+@gen function perturbation_proposal(prev_trace, std::Int)
+    choices = get_choices(prev_trace)
+    (T,) = get_args(prev_trace)
+    #preturb fa and miss rates normally with std 0.1 May have to adjust so I don't get probabilities greater thatn 1 or less than 0
+    for j = 1:length(possible_objects)
+        FA = @trace(normal(choices[(:fa, j)], std), (:fa, j))
+        M = @trace(normal(choices[(:m, j)], std), (:m, j))
+    end
+end
+
+# If I allowed a resample of V, that would defeat the purpose of posterior becoming new prior.
+# Instead, just add some noise.
+function perturbation_move(trace)
+    Gen.metropolis_hastings(trace, perturbation_proposal, (0.1))
+end;
+
+
 function particle_filter(num_particles::Int, fake_percepts, num_samples::Int)
 
 	# construct initial observations
@@ -205,12 +224,13 @@ function particle_filter(num_particles::Int, fake_percepts, num_samples::Int)
 	#num_percepts is 1 because starting off with just one percept
 	state = Gen.initialize_particle_filter(gm, (possible_objects, 1, n_frames), init_obs, num_particles)
 
-	
-
-
-
-
 	for p = 2:n_percepts
+
+		# apply a rejuvenation/perturbation move to each particle. optional
+        for i=1:num_particles
+            state.traces[i], _ = perturbation_move(state.traces[i])
+        end
+
 		do_resample = Gen.maybe_resample!(state, ess_threshold=num_particles/2)
 		println("do_resample ", do_resample)
 
