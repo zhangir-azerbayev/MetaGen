@@ -40,7 +40,15 @@ is_discrete(::TruncatedPoisson) = true
 has_output_grad(::TruncatedPoisson) = false
 has_argument_grads(::TruncatedPoisson) = (false,)
 
+# This just checks types and returns
+function type_check(A::Vector{String}, n::Int)
+    (A, n)
+end
+
 @gen function sample_wo_repl(A,n)
+
+
+
 	#now A itself should never change
 	A_mutable = copy(A)
 	A_immutable = copy(A)
@@ -55,6 +63,11 @@ has_argument_grads(::TruncatedPoisson) = (false,)
     	
     	idx = @trace(Gen.uniform_discrete(1, length(A_mutable)), (:idx, i))
     	#print("idx is ", idx)
+
+
+
+    	A_mutable,idx = type_check(A_mutable,idx)
+
         sample[i] = splice!(A_mutable, idx)
         #sample[i] = A_mutable[idx]
         #deleteat!(A_mutable, idx)
@@ -393,7 +406,7 @@ function block_resimulation_update(trace, method)
 end;
 
 function block_resimulation_inference((possible_objects, n_frames), observations)
-    (tr, _) = generate(gm, (possible_objects, n_frames), observations)
+    (tr, _) = Gen.generate(gm, (possible_objects, n_frames), observations)
     for iter=1:amount_of_computation_per_resample
         tr = block_resimulation_update(tr)
     end
@@ -425,7 +438,7 @@ method = "hamiltonian"
 #One chain, look at every step of it
 function every_step(possible_objects, n_frames, observations)
 	traces = []
-	(tr, _) = generate(gm, (possible_objects, n_frames), observations) #starting point
+	(tr, _) = Gen.generate(gm, (possible_objects, n_frames), observations) #starting point
 	push!(traces,tr)
 	for i=1:amount_of_computation_per_resample
     	tr = block_resimulation_update(tr,method)
