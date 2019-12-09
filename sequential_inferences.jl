@@ -27,6 +27,8 @@ using Distances
 
 #Setting up helper functions
 
+##############################################################################################
+
 struct TruncatedPoisson <: Gen.Distribution{Int} end
 
 const trunc_poisson = TruncatedPoisson()
@@ -49,9 +51,72 @@ end
 
 (::TruncatedPoisson)(lambda, low, high) = random(TruncatedPoisson(), lambda, low, high)
 is_discrete(::TruncatedPoisson) = true
-
 has_output_grad(::TruncatedPoisson) = false
 has_argument_grads(::TruncatedPoisson) = (false,)
+
+
+##############################################################################################
+
+
+#small bug where all of the inputs need to by Float64. Doesn't accept Int64s
+struct TruncatedNormal <: Gen.Distribution{Float64} end
+
+const trunc_normal = TruncatedNormal()
+
+function Gen.logpdf(::TruncatedNormal, x::U, mu::U, std::U, low::U, high::U) where {U <: Real}
+	n = Distributions.Normal(mu, std)
+	tn = Distributions.Truncated(n, low, high)
+	Distributions.logpdf(tn, x)
+end
+
+function Gen.logpdf_grad(::TruncatedNormal, x::U, mu::U, std::U, low::U, high::U)  where {U <: Real}
+	gerror("Not implemented")
+	(nothing, nothing)
+end
+
+function Gen.random(::TruncatedNormal, mu::U, std::U, low::U, high::U)  where {U <: Real}
+	n = Distributions.Normal(mu, std)
+	rand(Distributions.Truncated(n, low, high))
+end
+
+(::TruncatedNormal)(mu, std, low, high) = random(TruncatedNormal(), mu, std, low, high)
+is_discrete(::TruncatedNormal) = false
+has_output_grad(::TruncatedPoisson) = false
+has_argument_grads(::TruncatedPoisson) = (false,)
+
+##############################################################################################
+
+# COCO Class names
+# Index of the class in the list is its ID. For example, to get ID of
+# the teddy bear class, use: class_names.index('teddy bear')
+class_names = ["BG", "person", "bicycle", "car", "motorcycle", "airplane",
+               "bus", "train", "truck", "boat", "traffic light",
+               "fire hydrant", "stop sign", "parking meter", "bench", "bird",
+               "cat", "dog", "horse", "sheep", "cow", "elephant", "bear",
+               "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie",
+               "suitcase", "frisbee", "skis", "snowboard", "sports ball",
+               "kite", "baseball bat", "baseball glove", "skateboard",
+               "surfboard", "tennis racket", "bottle", "wine glass", "cup",
+               "fork", "knife", "spoon", "bowl", "banana", "apple",
+               "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza",
+               "donut", "cake", "chair", "couch", "potted plant", "bed",
+               "dining table", "toilet", "tv", "laptop", "mouse", "remote",
+               "keyboard", "cell phone", "microwave", "oven", "toaster",
+               "sink", "refrigerator", "book", "clock", "vase", "scissors",
+               "teddy bear", "hair drier", "toothbrush"]
+
+#This function converts a list of category names to a list of category IDs. Specific to the COCO
+#categories. Must have access to class_names.
+function names_to_IDs(names::Vector{String}, possible_objects::Vector{String})
+	IDs = Vector{Int}(undef, length(names))
+	for i=1:length(names)
+		#should only be one location of a given object
+		IDs[i] = findfirst(isequal(names[i]),possible_objects)
+	end
+	return IDs
+end
+
+##############################################################################################
 
 @gen function sample_wo_repl(A,n)
 	#now A itself should never change
@@ -193,15 +258,16 @@ num_samples = 1000
     (T,) = get_args(prev_trace)
     #preturb fa and miss rates normally with std 0.1 May have to adjust so I don't get probabilities greater thatn 1 or less than 0
     for j = 1:length(possible_objects)
-        FA = @trace(normal(choices[(:fa, j)], std), (:fa, j))
-        M = @trace(normal(choices[(:m, j)], std), (:m, j))
+    	#new FA rate will be between 0 and 1
+    	FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 1.0), (:fa, j))
+        M = @trace(trunc_normal(choices[(:m, j)], std, 0.0, 1.0), (:m, j))
     end
 end
 
 # If I allowed a resample of V, that would defeat the purpose of posterior becoming new prior.
 # Instead, just add some noise.
 function perturbation_move(trace)
-    Gen.metropolis_hastings(trace, perturbation_proposal, (0.1))
+    Gen.metropolis_hastings(trace, perturbation_proposal, (0.1,))
 end;
 
 
@@ -220,7 +286,6 @@ function particle_filter(num_particles::Int, fake_percepts, num_samples::Int)
 	end
 
 	#initial state
-
 	#num_percepts is 1 because starting off with just one percept
 	state = Gen.initialize_particle_filter(gm, (possible_objects, 1, n_frames), init_obs, num_particles)
 
