@@ -159,9 +159,9 @@ end
 
 	for j = 1:length(possible_objects_immutable)
 		#set false alarm rate
-		V[j,1] = @trace(Gen.beta(1.909091, 36.272727), (:fa, j)) #leads to false alarm rate of 0.01
+		V[j,1] = @trace(Gen.beta(2, 10), (:fa, j)) #leads to false alarm rate of around 0.1
 		#set miss rate
-		V[j,2] = @trace(Gen.beta(1.909091, 36.272727), (:m, j)) #leads to miss rate of 0.05
+		V[j,2] = @trace(Gen.beta(2, 10), (:m, j)) #leads to miss rate of around 0.1
 	end
 
 	#Determining frame of reality R
@@ -221,7 +221,7 @@ end;
 
 possible_objects = ["person", "bicycle", "car","motorcycle", "airplane"]
 n_frames = 10
-n_percepts = 5
+n_percepts = 3
 
 fake_percept1 = zeros(n_frames,length(possible_objects))
 #ambiguous
@@ -234,7 +234,7 @@ fake_percept2[:,5] = [1,0,1,1,1,1,1,0,1,1] #airplane missed twice
 fake_percept2[:,2] = [1,0,0,0,0,0,0,1,0,0] #bicycle false alarmed twice
 
 #learn V first. then try ambiguous case
-fake_percepts = [fake_percept1, fake_percept2, fake_percept2, fake_percept2, fake_percept2]
+fake_percepts = [fake_percept1, fake_percept2, fake_percept2]
 #These are the sequential observations
 
 ####################################################
@@ -244,10 +244,13 @@ fake_percepts = [fake_percept1, fake_percept2, fake_percept2, fake_percept2, fak
 ##############################################################################################
 #Particle Filter
 
-num_particles = 1000
+num_particles = 10000
 
 #num_samples to return
-num_samples = 1000
+num_samples = 10000
+
+#num perturbation moves
+num_moves = 1
 
 
 ##############################################################################################
@@ -289,16 +292,8 @@ function particle_filter(num_particles::Int, fake_percepts, num_samples::Int)
 	#num_percepts is 1 because starting off with just one percept
 	state = Gen.initialize_particle_filter(gm, (possible_objects, 1, n_frames), init_obs, num_particles)
 
+
 	for p = 2:n_percepts
-
-		# apply a rejuvenation/perturbation move to each particle. optional
-        for i=1:num_particles
-            state.traces[i], _ = perturbation_move(state.traces[i])
-        end
-
-		do_resample = Gen.maybe_resample!(state, ess_threshold=num_particles/2)
-		println("do_resample ", do_resample)
-
 
 		#tr = Gen.sample_unweighted_traces(state, num_samples)
 		tr = get_traces(state)
@@ -313,6 +308,16 @@ function particle_filter(num_particles::Int, fake_percepts, num_samples::Int)
 			println("log_weight is ", log_weights[i])
 		end
 
+		# apply rejuvenation/perturbation moves to each particle. optional.
+		for j = 1:num_moves
+        	for i = 1:num_particles
+            	state.traces[i], _ = perturbation_move(state.traces[i])
+        	end
+        end
+
+		do_resample = Gen.maybe_resample!(state, ess_threshold=num_particles/2)
+		println("do_resample ", do_resample)
+
 		obs = Gen.choicemap()
 		for i = 1:nrows
 			for j = 1:ncols
@@ -321,11 +326,13 @@ function particle_filter(num_particles::Int, fake_percepts, num_samples::Int)
 		end
 
 		Gen.particle_filter_step!(state, (possible_objects, p, n_frames), (UnknownChange(),), obs)
+
 	end
 
 	# return a sample of unweighted traces from the weighted collection
 	return Gen.sample_unweighted_traces(state, num_samples)
 end;
+
 
 traces = particle_filter(num_particles, fake_percepts, num_samples);
 
@@ -363,6 +370,9 @@ ft = freqtable(realities)
 
 #want, for each reality, to bin Vs
 unique_realities = unique(realities)
+
+unique_Vs = unique(Vs)
+
 avg_Vs_binned = Array{Float64}[]
 freq = Array{Float64}(undef, length(unique_realities))
 
