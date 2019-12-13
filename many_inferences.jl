@@ -19,7 +19,7 @@ function Gen.logpdf(::TruncatedPoisson, x::Int, lambda::U, low::U, high::U) wher
 end
 
 function Gen.logpdf_grad(::TruncatedPoisson, x::Int, lambda::U, low::U, high::U)  where {U <: Real}
-	gerror("Not implemented")
+	error("Not implemented")
 	(nothing, nothing)
 end
 
@@ -392,12 +392,6 @@ function block_resimulation_update(trace, method)
     #selection will keep track of things to select
     selection = select()
 
-    #adding visual system parameters to selection
-    for i = 1:n
-    	push!(selection, (:fa,i))
-        push!(selection, (:m,i))
-    end
-
     for p = 1:n_percepts
         #adding reality to selection
         push!(selection, (:R, p))
@@ -409,9 +403,33 @@ function block_resimulation_update(trace, method)
     println("current state is ",r)
 
     if isequal(method,"metropolis_hastings")
+        #adding visual system parameters to selection
+        for i = 1:n
+            push!(selection, (:fa,i))
+            push!(selection, (:m,i))
+        end
+
+        #Update everything at once with MH
     	(trace, M) = metropolis_hastings2(trace, selection)
+
     elseif isequal(method,"hamiltonian")
-    	(trace, _) = hmc2(trace, selection, L=10, eps=0.1)
+
+        #Update R with MH
+        (trace, M) = metropolis_hastings2(trace, selection)
+
+
+        #Update Visual system with Hamiltonian
+
+        selectionV = select()
+
+        #select only the visual system
+        for i = 1:n
+            push!(selectionV, (:fa,i))
+            push!(selectionV, (:m,i))
+        end
+
+        #Update V with HMC
+    	(trace, _) = hmc2(trace, selectionV, L=10, eps=0.1)
     end
 
     trace
@@ -445,7 +463,7 @@ amount_of_computation_per_resample = 20000 #????
 
 #MH MCMC or HMC
 #metropolis_hastings or hamiltonian
-method = "metropolis_hastings"
+method = "hamiltonian"
 
 #One chain, look at every step of it
 function every_step(possible_objects, n_percepts, n_frames, observations)
@@ -532,8 +550,6 @@ unique_realities[idx2]
 euclidean(gt_V[1], avg_Vs_binned[idx2][1])
 #for hit rates
 euclidean(gt_V[2], avg_Vs_binned[idx2][2]);
-
-
 
 
 
