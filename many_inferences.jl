@@ -190,10 +190,10 @@ end
 	V = Matrix{Float64}(undef, length(possible_objects_immutable), 2)
 
 	for j = 1:length(possible_objects_immutable)
-		#set false alarm rate
-		V[j,1] = @trace(Gen.beta(1.909091, 36.272727), (:fa, j)) #leads to false alarm rate of 0.01
-		#set miss rate
-		V[j,2] = @trace(Gen.beta(1.909091, 36.272727), (:m, j)) #leads to miss rate of 0.05
+        #set false alarm rate
+        V[j,1] = @trace(Gen.beta(2, 10), (:fa, j)) #leads to false alarm rate of around 0.1
+        #set miss rate
+        V[j,2] = @trace(Gen.beta(2, 10), (:m, j)) #leads to miss rate of around 0.1
 	end
 
 	#Determining frame of reality R
@@ -252,14 +252,14 @@ possible_objects = ["person", "bicycle", "car","motorcycle", "airplane"]
 #Later, possible_objects will equal class_names
 
 # define some observations
-gt = Gen.choicemap()
+#gt = Gen.choicemap()
 
 #initializing the generative model. It will create the ground truth V and R
 #generates the data and the model
 n_frames = 10
-n_percepts = 2
-gt_trace,_ = Gen.generate(gm, (possible_objects, n_frames, n_percepts))
-gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
+n_percepts = 3
+#gt_trace,_ = Gen.generate(gm, (possible_objects, n_frames, n_percepts))
+#gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
 
 #println("gt_reality is ",gt_reality)
 #println("gt_percept is ",gt_percept) #could translate back into names
@@ -292,10 +292,11 @@ fake_percept1[:,5] = [0,1,0,1,0,1,0,1,0,1] #airplane is fake
 fake_percept1[:,2] = [1,0,1,0,1,0,1,0,1,0] #bicycle is fake
 
 fake_percept2 = zeros(n_frames,length(possible_objects))
-#all person now
-fake_percept2[:,1] = [1,1,1,1,1,1,1,1,1,1] #person
+#clearly airplane, just misses sometimes
+fake_percept2[:,5] = [1,0,1,1,1,1,1,0,1,1] #airplane missed twice
+fake_percept2[:,2] = [1,0,0,0,0,0,0,1,0,0] #bicycle false alarmed twice
 
-fake_percepts = [fake_percept1, fake_percept2]
+fake_percepts = [fake_percept1, fake_percept2, fake_percept2]
 
 # #for now, make the percepts
 observations = Gen.choicemap()
@@ -391,7 +392,7 @@ function block_resimulation_update(trace, method)
     #selection will keep track of things to select
     selection = select()
 
-    #adding visual system parameters to args
+    #adding visual system parameters to selection
     for i = 1:n
     	push!(selection, (:fa,i))
         push!(selection, (:m,i))
@@ -433,7 +434,7 @@ end;
 #Do sampling (works for MH or HMC)
 
 num_samples = 1
-amount_of_computation_per_resample = 10000 #????
+amount_of_computation_per_resample = 20000 #????
 
 
 # traces = []
@@ -465,13 +466,13 @@ traces = every_step(possible_objects, n_percepts, n_frames, observations)
 #################################################################################################################################
 
 
-burnin = 0 #how many samples to ditch
+burnin = 10000 #how many samples to ditch
 
 realities = Array{Array{String}}[]
 
 
 Vs = Array{Float64}[]
-for i = burnin+1:10000
+for i = burnin + 1:amount_of_computation_per_resample
 #for i = 1:length(traces)
 	Rs,V,_ = Gen.get_retval(traces[i])
 	push!(Vs,V)
@@ -488,13 +489,16 @@ ft = freqtable(realities)
 
 #compare means of Vs to gt_V
 #for false alarms
-euclidean(gt_V[1], mean(Vs)[1])
+#euclidean(gt_V[1], mean(Vs)[1])
 #for hit rates
-euclidean(gt_V[2], mean(Vs)[2])
+#euclidean(gt_V[2], mean(Vs)[2])
 
 
 #want, for each reality, to bin Vs
 unique_realities = unique(realities)
+
+unique_Vs = unique(Vs)
+
 avg_Vs_binned = Array{Float64}[]
 freq = Array{Float64}(undef, length(unique_realities))
 
@@ -504,6 +508,8 @@ for j = 1:length(unique_realities)
 	freq[j] = length(index)
 	push!(avg_Vs_binned, mean(Vs[index]))
 end
+
+
 
 #find avg_Vs_binned at most common realities and compute euclidean distances
 #index of most frequent reality
