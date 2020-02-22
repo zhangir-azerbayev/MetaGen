@@ -301,11 +301,20 @@ function analyze(realities, Vs, gt_V, gt_R)
 	for p = 1:n_percepts
 		avg_R = zeros(length(possible_objects))
 		for j = 1:how_many_unique
-			count = get(dictionary,string(unique_realities[j]),0)
-			avg_R = avg_R + names_to_boolean(unique_realities[j][p],possible_objects)*count/length(realities)
+			total = get(dictionary,string(unique_realities[j]),0)
+			avg_R = avg_R + names_to_boolean(unique_realities[j][p],possible_objects)*total/length(realities)
 		end
 		push!(avg_Rs, avg_R)
 	end
+
+	# boolean_Rs = []
+	# for p = 1:n_percepts
+	# 	for j = 1:length(realities)
+	# 		boolean_R = names_to_boolean(realities[j][p],possible_objects)
+	# 		push!(boolean_Rs, boolean_R)
+	# 	end
+	# end
+	# sum(boolean_Rs)
 
 	
 	print(file, avg_Rs, " & ")
@@ -316,9 +325,10 @@ function analyze(realities, Vs, gt_V, gt_R)
 	for p = 1:n_percepts
 		gt_R_bool = names_to_boolean(gt_R[p],possible_objects)
 		push!(gt_R_bools, gt_R_bool)
-		distances = euclidean(avg_Rs[p], gt_R_bool)
+		push!(distances, euclidean(avg_Rs[p], gt_R_bool))
 	end
 	print(file, distances, " & ")
+
 
 
 	#compare mean V of most frequent reality to gt_V
@@ -411,11 +421,23 @@ end;
 ###################################################################################################################
 #Particle filter helper functions
 
+function effective_sample_size(log_normalized_weights::Vector{Float64})
+    log_ess = -logsumexp(2. * log_normalized_weights)
+    return exp(log_ess)
+end
+
+function normalize_weights(log_weights::Vector{Float64})
+    log_total_weight = logsumexp(log_weights)
+    log_normalized_weights = log_weights .- log_total_weight
+    return (log_total_weight, log_normalized_weights)
+end
+
+#perturbs V all at once. after more percepts, MH starts to reject the proposals a lot
 #std controls the standard deviation of the normal perpurbations of the fa and miss rates
-@gen function perturbation_proposal(prev_trace, std::Int)
+@gen function perturbation_proposal(prev_trace, std::Float64)
     choices = get_choices(prev_trace)
-    (T,) = get_args(prev_trace)
-    #preturb fa and miss rates normally with std 0.1 May have to adjust so I don't get probabilities greater thatn 1 or less than 0
+    #(T,) = get_args(prev_trace)
+    #perturb fa and miss rates normally with std 0.1 May have to adjust so I don't get probabilities greater thatn 1 or less than 0
     for j = 1:length(possible_objects)
     	#new FA rate will be between 0 and 1
     	FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 1.0), (:fa, j))
@@ -423,10 +445,29 @@ end;
     end
 end
 
+#perturb each entry of V independently
+#j is the index of the possible object whose FA or M will be perturbed
+#FA is a boolean for if it will perturb the FA or M. If true, perturb FA. If false, perturb M.
+#std controls the standard deviation of the normal perpurbations of the fa and miss rates
+@gen function perturbation_proposal_individual(prev_trace, std::Float64, j::Int, FA::Bool)
+    choices = get_choices(prev_trace)
+    if FA
+		#new FA rate will be between 0 and 1
+    	FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 1.0), (:fa, j))
+    else
+    	#new M rate will be between 0 and 1
+        M = @trace(trunc_normal(choices[(:m, j)], std, 0.0, 1.0), (:m, j))
+    end
+end
+
 # If I allowed a resample of V, that would defeat the purpose of posterior becoming new prior.
 # Instead, just add some noise.
 function perturbation_move(trace)
-    Gen.metropolis_hastings(trace, perturbation_proposal, (0.1,))
+	for j = 1:length(possible_objects)
+		trace, _ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,j,true))
+		trace, _ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,j,false))
+	end
+	return trace
 end;
 
 
@@ -453,26 +494,74 @@ function particle_filter(num_particles::Int, gt_percept, num_samples::Int)
 
 	for p = 2:n_percepts
 
+		println("percept ", p-1)
+
 		#tr = Gen.sample_unweighted_traces(state, num_samples)
 		tr = get_traces(state)
 		log_weights = get_log_weights(state)
 		log_ml_estimate = Gen.log_ml_estimate(state)
 		println("log_ml_estimate is ", log_ml_estimate)
+
+    	(log_total_weight, log_normalized_weights) = normalize_weights(state.log_weights)
+    	ess = effective_sample_size(log_normalized_weights)
+    	println("ess at start of loop is ", ess)
+
+
+
+
+		# #how does mean V change?
+		# #initialize something for tracking average V
+		# avg_V = Matrix{Float64}(undef, length(possible_objects), 2)
+		# for i = 1:num_samples
+		# 	#trying to understand what's in state
+		# 	R,V,_ = Gen.get_retval(tr[i])
+		# 	println("initial R is ", R)
+		# 	println("initial V is ", V)
+		# 	println("log_weight is ", log_weights[i])	
+
+		# 	avg_V = avg_V + V/num_samples
+		# end
+		# println("avg_V ", avg_V)
+
+
+		# return a sample of unweighted traces from the weighted collection
+		tr = Gen.sample_unweighted_traces(state, num_samples)
+
+		#initialize something for tracking average V
+		avg_V = zeros(length(possible_objects), 2)
 		for i = 1:num_samples
-			#trying to understand what's in state
 			R,V,_ = Gen.get_retval(tr[i])
-			println("initial R is ", R)
-			println("initial V is ", V)
-			println("log_weight is ", log_weights[i])
+			avg_V = avg_V + V/num_samples
+			println("R is ", R)
+			println("V is ", V)
 		end
+		println("avg_V is ", avg_V)
+		print(file, avg_V, " & ")
+
 
 		# apply rejuvenation/perturbation move to each particle. optional.
         for i = 1:num_particles
-            state.traces[i], _ = perturbation_move(state.traces[i])
+        	R,V,_ = Gen.get_retval(state.traces[i])
+        	println("V before perturbation ", V)
+
+            state.traces[i] = perturbation_move(state.traces[i])
+
+            R,V,_ = Gen.get_retval(state.traces[i])
+            #println("R after perturbation is ", R)
+			println("V after perturbation ", V)
+			#println("log_weight after perturbation is ", log_weights[i])
         end
 
-		do_resample = Gen.maybe_resample!(state, ess_threshold=num_particles/2)
-		println("do_resample ", do_resample)
+        (log_total_weight, log_normalized_weights) = normalize_weights(state.log_weights)
+    	ess = effective_sample_size(log_normalized_weights)
+        println("ess after perturbation is ", ess)
+
+		do_resample = Gen.maybe_resample!(state, ess_threshold=num_particles/2, verbose=true)
+
+
+        (log_total_weight, log_normalized_weights) = normalize_weights(state.log_weights)
+    	ess = effective_sample_size(log_normalized_weights)
+        println("ess after resample is ", ess)
 
 		obs = Gen.choicemap()
 		for i = 1:nrows
@@ -483,16 +572,34 @@ function particle_filter(num_particles::Int, gt_percept, num_samples::Int)
 
 		Gen.particle_filter_step!(state, (possible_objects, p, n_frames), (UnknownChange(),), obs)
 
+		(log_total_weight, log_normalized_weights) = normalize_weights(state.log_weights)
+    	ess = effective_sample_size(log_normalized_weights)
+        println("ess after particle filter step is ", ess)
+
 	end
 	# return a sample of unweighted traces from the weighted collection
-	return Gen.sample_unweighted_traces(state, num_samples)
+	tr = Gen.sample_unweighted_traces(state, num_samples)
+
+	println("percept ", n_percepts)
+
+	#initialize something for tracking average V
+	avg_V = zeros(length(possible_objects), 2)
+	for i = 1:num_samples
+		R,V,_ = Gen.get_retval(tr[i])
+		avg_V = avg_V + V/num_samples
+		println("R is ", R)
+		println("V is ", V)
+	end
+	print(file, avg_V, " & ")
+
+	return tr
 end;
 
 ###################################################################################################################
 
 #creating output file
 #outfile = string("output", ARGS[1], ".csv")
-outfile = string("output1.csv")
+outfile = string("output111.csv")
 file = open(outfile, "w")
 
 #Defining observations / constraints
@@ -500,34 +607,40 @@ possible_objects = ["person","bicycle","car","motorcycle","airplane"]
 J = length(possible_objects)
 
 #each V sill have n_percepts, that many movies
-n_percepts = 2 #particle filter is set up such that it needs at least 2 percepts
+n_percepts = 100 #particle filter is set up such that it needs at least 2 percepts
 n_frames = 10
 
 
 #file header
 print(file, "gt_V & gt_R & ")
 for p=1:n_percepts
-	print(file, "p", p, " & ")
+	print(file, "percept", p, " & ")
 end
-println(file, "Avg Euclidean distance FA between expectation and gt_V & Avg Euclidean distance M between expectation and ground truth V & time elapsed MH & amount_of_computation_per_resample & burnin & frequency table MH & unique_realities MH & mode realities MH & avg_Vs_binned for unique_realities MH & avg_Rs MH & Euclidean distance between avg_Rs and gt_R MH & Euclidean distance FA MH & Euclidean distance M MH & time elapsed PF & num_particles & num_samples & num_moves & frequency table PF & unique_realities PF & mode realities PF & avg_Vs_binned for unique_realities PF & avg_Rs PF & Euclidean distance between avg_Rs and gt_R PF & Euclidean distance FA PF & Euclidean distance M")
+print(file, "Avg Euclidean distance FA between expectation and gt_V & Avg Euclidean distance M between expectation and gt_V & time elapsed MH & amount_of_computation_per_resample & burnin & frequency table MH & unique_realities MH & mode realities MH & avg_Vs_binned for unique_realities MH & avg_Rs MH & Euclidean distance between avg_Rs and gt_R MH & Euclidean distance FA MH & Euclidean distance M MH & ")
+for p=1:n_percepts
+	print(file, "avg V after p", p, " & ")
+end
+println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequency table PF & unique_realities PF & mode realities PF & avg_Vs_binned for unique_realities PF & avg_Rs PF & Euclidean distance between avg_Rs and gt_R PF & Euclidean distance FA PF & Euclidean distance M PF &")
 
 
 #initializing the generative model. It will create the ground truth V and R
 #generates the data and the model
 gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames))
-gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)	
+gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
+
+
+gt_R_bool = names_to_boolean
 print(file, gt_V, " & ")
-print(file, "\"", gt_reality, "\" & ")
+print(file, gt_reality, " & ")
 
 #Translating gt_percept back into names
 for p = 1:n_percepts
-	print(file, "\"")
 	for f = 1:n_frames
 		percept = []
 		percept = possible_objects[gt_percept[p][f,:]]
 		print(file,  percept)
 	end
-	print(file, "\" & ")
+	print(file, " & ")
 end
 
 
@@ -554,7 +667,7 @@ print(file, euclidean(gt_V[1], meanVs[1]), " & ")
 print(file, euclidean(gt_V[2], meanVs[2]), " & ")
 
 
-#############################################
+# #############################################
 #Perform MH
 
 #num_samples = 1
@@ -580,7 +693,7 @@ end
 analyze(realities, Vs, gt_V, gt_reality)
 print(file, " & ")
 
-##############################################
+# ##############################################
 
 #Perform particle filter
 

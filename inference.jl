@@ -41,7 +41,11 @@ has_output_grad(::TruncatedPoisson) = false
 has_argument_grads(::TruncatedPoisson) = (false,)
 
 # This just checks types and returns
-function type_check(A::Vector{String}, n::Int)
+function type_check(A::Vector{String}, 
+	n::Union{Int, Gen.ReverseDiff.TrackedReal})
+	println("Passed type check!")
+	n = Gen.ReverseDiff.value(n)
+	println("Var", n)
     (A, n)
 end
 
@@ -433,7 +437,8 @@ amount_of_computation_per_resample = 10000 #????
 
 #MH MCMC or HMC
 #metropolis_hastings or hamiltonian
-method = "hamiltonian"
+method = "metropolis_hastings"
+#HMC won't work on updating realities. would have to do blocks where realities are updated by metropolis_hastings.
 
 #One chain, look at every step of it
 function every_step(possible_objects, n_frames, observations)

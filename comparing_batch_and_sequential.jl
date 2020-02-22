@@ -1,4 +1,4 @@
-#The file is for making inference of multiple percepts with one visual system.
+#The file is for making inference of multiple percepts with one visual system. Must be run with an agrument for naming the output.txt file.
 
 using Gen
 using Distributions
@@ -152,56 +152,8 @@ end
 
 ###################################################################################################################
 
-#Analysis function needs the realities and Vs resulting from a sampling procedure and gt_V
-function analyze(realities, Vs, gt_V)
-
-	#want to make a frequency table of the realities sampled
-	ft = freqtable(realities)
-	println(file, "frequency table is \n ", ft)
-
-
-	#compare means of Vs to gt_V
-	#for false alarms
-	##euclidean(gt_V[1], mean(Vs)[1])
-	#for hit rates
-	##euclidean(gt_V[2], mean(Vs)[2])
-
-
-	#want, for each reality, to bin Vs
-	unique_realities = unique(realities)
-
-	unique_Vs = unique(Vs)
-
-	avg_Vs_binned = Array{Float64}[]
-	freq = Array{Float64}(undef, length(unique_realities))
-
-	for j = 1:length(unique_realities)
-		index = findall(isequal(unique_realities[j]),realities)
-		#freq keeps track of how many there are
-		freq[j] = length(index)
-		push!(avg_Vs_binned, mean(Vs[index]))
-	end
-
-
-	#find avg_Vs_binned at most common realities and compute euclidean distances
-	#index of most frequent reality
-	idx = findfirst(isequal(maximum(freq)),freq)
-	unique_realities[idx]
-	println(file, "\n unique_realities ", unique_realities)
-	println(file, "avg_Vs_binned for unique_realities ", avg_Vs_binned)
-
-
-	#compare mean V of most frequent reality to gt_V
-	#for false alarms
-	dist_FA = euclidean(gt_V[1], avg_Vs_binned[idx][1])
-	println(file, "Euclidean distance FA ", dist_FA)
-	#for miss rates
-	dist_M = euclidean(gt_V[2], avg_Vs_binned[idx][2])
-	println(file, "Euclidean distance M ", dist_M)
-
-end;
-
-###################################################################################################################
+alpha = 2
+beta = 10
 
 #Define generative model gm. gm takes as input the possible objects, the number of percepts to produce, and the number of frames
 #per percepts.
@@ -215,9 +167,9 @@ end;
 
 	for j = 1:length(possible_objects_immutable)
         #set false alarm rate
-        V[j,1] = @trace(Gen.beta(2, 10), (:fa, j)) #leads to false alarm rate of around 0.1
+        V[j,1] = @trace(Gen.beta(alpha, beta), (:fa, j)) #leads to false alarm rate of around 0.1
         #set miss rate
-        V[j,2] = @trace(Gen.beta(2, 10), (:m, j)) #leads to miss rate of around 0.1
+        V[j,2] = @trace(Gen.beta(alpha, beta), (:m, j)) #leads to miss rate of around 0.1
 	end
 
 	#Determining frame of reality R
@@ -266,6 +218,76 @@ end;
 
 
 	return (Rs,V,percepts); #returning reality R, (optional)
+end;
+
+###################################################################################################################
+
+#Analysis function needs the realities and Vs resulting from a sampling procedure and gt_V
+function analyze(realities, Vs, gt_V)
+
+	#want to make a frequency table of the realities sampled
+	ft = freqtable(realities)
+	println(file, "frequency table is \n ", ft)
+
+
+	#compare means of Vs to gt_V
+	#for false alarms
+	##euclidean(gt_V[1], mean(Vs)[1])
+	#for hit rates
+	##euclidean(gt_V[2], mean(Vs)[2])
+
+
+	#want, for each reality, to bin Vs
+	unique_realities = unique(realities)
+
+	unique_Vs = unique(Vs)
+
+	avg_Vs_binned = Array{Float64}[]
+	freq = Array{Float64}(undef, length(unique_realities))
+
+	for j = 1:length(unique_realities)
+		index = findall(isequal(unique_realities[j]),realities)
+		#freq keeps track of how many there are
+		freq[j] = length(index)
+		push!(avg_Vs_binned, mean(Vs[index]))
+	end
+
+
+	#find avg_Vs_binned at most common realities and compute euclidean distances
+	#index of most frequent reality
+	idx = findfirst(isequal(maximum(freq)),freq)
+	unique_realities[idx]
+	println(file, "\n unique_realities ", unique_realities)
+	println(file, "avg_Vs_binned for unique_realities ", avg_Vs_binned)
+
+
+	#compare mean V of most frequent reality to gt_V
+	#for false alarms
+	dist_FA = euclidean(gt_V[1], avg_Vs_binned[idx][1])
+	println(file, "Euclidean distance FA ", dist_FA)
+	#for miss rates
+	dist_M = euclidean(gt_V[2], avg_Vs_binned[idx][2])
+	println(file, "Euclidean distance M ", dist_M)
+
+	
+	# #compare randomly generated V to groudtruth Vs
+	# num_Rand_Vs = 10
+	# (nrow,_) = size(gt_V)
+	# avg_dist_FA = 0
+	# avg_dist_M = 0
+	# b = Distributions.Beta(2,10)
+	# for idx=1:num_Rand_Vs
+	# 	randVs = Matrix{Float64}(undef, nrow, 2)
+	# 	for i = 1:nrow
+ #    	    #set false alarm rate
+ #    	    randVs[i,1] = rand(b,1) #leads to false alarm rate of around 0.1
+ #    	    #set miss rate
+ #    	    randVs[i,2] = rand(b,1) #leads to miss rate of around 0.1
+	# 	end
+	# 	avg_dist_FA = avg_dist_FA + (euclidean(gt_V[1], randVs[idx][1])/num_Rand_Vs)
+	# 	avg_dist_M = avg_dist_M + (euclidean(gt_V[2], randVs[idx][2])/num_Rand_Vs)
+	# end
+
 end;
 
 
@@ -417,97 +439,105 @@ file = open(outfile, "w")
 possible_objects = ["person", "bicycle", "car","motorcycle", "airplane"]
 J = length(possible_objects)
 
-num_Vs_to_test = 1
-
 #each V sill have n_percepts, that many movies
 n_percepts = 2 #particle filter is set up such that it needs at least 2 percepts
 n_frames = 10
 
-for v=1:num_Vs_to_test
 
-	#initializing the generative model. It will create the ground truth V and R
-	#generates the data and the model
-	gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames))
-	gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)	
-	println(file, "\n \n \n ground truth V is \n ",gt_V)
-	println(file, "ground truth reality is ",gt_reality)
+#initializing the generative model. It will create the ground truth V and R
+#generates the data and the model
+gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames))
+gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)	
+println(file, "\n \n \n ground truth V is \n ",gt_V)
+println(file, "ground truth reality is ",gt_reality)
 
-	#Translating gt_percept back into names
-	for p = 1:n_percepts
-		println(file, "p ",p)
-		for f = 1:n_frames
-			percept = []
-			percept = possible_objects[gt_percept[p][f,:]]
-			println(file, "percept is ",percept)
-		end
+#Translating gt_percept back into names
+for p = 1:n_percepts
+	println(file, "p ",p)
+	for f = 1:n_frames
+		percept = []
+		percept = possible_objects[gt_percept[p][f,:]]
+		println(file, "percept is ",percept)
 	end
-
-
-	#get the percepts
-	#obs = Gen.get_submap(gt_choices, :percept
-	observations = Gen.choicemap()
-	for p = 1:n_percepts
-		for i = 1:n_frames
-			for j = 1:J
-					observations[(:percept,p,i,j)] = gt_percept[p][i,j]
-			end
-		end
-	end
-
-
-	#############################################
-	#Perform MH
-	println(file, "\n MH \n ")
-
-	#num_samples = 1
-	amount_of_computation_per_resample = 200 #????
-
-	(traces, time_MH) = @timed every_step(possible_objects, n_percepts, n_frames, observations, amount_of_computation_per_resample)
-	println(file, "time elapsed MH \n ", time_MH)
-
-	burnin = 100 #how many samples to ditch
-
-	realities = Array{Array{String}}[]
-	Vs = Array{Float64}[]
-	for i = burnin + 1:amount_of_computation_per_resample
-		Rs,V,_ = Gen.get_retval(traces[i])
-		push!(Vs,V)
-	    push!(realities,Rs)
-	end
-
-
-	analyze(realities, Vs, gt_V)
-
-	##############################################
-
-	#Perform particle filter
-	println(file, "\n Particle filter \n ")
-
-	num_particles = 100
-
-	#num_samples to return
-	num_samples = 100
-
-	#num perturbation moves
-	num_moves = 1
-
-	#(traces,time_particle) = @timed particle_filter(num_particles, gt_percept, num_samples);
-	#println(file, "time elaped \n ", time_particle)
-	(traces, time_PF) = @timed particle_filter(num_particles, gt_percept, num_samples);
-	println(file, "time elapsed particle filter \n ", time_PF)
-
-	#extract results
-	realities = Array{Array{String}}[]
-
-	Vs = Array{Float64}[]
-	for i = 1:num_samples
-		Rs,V,_ = Gen.get_retval(traces[i])
-		push!(Vs,V)
-		push!(realities,Rs)
-	end
-
-	analyze(realities, Vs, gt_V)
-	#############################################
 end
+
+
+#get the percepts
+#obs = Gen.get_submap(gt_choices, :percept
+observations = Gen.choicemap()
+for p = 1:n_percepts
+	for i = 1:n_frames
+		for j = 1:J
+				observations[(:percept,p,i,j)] = gt_percept[p][i,j]
+		end
+	end
+end
+
+
+#distance between mean of the beta distribution and the ground truth Vs. Measurement of how unusual the V is.
+
+(nrow,_) = size(gt_V)
+b = Distributions.Beta(alpha,beta)
+meanVs = ones(nrow,2) * mean(b)
+
+
+println(file, "Avg Euclidean distance FA between expectation and ground truth V ", euclidean(gt_V[1], meanVs[1]))
+println(file, "Avg Euclidean distance M between expectation and ground truth V ", euclidean(gt_V[2], meanVs[2]))
+
+
+#############################################
+#Perform MH
+println(file, "\n MH \n ")
+
+#num_samples = 1
+amount_of_computation_per_resample = 200 #????
+
+(traces, time_MH) = @timed every_step(possible_objects, n_percepts, n_frames, observations, amount_of_computation_per_resample)
+println(file, "time elapsed MH \n ", time_MH)
+
+burnin = 100 #how many samples to ditch
+
+realities = Array{Array{String}}[]
+Vs = Array{Float64}[]
+for i = burnin + 1:amount_of_computation_per_resample
+	Rs,V,_ = Gen.get_retval(traces[i])
+	push!(Vs,V)
+    push!(realities,Rs)
+end
+
+
+analyze(realities, Vs, gt_V)
+
+##############################################
+
+#Perform particle filter
+println(file, "\n Particle filter \n ")
+
+num_particles = 100
+
+#num_samples to return
+num_samples = 100
+
+#num perturbation moves
+num_moves = 1
+
+#(traces,time_particle) = @timed particle_filter(num_particles, gt_percept, num_samples);
+#println(file, "time elaped \n ", time_particle)
+(traces, time_PF) = @timed particle_filter(num_particles, gt_percept, num_samples);
+println(file, "time elapsed particle filter \n ", time_PF)
+
+#extract results
+realities = Array{Array{String}}[]
+
+Vs = Array{Float64}[]
+for i = 1:num_samples
+	Rs,V,_ = Gen.get_retval(traces[i])
+	push!(Vs,V)
+	push!(realities,Rs)
+end
+
+analyze(realities, Vs, gt_V)
+#############################################
+
 
 close(file)
