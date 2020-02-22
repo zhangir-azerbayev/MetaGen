@@ -6,6 +6,7 @@ using Distributions
 using FreqTables
 using Distances
 using TimerOutputs
+using Random
 
 ##############################################################################################
 #Setting up helper functions
@@ -355,18 +356,19 @@ function normalize_weights(log_weights::Vector{Float64})
     return (log_total_weight, log_normalized_weights)
 end
 
-#perturbs V all at once. after more percepts, MH starts to reject the proposals a lot
-#std controls the standard deviation of the normal perpurbations of the fa and miss rates
-@gen function perturbation_proposal(prev_trace, std::Float64)
-    choices = get_choices(prev_trace)
-    #(T,) = get_args(prev_trace)
-    #perturb fa and miss rates normally with std 0.1 May have to adjust so I don't get probabilities greater thatn 1 or less than 0
-    for j = 1:length(possible_objects)
-    	#new FA rate will be between 0 and 1
-    	FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 1.0), (:fa, j))
-        M = @trace(trunc_normal(choices[(:m, j)], std, 0.0, 1.0), (:m, j))
-    end
-end
+# #perturbs V all at once. after more percepts, MH starts to reject the proposals a lot
+# #std controls the standard deviation of the normal perpurbations of the fa and miss rates
+# @gen function perturbation_proposal(prev_trace, std::Float64)
+#     choices = get_choices(prev_trace)
+#     #(T,) = get_args(prev_trace)
+#     #perturb fa and miss rates normally with std 0.1
+
+#     for j = 1:length(possible_objects)
+#     	#new FA rate will be between 0 and 1   	
+#     	FA = @trace(trunc_normal(choices[(:fa, i)], std, 0.0, 1.0), (:fa, i))
+#         M = @trace(trunc_normal(choices[(:m, i)], std, 0.0, 1.0), (:m, i))
+#     end
+# end
 
 #perturb each entry of V independently
 #j is the index of the possible object whose FA or M will be perturbed
@@ -386,9 +388,17 @@ end
 # If I allowed a resample of V, that would defeat the purpose of posterior becoming new prior.
 # Instead, just add some noise.
 function perturbation_move(trace)
-	for j = 1:length(possible_objects)
-		trace, _ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,j,true))
-		trace, _ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,j,false))
+
+	#Choose order of perturbation proposals randomly
+	#mix up the order of the permutations
+	#2 * for FA and M
+    mixed_up = collect(1:2*length(possible_objects))
+    mixed_up = Random.shuffle!(mixed_up)
+    print(mixed_up)
+	for j = 1:length(mixed_up)
+		i = mixed_up[j]
+		index = floor((i+1)/2)
+		trace, _ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,index,isodd(i)))
 	end
 	return trace
 end;
@@ -530,8 +540,8 @@ possible_objects = ["person","bicycle","car","motorcycle","airplane"]
 J = length(possible_objects)
 
 #each V sill have n_percepts, that many movies
-n_percepts = 2 #particle filter is set up such that it needs at least 2 percepts
-n_frames = 1
+n_percepts = 3 #particle filter is set up such that it needs at least 2 percepts
+n_frames = 10
 
 
 #file header
@@ -546,6 +556,8 @@ end
 println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequency table PF & unique_realities PF & mode realities PF & avg_Vs_binned for unique_realities PF & avg_Rs PF & Euclidean distance between avg_Rs and gt_R PF & Euclidean distance FA PF & Euclidean distance M PF &")
 
 
+##For Simulated data
+
 #initializing the generative model. It will create the ground truth V and R
 #generates the data and the model
 gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames))
@@ -556,14 +568,14 @@ gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
 
 ##########################
 
+##The files are output from Detectron2. They contian the COCO coding of the object categories
+
 #list of files to read
-files = ["percept_file.txt", "percept_file.txt"]
+files = ["Bicyclist", "Motorcycle-car", "Toddler-bicycle"]
 
 
 #get the percepts in number form. Each percept/video is a file, each line is a frame
 gt_percepts = []
-
-
 for p = 1:n_percepts
 
 	#open input file
@@ -617,6 +629,8 @@ for p = 1:n_percepts
 	print(file, " & ")
 end
 
+println("percept ", gt_percept)
+
 
 #get the percepts
 #obs = Gen.get_submap(gt_choices, :percept
@@ -624,7 +638,7 @@ observations = Gen.choicemap()
 for p = 1:n_percepts
 	for i = 1:n_frames
 		for j = 1:J
-				observations[(:percept,p,i,j)] = gt_percept[p][i,j]
+			observations[(:percept,p,i,j)] = gt_percept[p][i,j]
 		end
 	end
 end
@@ -644,10 +658,10 @@ print(file, euclidean(gt_V[2], meanVs[2]), " & ")
 
 #Perform particle filter
 
-num_particles = 10 #100
+num_particles = 100 #100
 
 #num_samples to return
-num_samples = 10 #100
+num_samples = 100 #100
 
 #num perturbation moves
 num_moves = 1
