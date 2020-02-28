@@ -199,7 +199,6 @@ end
     #trying to reset A
     #A = copy(A_immutable)
     #want to rearrange so that the order of items in the sample matches the order of items that we're sampling from
-    println("A_immutable ", A_immutable)
     sampleIdx = names_to_IDs(sample, A_immutable)
     sorted = sort(sampleIdx)
     ordered_sample = A_immutable[sorted]
@@ -381,7 +380,7 @@ beta = 10
                     percept_x[f,i] = @trace(Gen.bernoulli(1.0), (:percept_x, p, f, i))
                     percept_y[f,i] = @trace(Gen.bernoulli(1.0), (:percept_y, p, f, i))
 
-                    #add locations for each fragmentations
+                    #add locations for each fragmentation (that didn't really happen)
                     for frag=1:fragmentation_count
                         i = i + 1
                         #add the object to the frame
@@ -430,8 +429,10 @@ beta = 10
             frame_y = percept_y[f, 1:i]
 
     		#println("frame ", frame)
+            println("just before mix up")
     		(frame_mixed, frame_x_mixed, frame_y_mixed) = @trace(mix_up(frame, frame_x, frame_y), ((:frame_mixed, p, f), (:frame_x_mixed, p, f), (:frame_y_mixed, p, f)))
     		#println("frame_mixed ", frame_mixed)
+            println("just after mix up")
 
     		percept[f, 1:i] = frame_mixed
     		percept_x[f, 1:i] = frame_x_mixed
@@ -595,7 +596,7 @@ function block_resimulation_update(trace)
 
     #adding visual system parameters to selection
     for i = 1:n
-    	push!(selection, (:fa,i))
+    	push!(selection, (:hall_lam,i))
         push!(selection, (:m,i))
     end
 
@@ -604,6 +605,13 @@ function block_resimulation_update(trace)
         push!(selection, (:R, p))
         #adding numObjects to selection so the chain isn't stuck sampling the same numObjects each time
         push!(selection, (:numObjects, p))
+        #
+        #(:gt_coordinate_x, p, f, j) where j cycles through numObjects. Will likely cause problems. Might automatically do this
+        #since gt_coordinate_x is downstream of R?
+        # for j = 1:numObjects
+        #     push!(selection, (:gt_coordinate_x, p, f, j))
+        #     push!(selection, (:gt_coordinate_y, p, f, j))
+        # end
     end
 
     r,v,per = Gen.get_retval(trace)
@@ -657,7 +665,7 @@ end
     #perturb fa and miss rates normally with std 0.1 May have to adjust so I don't get probabilities greater thatn 1 or less than 0
     for j = 1:length(possible_objects)
     	#new FA rate will be between 0 and 1
-    	FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 1.0), (:fa, j))
+    	FA = @trace(trunc_normal(choices[(:hall_lam, j)], std, 0.0, 1.0), (:hall_lam, j))
         M = @trace(trunc_normal(choices[(:m, j)], std, 0.0, 1.0), (:m, j))
     end
 end
@@ -670,7 +678,7 @@ end
     choices = get_choices(prev_trace)
     if FA
 		#new FA rate will be between 0 and 1
-    	FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 1.0), (:fa, j))
+    	FA = @trace(trunc_normal(choices[(:hall_lam, j)], std, 0.0, 1.0), (:hall_lam, j))
     else
     	#new M rate will be between 0 and 1
         M = @trace(trunc_normal(choices[(:m, j)], std, 0.0, 1.0), (:m, j))
@@ -737,6 +745,7 @@ function perturbation_move(trace)
 		i = mixed_up[j]
 		index = floor((i+1)/2)
 		println("index ",index)
+        convert(Int, index)
 		trace, _ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,index,isodd(i)))
 	end
 	return trace
