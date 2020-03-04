@@ -1,6 +1,6 @@
 #The file is for making inference of multiple percepts with one visual system. Must be run with an agrument for naming the output.txt file.
-#includes location in the GM. In this GM, each percept (video) will be represented with a matrix padded with NaNs.
-
+#This file is identical to comparing_batch_and_sequential_csv.jl except that it does not do MH.
+#This file accomodates fragmentation.
 
 using Gen
 using Distributions
@@ -72,7 +72,7 @@ has_argument_grads(::TruncatedPoisson) = (false,)
 # COCO Class names
 # Index of the class in the list is its ID. For example, to get ID of
 # the teddy bear class, use: class_names.index('teddy bear')
-class_names = ["BG", "person", "bicycle", "car", "motorcycle", "airplane",
+class_names = ["person", "bicycle", "car", "motorcycle", "airplane",
                "bus", "train", "truck", "boat", "traffic light",
                "fire hydrant", "stop sign", "parking meter", "bench", "bird",
                "cat", "dog", "horse", "sheep", "cow", "elephant", "bear",
@@ -112,37 +112,6 @@ function names_to_boolean(names::Vector{String}, possible_objects::Vector{String
 	return booleans
 end
 
-
-##############################################################################################
-
-#This function should permute the three input vectors in the same way.
-#Each vector must have the same length
-@gen function mix_up(frame,xs,ys)
-	frame_mixed = Vector{String}()
-	xs_mixed = []
-	ys_mixed = []
-
-
-	#add assert statements about length
-
-	n = length(frame)
-
-	indices = collect(1:n)
-	for i in 1:n
-		ind = Gen.uniform_discrete(1, length(indices))
-
-		index = indices[ind]
-
-    	push!(frame_mixed, frame[index])
-    	push!(xs_mixed, xs[index])
-    	push!(ys_mixed, ys[index])
-
-    	deleteat!(indices, ind)
-	end
-    return (frame_mixed, xs_mixed, ys_mixed)
-end
-
-
 ##############################################################################################
 
 @gen function sample_wo_repl(A,n)
@@ -155,7 +124,6 @@ end
 	#println("n is ", n)
 
     sample = Array{String}(undef,n)
-
     for i in 1:n
     	#println("i is ", i)
     	
@@ -207,41 +175,53 @@ end
 
 ##############################################################################################
 
-#for recursively fragmenting
-@gen function fragment(fragmentation_rate,countFrag,i)
-	#countFrag will have the number of times already fragmented
-	#i needs to increase every time fragment is called
-	bern = @trace(Gen.bernoulli(fragmentation_rate),(:bern, i))
-	i = i+1
-	#if fragment,
-	if bern
-		countFrag = countFrag + 1
-		countFrag = countFrag + fragment(fragmentation_rate, countFrag, i)
+#This function builds the percept for a frame. As input, it takes the reality R,the visual system V,
+# fragmentation_lambda, fragmentation_max, hallucination_max, and possible_objects
+#fragmentation_max will be the most fragmentations possible per object. So for a single token object in reality,
+#it can be fragmented at most fragmentation_max times, in addition to being detected once.
+@gen function build_percept(R, V::Matrix{Float64}, fragmentation_lambda::Float64, fragmentation_max::Float64, hallucination_max::Float64, possible_objects)
+	perceived_frame = []
+
+	#misses and fragmentations
+	for r = 1:length(R)
+		reality = R[r]
+		j = names_to_IDs([reality], possible_objects)
+		#miss rate
+		M =  V[j,2][1]
+		#how many times detected?
+
+		#can be 0, 1, ... , fragmentation_max + 1 times
+		probs = Array{Float64}(undef, fragmentation_max+2)
+		#probability of seeing nothing
+		probs[1] = M
+		for i = 2:length(probs)
+			#how many fragmentations there are
+			x = i-2
+			probs[i] = (1-M)*Gen.logpdf(trunc_poisson, x, fragmentation_lambda, 0.0, fragmentation_max)
+		end
+		println("probs ", probs)
+
+		#categorical returns an int between 1 and length(probs). I want to adjust the index a little so a miss is 0
+		detection_count = @trace(Gen.categorical(probs)-1, (:detection_count))
+
+		#add detection_count many of the object reality to the perceived_frame
+		for i = 1:detection_count
+			push!(perceived_frame, reality)
+		end
 	end
-	return countFrag
-end
 
-
-#########
-
-function metropolis_hastings2(trace, selection::Selection)
-    args = get_args(trace)
-    argdiffs = map((_) -> NoChange(), args)
-    (new_trace, weight) = regenerate(trace, args, argdiffs, selection)
-    r,v,p = Gen.get_retval(new_trace)
-    println(r)
-    println(weight)
-    if log(rand()) < weight
-        # accept
-        return (new_trace, true)
-    else
-        # reject
-        return (trace, false)
+	#hallucinations
+	for j = 1:length(possible_objects)
+        possible_object = possible_objects[j]   			
+    	hall_lam =  V[j,1][1]
+    	hallucination_count = @trace(trunc_poisson(hall_lam,0.0,hallucination_max), (:hallucination_count))
+    	for i = 1:hallucination_count
+    		push!(perceived_frame, possible_object)
+    	end
     end
+
+    return perceived_frame
 end
-
-
-#########
 
 
 ###################################################################################################################
@@ -251,16 +231,22 @@ beta = 10
 
 #Define generative model gm. gm takes as input the possible objects, the number of percepts to produce, and the number of frames
 #per percepts.
-#x_size is how many pixels accross the image is
-@gen function gm(possible_objects::Vector{String}, n_percepts::Int, n_frames::Int, x_size::Float64, y_size::Float64)
+@gen function gm(possible_objects::Vector{String}, n_percepts::Int, n_frames::Int)
 
-	#Determining visual system V. FA rate, Miss rate.
-	V = Matrix{Float64}(undef, length(possible_objects), 2)
+	#need to make one possible_objects to change when replaced, another to not change?
+	possible_objects_immutable = copy(possible_objects)
 
-    #just for now, average number of hallucinations per category will be 0.2
-    hallucination_lambda = 0.2
 	#just for now, fragmentation lambda is 3
 	fragmentation_lambda = 3.0 
+	#just for now, average number of hallucinations per category will be 0.2
+    hallucination_lambda = 0.2
+
+    #max fragmentation
+    fragmentation_max = 10.0
+    hallucination_max = 10.0
+
+	#Determining visual system V
+	V = Matrix{Float64}(undef, length(possible_objects_immutable), 2)
 
 	for j = 1:length(possible_objects)
         #set lambda for hallucination
@@ -269,31 +255,20 @@ beta = 10
         V[j,2] = @trace(Gen.beta(alpha, beta), (:m, j)) #leads to miss rate of around 0.1
 	end
 
-	#Determining movie of reality R
-	lambda_objects = 2 #must be <= length of possible_objects
-	low = 0.0  #seems that low is never sampled, so this distribution will go from low+1 to high
-	high = length(possible_objects)
-
-	#move is how much the object should be able to move from frame to frame
-	move = 5.0 #should scale with x_size. How much it can move
+	#Determining frame of reality R
+	lambda = 1 #must be <= length of possible_objects
+	low = 0  #seems that low is never sampled, so this distribution will go from low+1 to high
+	high = length(possible_objects_immutable)
 
 	#generate each percept
 
-    #percepts will contain many percepts. Here, each percept is a video
+    #percepts will contain many percepts. 
     percepts = []
-
-    #will contain list of the coordinates of each object in each video
-    gt_coordinates_x = []
-    gt_coordinates_y = []
-
-    #perceived. Will have to be an array so the length can be variable
-    perceived_coordinates_x = []
-    perceived_coordinates_y = []
 
     #Rs will contain many realities
     Rs = []
 
-    for p = 1:n_percepts  #for each video
+    for p = 1:n_percepts
 
         possible_objects_mutable = copy(possible_objects)
 
@@ -304,151 +279,17 @@ beta = 10
         println("R ", R)
         push!(Rs, R)
 
-        #Each row is a frame and each column is an object
-        #Ground truth
-        gt_coordinate_x = Matrix{Float64}(undef, n_frames, numObjects)
-        gt_coordinate_y = Matrix{Float64}(undef, n_frames, numObjects)
-
-
-    	#Determing the percept based on the visual system V and the reality frame R
-        #A percept is a matrix where each row is the percept for a frame and each column is a potential object.
-        #Keeps track of the objects seen
-        #n_columns will be big
-        n_columns = 1000
-    	percept = Matrix{String}(undef, n_frames, n_columns)
-        percept_x = Matrix{Float64}(undef, n_frames, n_columns)
-        percept_y = Matrix{Float64}(undef, n_frames, n_columns)
-        fill!(percept, "empty")
-        fill!(percept_x, NaN)
-        fill!(percept_y, NaN)
-
+    	percept = []
     	for f = 1:n_frames
-
-    		#first frame, initialize the coordinates
-    		if f == 1
-    			#for each object in reality, initialize it to a random location. 
-    			for j = 1:numObjects
-    				gt_coordinate_x[f,j] = @trace(Gen.uniform(0,x_size), (:gt_coordinate_x, p, f, j))
-    				gt_coordinate_y[f,j] = @trace(Gen.uniform(0,y_size), (:gt_coordinate_y, p, f, j))
-    			end
-    		#later frames. Model of motion goes here
-    		else
-    			for j = 1:numObjects
-    				#normal around previous location. Limits are low and x_size
-    				gt_coordinate_x[f,j] = @trace(trunc_normal(gt_coordinate_x[f,j], move, low, x_size), (:gt_coordinate_x, p, f, j))
-    				gt_coordinate_y[f,j] = @trace(trunc_normal(gt_coordinate_y[f,j], move, low, y_size), (:gt_coordinate_y, p, f, j))
-    			end
-    		end
-
-    		#Then coordinates have to be perceived with some noise
-    		noise = 1.0 #should scale with x_size
-    		i = 0 #keeps track of indexing for coordinates
-    		for r = 1:length(R)
-                reality = R[r]
-    			#get ID
-    			j = names_to_IDs([reality], possible_objects)
-    			#detected with probability according to 1 - its miss rate
-    			M =  V[j,2][1]
-    			#if detected
-    			detected = @trace(Gen.bernoulli(1-M), (:detection, p, f, r))
-
-
-
-                #If it will fragment, how many times?
-                fragmentation_count = @trace(trunc_poisson(fragmentation_lambda,0.0,10.0), (:fragmententation_count, p, f, r))
-
-                i = i + 1
-                if detected
-                    #add the object
-                    percept[f,i] = R[r]
-                    percept_x[f,i] = @trace(trunc_normal(gt_coordinate_x[f,r], noise, low, x_size), (:percept_x, p, f, i))
-                    percept_y[f,i] = @trace(trunc_normal(gt_coordinate_y[f,r], noise, low, y_size), (:percept_y, p, f, i))
-
-                    #add locations for each fragmentations
-                    for frag=1:fragmentation_count
-                        i = i + 1
-                        #add the object to the frame
-                        percept[f,i] = R[r]
-                        percept_x[f,i] = @trace(trunc_normal(gt_coordinate_x[f,r], noise, low, x_size), (:percept_x, p, f, i))
-                        percept_y[f,i] = @trace(trunc_normal(gt_coordinate_y[f,r], noise, low, y_size), (:percept_y, p, f, i))
-                    end
-                else
-                    #Want to do Gen.bernulli(1.0)*NaN but the @trace(Gen.bernulli(1.0)*NaN) doesn't like it
-
-                    #don't add the object
-                    #percept[f,i] = undef #unnecessary. should aready have NaNs or undef
-                    percept_x[f,i] = @trace(Gen.bernoulli(1.0), (:percept_x, p, f, i))
-                    percept_y[f,i] = @trace(Gen.bernoulli(1.0), (:percept_y, p, f, i))
-
-                    #add locations for each fragmentation (that didn't really happen)
-                    for frag=1:fragmentation_count
-                        i = i + 1
-                        #add the object to the frame
-                        #percept[f,i] = undef #unnecessary. should aready have NaNs or undef
-                        percept_x[f,i] = @trace(Gen.bernoulli(1.0), (:percept_x, p, f, i))
-                        percept_y[f,i] = @trace(Gen.bernoulli(1.0), (:percept_y, p, f, i))
-                    end
-                end
-    		end
-
-    		#hallucinations
-    		#for each possible object category, hall_lam
-    		for j = 1:length(possible_objects)
-                possible_object = possible_objects[j]
-    			#j = names_to_IDs([possible_object], possible_objects)
-    			hall_lam =  V[j,1][1]
-    			hallucination_count = @trace(trunc_poisson(hall_lam,0.0,10.0), (:hallucination_count, p, f, j))
-
-    			for hall=1:hallucination_count
-    				i = i + 1
-    				#add the object to the frame
-    				percept[f,i] = possible_object
-    				#random location
-    				percept_x[f,i] = @trace(Gen.uniform(0,x_size), (:percept_x, p, f, i))
-    				percept_y[f,i] = @trace(Gen.uniform(0,y_size), (:percept_y, p, f, i))
-    			end
-    		end
-
-    		#need to mix up the order of everything in the frame so that the order isn't indicative of which observations
-    		#are true and which aren't
-    		#need to mix up frame, obs_coordinate_x, obs_coordinate_x.
-
-            #alternatively, could sort by order in COCO dataset
-
-
-            #println("percept ", percept)
-
-            println("i ", i)
-            #println("percept[f] ", percept[f, :])
-
-
-            #should probably mix everything, not just the first i
-
-            frame = percept[f, 1:i]
-            frame_x = percept_x[f, 1:i]
-            frame_y = percept_y[f, 1:i]
-
-    		#println("frame ", frame)
-            println("just before mix up")
-    		(frame_mixed, frame_x_mixed, frame_y_mixed) = @trace(mix_up(frame, frame_x, frame_y), ((:frame_mixed, p, f), (:frame_x_mixed, p, f), (:frame_y_mixed, p, f)))
-    		#println("frame_mixed ", frame_mixed)
-            println("just after mix up")
-
-    		percept[f, 1:i] = frame_mixed
-    		percept_x[f, 1:i] = frame_x_mixed
-    		percept_y[f, 1:i] = frame_y_mixed
+    		perceived_frame = @trace(build_percept(R, V, fragmentation_lambda, fragmentation_max, hallucination_max, possible_objects), (:perceived_frame, f))
+    		push!(percept, perceived_frame)
     	end
 
         push!(percepts, percept)
-        push!(gt_coordinates_x, gt_coordinate_x)
-        push!(gt_coordinates_y, gt_coordinate_y)
-        push!(perceived_coordinates_x, percept_x)
-        push!(perceived_coordinates_y, percept_y)
+
     end
 
-    println("Rs ", Rs)
-
-	return (Rs,V,percepts, gt_coordinates_x, gt_coordinates_y, perceived_coordinates_x, perceived_coordinates_y); 
+	return (Rs,V,percepts); #returning reality R, (optional)
 end;
 
 ###################################################################################################################
@@ -580,69 +421,6 @@ function analyze(realities, Vs, gt_V, gt_R)
 end;
 
 
-
-##################################################################################################################
-#Helper functions for Metroplis Hastings
-
-# Perform a single block resimulation update of a trace. method is a string specifying whether this is using the 
-#metropolis_hastings
-function block_resimulation_update(trace)
-    
-    (possible_objects, n_percepts, n_frames) = get_args(trace)
-    n = length(possible_objects)
-
-    #selection will keep track of things to select
-    selection = select()
-
-    #adding visual system parameters to selection
-    for i = 1:n
-    	push!(selection, (:hall_lam,i))
-        push!(selection, (:m,i))
-    end
-
-    for p = 1:n_percepts
-        #adding reality to selection
-        push!(selection, (:R, p))
-        #adding numObjects to selection so the chain isn't stuck sampling the same numObjects each time
-        push!(selection, (:numObjects, p))
-        #
-        #(:gt_coordinate_x, p, f, j) where j cycles through numObjects. Will likely cause problems. Might automatically do this
-        #since gt_coordinate_x is downstream of R?
-        # for j = 1:numObjects
-        #     push!(selection, (:gt_coordinate_x, p, f, j))
-        #     push!(selection, (:gt_coordinate_y, p, f, j))
-        # end
-    end
-
-    r,v,per = Gen.get_retval(trace)
-    println("current state is ",r)
-
-    (trace, M) = metropolis_hastings2(trace, selection)
-
-    trace
-end;
-
-function block_resimulation_inference((possible_objects, n_frames), observations)
-    (tr, _) = generate(gm, (possible_objects, n_frames), observations)
-    for iter=1:amount_of_computation_per_resample
-        tr = block_resimulation_update(tr)
-    end
-    tr
-end;
-
-#One chain, look at every step of it
-function every_step(possible_objects, n_percepts, n_frames, observations, amount_of_computation_per_resample)
-	traces = []
-	(tr, _) = generate(gm, (possible_objects, n_percepts, n_frames, x_size, y_size), observations) #starting point
-	push!(traces,tr)
-	for i=1:amount_of_computation_per_resample
-    	tr = block_resimulation_update(tr)
-    	push!(traces,tr)
-	end
-	traces
-end;
-
-
 ###################################################################################################################
 #Particle filter helper functions
 
@@ -657,18 +435,19 @@ function normalize_weights(log_weights::Vector{Float64})
     return (log_total_weight, log_normalized_weights)
 end
 
-#perturbs V all at once. after more percepts, MH starts to reject the proposals a lot
-#std controls the standard deviation of the normal perpurbations of the fa and miss rates
-@gen function perturbation_proposal(prev_trace, std::Float64)
-    choices = get_choices(prev_trace)
-    #(T,) = get_args(prev_trace)
-    #perturb fa and miss rates normally with std 0.1 May have to adjust so I don't get probabilities greater thatn 1 or less than 0
-    for j = 1:length(possible_objects)
-    	#new FA rate will be between 0 and 1
-    	FA = @trace(trunc_normal(choices[(:hall_lam, j)], std, 0.0, 1.0), (:hall_lam, j))
-        M = @trace(trunc_normal(choices[(:m, j)], std, 0.0, 1.0), (:m, j))
-    end
-end
+# #perturbs V all at once. after more percepts, MH starts to reject the proposals a lot
+# #std controls the standard deviation of the normal perpurbations of the fa and miss rates
+# @gen function perturbation_proposal(prev_trace, std::Float64)
+#     choices = get_choices(prev_trace)
+#     #(T,) = get_args(prev_trace)
+#     #perturb fa and miss rates normally with std 0.1
+
+#     for j = 1:length(possible_objects)
+#     	#new FA rate will be between 0 and 1   	
+#     	FA = @trace(trunc_normal(choices[(:fa, i)], std, 0.0, 1.0), (:fa, i))
+#         M = @trace(trunc_normal(choices[(:m, i)], std, 0.0, 1.0), (:m, i))
+#     end
+# end
 
 #perturb each entry of V independently
 #j is the index of the possible object whose FA or M will be perturbed
@@ -678,57 +457,11 @@ end
     choices = get_choices(prev_trace)
     if FA
 		#new FA rate will be between 0 and 1
-    	FA = @trace(trunc_normal(choices[(:hall_lam, j)], std, 0.0, 1.0), (:hall_lam, j))
+    	FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 1.0), (:fa, j))
     else
     	#new M rate will be between 0 and 1
         M = @trace(trunc_normal(choices[(:m, j)], std, 0.0, 1.0), (:m, j))
     end
-
-
-
-    # for reality in R
-    # 			r = r + 1
-    # 			#get ID
-    # 			j = names_to_IDs([reality], possible_objects)
-    # 			#detected with probability according to 1 - its miss rate
-    # 			M =  V[j,2][1]
-    # 			#if detected
-    # 			if @trace(Gen.bernoulli(1-M), (:detection, p, f, r))
-    # 				i = i + 1
-
-    # 				#add the object to the frame
-    # 				push!(frame,reality)
-
-    # 				#perceive location with slight noise
-    # 				println("here")
-    # 				obs_coordinate_x = @trace(trunc_normal(gt_coordinate_x[f,r], noise, low, x_size), (:obs_coordinate_x, p, f, i))
-    # 				obs_coordinate_y = @trace(trunc_normal(gt_coordinate_y[f,r], noise, low, y_size), (:obs_coordinate_y, p, f, i))
-    # 				#Indexing got out of hand here. It goes, p, f, r, frag
-
-    # 				push!(frame_x, obs_coordinate_x)
-    # 				push!(frame_y, obs_coordinate_y)
-
-
-    # 				#how many times does it fragment?
-    # 				#1 for detection plus however many fragmentations happen
-    # 				fragmentation_count = @trace(fragment(fragmentation_rate,0,1), (:fragmententation_count, p, f, r))
-
-    # 				#add locations for each fragmentations
-    # 				for frag=1:fragmentation_count
-    # 					i = i + 1
-
-    # 					#add the object to the frame
-    # 					push!(frame,reality)
-    # 					obs_coordinate_x = @trace(trunc_normal(gt_coordinate_x[f,r], noise, low, x_size), (:obs_coordinate_x, p, f, i))
-    # 					obs_coordinate_y = @trace(trunc_normal(gt_coordinate_y[f,r], noise, low, y_size), (:obs_coordinate_y, p, f, i))
-
-    # 					push!(frame_x, obs_coordinate_x)
-    # 					push!(frame_y, obs_coordinate_y)
-    # 				end
-    # 			end
-    # 		end
-
-
 end
 
 # If I allowed a resample of V, that would defeat the purpose of posterior becoming new prior.
@@ -740,38 +473,35 @@ function perturbation_move(trace)
 	#2 * for FA and M
     mixed_up = collect(1:2*length(possible_objects))
     mixed_up = Random.shuffle!(mixed_up)
-    println("mixed up ", mixed_up)
+    print(mixed_up)
 	for j = 1:length(mixed_up)
 		i = mixed_up[j]
 		index = floor((i+1)/2)
-		println("index ",index)
-        convert(Int, index)
 		trace, _ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,index,isodd(i)))
 	end
 	return trace
 end;
 
 
-
-function particle_filter(num_particles::Int, gt_percept, perceived_coordinates_x, perceived_coordinates_y, num_samples::Int)
+function particle_filter(num_particles::Int, gt_percept, num_samples::Int)
 
 	# construct initial observations
 	init_obs = Gen.choicemap()
+	nrows,ncols = size(gt_percept[1])
 	n_percepts = size(gt_percept)[1]
-	n_frames = size(gt_percept[1])[1]
 
 	println(n_percepts)
 
 	p=1
-	for f = 1:n_frames
-		init_obs[(:frame_mixed, p, f)] = gt_percept[p][f, :]
-		init_obs[(:frame_x_mixed, p, f)] = perceived_coordinates_x[p][f,:]
-		init_obs[(:frame_y_mixed, p, f)] = perceived_coordinates_y[p][f,:]
+	for i = 1:nrows
+		for j = 1:ncols
+			init_obs[(:percept,p,i,j)] = gt_percept[p][i,j]
+		end
 	end
 
 	#initial state
 	#num_percepts is 1 because starting off with just one percept
-	state = Gen.initialize_particle_filter(gm, (possible_objects, 1, n_frames, x_size, y_size), init_obs, num_particles)
+	state = Gen.initialize_particle_filter(gm, (possible_objects, 1, n_frames), init_obs, num_particles)
 
 
 	for p = 2:n_percepts
@@ -846,13 +576,13 @@ function particle_filter(num_particles::Int, gt_percept, perceived_coordinates_x
         println("ess after resample is ", ess)
 
 		obs = Gen.choicemap()
-		for f = 1:n_frames
-			obs[(:frame_mixed, p, f)] = gt_percept[p][f,:]
-			obs[(:frame_x_mixed, p, f)] = perceived_coordinates_x[p][f,:]
-			obs[(:frame_y_mixed, p, f)] = perceived_coordinates_y[p][f,:]
+		for i = 1:nrows
+			for j = 1:ncols
+				obs[(:percept,p,i,j)] = gt_percept[p][i,j]
+			end
 		end
 
-		Gen.particle_filter_step!(state, (possible_objects, p, n_frames, x_size, y_size), (UnknownChange(),), obs)
+		Gen.particle_filter_step!(state, (possible_objects, p, n_frames), (UnknownChange(),), obs)
 
 		(log_total_weight, log_normalized_weights) = normalize_weights(state.log_weights)
     	ess = effective_sample_size(log_normalized_weights)
@@ -886,15 +616,11 @@ file = open(outfile, "w")
 
 #Defining observations / constraints
 possible_objects = ["person","bicycle","car","motorcycle","airplane"]
-#J = length(possible_objects)
+J = length(possible_objects)
 
 #each V sill have n_percepts, that many movies
-n_percepts = 2 #particle filter is set up such that it needs at least 2 percepts
+n_percepts = 3 #particle filter is set up such that it needs at least 2 percepts
 n_frames = 10
-
-#for locations stuff
-x_size = 10.0
-y_size = 10.0
 
 
 #file header
@@ -902,54 +628,100 @@ print(file, "gt_V & gt_R & ")
 for p=1:n_percepts
 	print(file, "percept", p, " & ")
 end
-print(file, "Avg Euclidean distance FA between expectation and gt_V & Avg Euclidean distance M between expectation and gt_V & time elapsed MH & amount_of_computation_per_resample & burnin & frequency table MH & unique_realities MH & mode realities MH & avg_Vs_binned for unique_realities MH & avg_Rs MH & Euclidean distance between avg_Rs and gt_R MH & Euclidean distance FA MH & Euclidean distance M MH & ")
+print(file, "Avg Euclidean distance FA between expectation and gt_V & Avg Euclidean distance M between expectation and gt_V & ")
 for p=1:n_percepts
 	print(file, "avg V after p", p, " & ")
 end
 println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequency table PF & unique_realities PF & mode realities PF & avg_Vs_binned for unique_realities PF & avg_Rs PF & Euclidean distance between avg_Rs and gt_R PF & Euclidean distance FA PF & Euclidean distance M PF &")
 
 
+##For Simulated data
+
 #initializing the generative model. It will create the ground truth V and R
 #generates the data and the model
-gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames, x_size, y_size))
-gt_reality, gt_V, gt_percept, gt_coordinates_x,gt_coordinates_y, perceived_coordinates_x, perceived_coordinates_y = Gen.get_retval(gt_trace)
+gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames))
+gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
 
-println("gt_coordinates_x ", gt_coordinates_x)
-println("gt_coordinates_y ", gt_coordinates_y)
 
-println("perceived_coordinates_x ", gt_coordinates_x)
-println("perceived_coordinates_y ", gt_coordinates_y)
+
+
+##########################
+
+##The files are output from Detectron2. They contian the COCO coding of the object categories
+
+#list of files to read
+files = ["Bicyclist", "Motorcycle-car", "Toddler-bicycle"]
+
+
+#get the percepts in number form. Each percept/video is a file, each line is a frame
+gt_percepts = []
+for p = 1:n_percepts
+
+	#open input file
+    #input_file = open(files[p])
+    #slurp = read(input_file, String)
+
+    open(files[p]) do file2
+	    percept = []
+
+        #each percept should have the number of frames specified in the GM
+        @assert countlines(files[p]) == n_frames
+
+
+        for line in enumerate(eachline(file2))
+
+            #line is a tuple consisting of the line number and the string
+            #changing to just the string
+            line=line[2]
+
+      		start = findfirst("[",line)[1]
+      		finish = findfirst("]",line)[1]
+      		pred = line[start+1:finish-1]
+      		arr = split(pred, ", ")
+      		frame = Array{Int}(undef, length(arr))
+      		for j = 1:length(arr)
+      		    #add 1 to fix indexing discrepancy between python indices for COCO dataset and Julia indexing
+      		    frame[j] = parse(Int,arr[j])+1
+      		end
+      		push!(percept,frame)
+        end
+
+        push!(gt_percepts,percept)
+    end
+end
+
+
+#########################
 
 
 gt_R_bool = names_to_boolean
 print(file, gt_V, " & ")
 print(file, gt_reality, " & ")
 
-#Print the percepts to the file
+#Translating gt_percept back into names
 for p = 1:n_percepts
 	for f = 1:n_frames
-		#percept = []
-        #filter(elem -> isdefined(gt_percept[p][f,:], elem), 1:length(gt_percept[p][f,:]))
-		percept = gt_percept[p][f,:]
+		percept = []
+		percept = possible_objects[gt_percept[p][f,:]]
 		print(file,  percept)
 	end
 	print(file, " & ")
 end
 
+println("percept ", gt_percept)
+
 
 #get the percepts
 #obs = Gen.get_submap(gt_choices, :percept
-#add the coordinates
 observations = Gen.choicemap()
 for p = 1:n_percepts
-	for f = 1:n_frames
-		observations[(:frame_mixed, p, f)] = gt_percept[p][f,:]
-		observations[(:frame_x_mixed, p, f)] = perceived_coordinates_x[p][f,:]
-		observations[(:frame_y_mixed, p, f)] = perceived_coordinates_y[p][f,:]
+	for i = 1:n_frames
+		for j = 1:J
+			observations[(:percept,p,i,j)] = gt_percept[p][i,j]
+		end
 	end
 end
 
-println("made it!!!")
 
 #distance between mean of the beta distribution and the ground truth Vs. Measurement of how unusual the V is.
 
@@ -961,48 +733,21 @@ meanVs = ones(nrow,2) * mean(b)
 print(file, euclidean(gt_V[1], meanVs[1]), " & ")
 print(file, euclidean(gt_V[2], meanVs[2]), " & ")
 
-
-# #############################################
-#Perform MH
-
-#num_samples = 1
-amount_of_computation_per_resample = 200 #????
-
-(traces, time_MH) = @timed every_step(possible_objects, n_percepts, n_frames, observations, amount_of_computation_per_resample)
-print(file, time_MH, " & ")
-
-burnin = 100 #how many samples to ditch
-
-print(file, amount_of_computation_per_resample, " & ")
-print(file, burnin, " & ")
-
-realities = Array{Array{String}}[]
-Vs = Array{Float64}[]
-for i = burnin + 1:amount_of_computation_per_resample
-	Rs,V,_ = Gen.get_retval(traces[i])
-	push!(Vs,V)
-    push!(realities,Rs)
-end
-
-
-analyze(realities, Vs, gt_V, gt_reality)
-print(file, " & ")
-
 # ##############################################
 
 #Perform particle filter
 
-num_particles = 10
+num_particles = 100 #100
 
 #num_samples to return
-num_samples = 10
+num_samples = 100 #100
 
 #num perturbation moves
 num_moves = 1
 
 #(traces,time_particle) = @timed particle_filter(num_particles, gt_percept, num_samples);
 #println(file, "time elaped \n ", time_particle)
-(traces, time_PF) = @timed particle_filter(num_particles, gt_percept, perceived_coordinates_x, perceived_coordinates_y, num_samples);
+(traces, time_PF) = @timed particle_filter(num_particles, gt_percept, num_samples);
 print(file, "time elapsed particle filter  ", time_PF, " & ")
 
 print(file, num_particles, " & ")
