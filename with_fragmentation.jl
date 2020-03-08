@@ -1,5 +1,5 @@
 #The file is for making inference of multiple percepts with one visual system. Must be run with an agrument for naming the output.txt file.
-#This file is identical to comparing_batch_and_sequential_csv.jl except that it does not do MH.
+#This file is identical to particle_filters_only.jl
 #This file accomodates fragmentation.
 
 using Gen
@@ -191,18 +191,22 @@ end
 		#how many times detected?
 
 		#can be 0, 1, ... , fragmentation_max + 1 times
-		probs = Array{Float64}(undef, fragmentation_max+2)
+		n = fragmentation_max+2
+		n = convert(Int64, n)
+		prob = Array{Float64}(undef, n)
 		#probability of seeing nothing
-		probs[1] = M
-		for i = 2:length(probs)
+		prob[1] = M
+		for i = 2:n
 			#how many fragmentations there are
 			x = i-2
-			probs[i] = (1-M)*Gen.logpdf(trunc_poisson, x, fragmentation_lambda, 0.0, fragmentation_max)
+			#TODO might need low to be -1.0
+			prob[i] = exp(Gen.logpdf(trunc_poisson, x, fragmentation_lambda, 0.0, fragmentation_max))
 		end
-		println("probs ", probs)
+		prob[2:n] = (1-M)*prob[2:n]/sum(prob[2:n])
 
 		#categorical returns an int between 1 and length(probs). I want to adjust the index a little so a miss is 0
-		detection_count = @trace(Gen.categorical(probs)-1, (:detection_count))
+		detection_count = @trace(Gen.categorical(prob), (:detection_count, r))
+		detection_count = detection_count-1
 
 		#add detection_count many of the object reality to the perceived_frame
 		for i = 1:detection_count
@@ -214,7 +218,8 @@ end
 	for j = 1:length(possible_objects)
         possible_object = possible_objects[j]   			
     	hall_lam =  V[j,1][1]
-    	hallucination_count = @trace(trunc_poisson(hall_lam,0.0,hallucination_max), (:hallucination_count))
+    	#since it won't sample 0.0 if 0.0 is low, setting low to -1.0
+    	hallucination_count = @trace(trunc_poisson(hall_lam,-1.0,hallucination_max), (:hallucination_count, j))
     	for i = 1:hallucination_count
     		push!(perceived_frame, possible_object)
     	end
@@ -256,7 +261,7 @@ beta = 10
 	end
 
 	#Determining frame of reality R
-	lambda = 1 #must be <= length of possible_objects
+	lambda_objects = 2 #must be <= length of possible_objects
 	low = 0  #seems that low is never sampled, so this distribution will go from low+1 to high
 	high = length(possible_objects_immutable)
 
@@ -281,7 +286,7 @@ beta = 10
 
     	percept = []
     	for f = 1:n_frames
-    		perceived_frame = @trace(build_percept(R, V, fragmentation_lambda, fragmentation_max, hallucination_max, possible_objects), (:perceived_frame, f))
+    		perceived_frame = @trace(build_percept(R, V, fragmentation_lambda, fragmentation_max, hallucination_max, possible_objects), (:perceived_frame, p, f))
     		push!(percept, perceived_frame)
     	end
 
@@ -483,21 +488,21 @@ function perturbation_move(trace)
 end;
 
 
-function particle_filter(num_particles::Int, gt_percept, num_samples::Int)
+function particle_filter(num_particles::Int, gt_percepts, num_samples::Int)
 
 	# construct initial observations
 	init_obs = Gen.choicemap()
-	nrows,ncols = size(gt_percept[1])
 	n_percepts = size(gt_percept)[1]
+	n_frames = size(gt_percepts[1])[1]
 
-	println(n_percepts)
+	println("in particle_filter")
 
 	p=1
-	for i = 1:nrows
-		for j = 1:ncols
-			init_obs[(:percept,p,i,j)] = gt_percept[p][i,j]
-		end
+	for f = 1:n_frames
+		init_obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
 	end
+
+	println("init_obs ", init_obs)
 
 	#initial state
 	#num_percepts is 1 because starting off with just one percept
@@ -576,10 +581,8 @@ function particle_filter(num_particles::Int, gt_percept, num_samples::Int)
         println("ess after resample is ", ess)
 
 		obs = Gen.choicemap()
-		for i = 1:nrows
-			for j = 1:ncols
-				obs[(:percept,p,i,j)] = gt_percept[p][i,j]
-			end
+		for f = 1:n_frames
+			obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
 		end
 
 		Gen.particle_filter_step!(state, (possible_objects, p, n_frames), (UnknownChange(),), obs)
@@ -628,7 +631,6 @@ print(file, "gt_V & gt_R & ")
 for p=1:n_percepts
 	print(file, "percept", p, " & ")
 end
-print(file, "Avg Euclidean distance FA between expectation and gt_V & Avg Euclidean distance M between expectation and gt_V & ")
 for p=1:n_percepts
 	print(file, "avg V after p", p, " & ")
 end
@@ -640,7 +642,7 @@ println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequ
 #initializing the generative model. It will create the ground truth V and R
 #generates the data and the model
 gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames))
-gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
+gt_reality,gt_V,gt_percepts = Gen.get_retval(gt_trace)
 
 
 
@@ -649,46 +651,46 @@ gt_reality,gt_V,gt_percept = Gen.get_retval(gt_trace)
 
 ##The files are output from Detectron2. They contian the COCO coding of the object categories
 
-#list of files to read
-files = ["Bicyclist", "Motorcycle-car", "Toddler-bicycle"]
+# #list of files to read
+# files = ["Bicyclist", "Motorcycle-car", "Toddler-bicycle"]
 
 
-#get the percepts in number form. Each percept/video is a file, each line is a frame
-gt_percepts = []
-for p = 1:n_percepts
+# #get the percepts in number form. Each percept/video is a file, each line is a frame
+# gt_percepts = []
+# for p = 1:n_percepts
 
-	#open input file
-    #input_file = open(files[p])
-    #slurp = read(input_file, String)
+# 	#open input file
+#     #input_file = open(files[p])
+#     #slurp = read(input_file, String)
 
-    open(files[p]) do file2
-	    percept = []
+#     open(files[p]) do file2
+# 	    percept = []
 
-        #each percept should have the number of frames specified in the GM
-        @assert countlines(files[p]) == n_frames
+#         #each percept should have the number of frames specified in the GM
+#         @assert countlines(files[p]) == n_frames
 
 
-        for line in enumerate(eachline(file2))
+#         for line in enumerate(eachline(file2))
 
-            #line is a tuple consisting of the line number and the string
-            #changing to just the string
-            line=line[2]
+#             #line is a tuple consisting of the line number and the string
+#             #changing to just the string
+#             line=line[2]
 
-      		start = findfirst("[",line)[1]
-      		finish = findfirst("]",line)[1]
-      		pred = line[start+1:finish-1]
-      		arr = split(pred, ", ")
-      		frame = Array{Int}(undef, length(arr))
-      		for j = 1:length(arr)
-      		    #add 1 to fix indexing discrepancy between python indices for COCO dataset and Julia indexing
-      		    frame[j] = parse(Int,arr[j])+1
-      		end
-      		push!(percept,frame)
-        end
+#       		start = findfirst("[",line)[1]
+#       		finish = findfirst("]",line)[1]
+#       		pred = line[start+1:finish-1]
+#       		arr = split(pred, ", ")
+#       		frame = Array{Int}(undef, length(arr))
+#       		for j = 1:length(arr)
+#       		    #add 1 to fix indexing discrepancy between python indices for COCO dataset and Julia indexing
+#       		    frame[j] = parse(Int,arr[j])+1
+#       		end
+#       		push!(percept,frame)
+#         end
 
-        push!(gt_percepts,percept)
-    end
-end
+#         push!(gt_percepts,percept)
+#     end
+# end
 
 
 #########################
@@ -698,40 +700,31 @@ gt_R_bool = names_to_boolean
 print(file, gt_V, " & ")
 print(file, gt_reality, " & ")
 
-#Translating gt_percept back into names
+#Translating gt_percepts back into names
+percepts = []
 for p = 1:n_percepts
+	percept = []
 	for f = 1:n_frames
-		percept = []
-		percept = possible_objects[gt_percept[p][f,:]]
-		print(file,  percept)
+		println("gt_percepts[p] ", gt_percepts[p])
+		println("gt_percepts[p][f] ", gt_percepts[p][f])
+		#println("possible_objects[gt_percepts[p][f]] ", possible_objects[gt_percepts[p][f]])
+		perceived_frame = gt_percepts[p][f]
+		print(file,  perceived_frame)
 	end
 	print(file, " & ")
 end
 
-println("percept ", gt_percept)
+println("percept ", gt_percepts)
 
 
 #get the percepts
 #obs = Gen.get_submap(gt_choices, :percept
 observations = Gen.choicemap()
 for p = 1:n_percepts
-	for i = 1:n_frames
-		for j = 1:J
-			observations[(:percept,p,i,j)] = gt_percept[p][i,j]
-		end
+	for f = 1:n_frames
+		observations[(:perceived_frame,p,f)] = gt_percepts[p][f]
 	end
 end
-
-
-#distance between mean of the beta distribution and the ground truth Vs. Measurement of how unusual the V is.
-
-(nrow,_) = size(gt_V)
-b = Distributions.Beta(alpha,beta)
-meanVs = ones(nrow,2) * mean(b)
-
-
-print(file, euclidean(gt_V[1], meanVs[1]), " & ")
-print(file, euclidean(gt_V[2], meanVs[2]), " & ")
 
 # ##############################################
 
@@ -747,7 +740,7 @@ num_moves = 1
 
 #(traces,time_particle) = @timed particle_filter(num_particles, gt_percept, num_samples);
 #println(file, "time elaped \n ", time_particle)
-(traces, time_PF) = @timed particle_filter(num_particles, gt_percept, num_samples);
+(traces, time_PF) = @timed particle_filter(num_particles, gt_percepts, num_samples);
 print(file, "time elapsed particle filter  ", time_PF, " & ")
 
 print(file, num_particles, " & ")
