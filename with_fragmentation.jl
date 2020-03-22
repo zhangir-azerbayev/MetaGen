@@ -1,4 +1,4 @@
-#The file is for making inference of multiple percepts with one visual system. Must be run with an agrument for naming the output.txt file.
+#The file is for making inference of multiple percepts with one visual system. Must be run with an argument for naming the output.txt file.
 #This file is identical to particle_filters_only.jl
 #This file accomodates fragmentation.
 
@@ -99,7 +99,7 @@ function names_to_IDs(names::Vector{String}, possible_objects::Vector{String})
 	return IDs
 end
 
-#This function converts a list of category names to an array of booleans which indicate whether the 
+#This function converts a list of category names to an array of booleans which indicate whether the
 #object was present or not
 function names_to_boolean(names::Vector{String}, possible_objects::Vector{String})
 	booleans = zeros(length(possible_objects))
@@ -126,7 +126,7 @@ end
     sample = Array{String}(undef,n)
     for i in 1:n
     	#println("i is ", i)
-    	
+
     	idx = @trace(Gen.uniform_discrete(1, length(A_mutable)), (:idx, i))
     	#print("idx is ", idx)
         #sample[i] = splice!(A_mutable, idx)
@@ -157,7 +157,7 @@ end
     sample = Array{String}(undef,n)
     for i in 1:n
     	#println("i is ", i)
-    	
+
     	idx = @trace(Gen.uniform_discrete(1, length(A_mutable)), (:idx, i))
     	#print("idx is ", idx)
         #sample[i] = splice!(A_mutable, idx)
@@ -180,52 +180,54 @@ end
 #fragmentation_max will be the most fragmentations possible per object. So for a single token object in reality,
 #it can be fragmented at most fragmentation_max times, in addition to being detected once.
 @gen function build_percept(R, V::Matrix{Float64}, fragmentation_lambda::Float64, fragmentation_max::Float64, hallucination_max::Float64, possible_objects)
+	hard_cap = 20 #hard cap on number of times an object can be perceived
 	perceived_frame = []
 
-	#misses and fragmentations
-	for r = 1:length(R)
-		reality = R[r]
-		j = names_to_IDs([reality], possible_objects)
-		#miss rate
-		M =  V[j,2][1]
-		#how many times detected?
+	for j = 1:length(possible_objects)
+		possible_object = possible_objects[j]
 
-		#can be 0, 1, ... , fragmentation_max + 1 times
-		n = fragmentation_max+2
-		n = convert(Int64, n)
-		prob = Array{Float64}(undef, n)
-		#probability of seeing nothing
-		prob[1] = M
-		for i = 2:n
-			#how many fragmentations there are
-			x = i-2
-			#TODO might need low to be -1.0
-			prob[i] = exp(Gen.logpdf(trunc_poisson, x, fragmentation_lambda, 0.0, fragmentation_max))
-		end
-		prob[2:n] = (1-M)*prob[2:n]/sum(prob[2:n])
+		#hallucinations
+		hall_lam =  V[j,1][1]
+		#since it won't sample 0.0 if 0.0 is low, setting low to -1.0
+		#hallucination_count = @trace(trunc_poisson(hall_lam,-1.0,hallucination_max), (:hallucination_count, j))
+		hallucination_count = @trace(trunc_poisson(hall_lam,-1.0,hallucination_max), (:hallucination_count => j))
 
-		#categorical returns an int between 1 and length(probs). I want to adjust the index a little so a miss is 0
-		detection_count = @trace(Gen.categorical(prob), (:detection_count, r))
-		detection_count = detection_count-1
+		#detections and fragmentations
+		if possible_object in R
+			#miss rate
+			M =  V[j,2][1]
+			#how many times detected?
 
-		#add detection_count many of the object reality to the perceived_frame
-		for i = 1:detection_count
+			#can be 0, 1, ... , fragmentation_max + 1 times
+			n = fragmentation_max+2
+			n = convert(Int64, n)
+			prob = Array{Float64}(undef, n)
+			#probability of seeing nothing
+			prob[1] = M
+			for i = 2:n
+				#how many fragmentations there are
+				x = i-2
+				#TODO might need low to be -1.0
+				prob[i] = exp(Gen.logpdf(trunc_poisson, x, fragmentation_lambda, 0.0, fragmentation_max))
+			end
+			prob[2:n] = (1-M)*prob[2:n]/sum(prob[2:n])
+
+			#categorical returns an int between 1 and length(probs). I want to adjust the index a little so a miss is 0
+			detection_count = @trace(Gen.categorical(prob), :detection_count  => j)
+			detection_count = detection_count-1
+
+			visual_count = @trace(Gen.trunc_poisson(detection_count + hallucination_count, -1.0, hard_cap), (:visual_count => j))
+
+		else #if object isn't in reality, visual_count only depends on hallucination_count
+			visual_count = @trace(Gen.trunc_poisson(hallucination_count, -1.0, hard_cap), (:visual_count => j))
+		end #end if
+
+		for i = 1:visual_count
 			push!(perceived_frame, reality)
 		end
-	end
 
-	#hallucinations
-	for j = 1:length(possible_objects)
-        possible_object = possible_objects[j]   			
-    	hall_lam =  V[j,1][1]
-    	#since it won't sample 0.0 if 0.0 is low, setting low to -1.0
-    	hallucination_count = @trace(trunc_poisson(hall_lam,-1.0,hallucination_max), (:hallucination_count, j))
-    	for i = 1:hallucination_count
-    		push!(perceived_frame, possible_object)
-    	end
-    end
-
-    return perceived_frame
+	end #end for
+	return perceived_frame
 end
 
 
@@ -242,7 +244,7 @@ beta = 10
 	possible_objects_immutable = copy(possible_objects)
 
 	#just for now, fragmentation lambda is 3
-	fragmentation_lambda = 3.0 
+	fragmentation_lambda = 3.0
 	#just for now, average number of hallucinations per category will be 0.2
     hallucination_lambda = 0.2
 
@@ -267,7 +269,7 @@ beta = 10
 
 	#generate each percept
 
-    #percepts will contain many percepts. 
+    #percepts will contain many percepts.
     percepts = []
 
     #Rs will contain many realities
@@ -279,7 +281,7 @@ beta = 10
 
     	numObjects = @trace(Gen.poisson(lambda_objects), (:numObjects, p))
 
-        
+
         R = @trace(sample_with_repl(possible_objects_mutable,numObjects), (:R, p))
         println("R ", R)
         push!(Rs, R)
@@ -380,7 +382,7 @@ function analyze(realities, Vs, gt_V, gt_R)
 	# end
 	# sum(boolean_Rs)
 
-	
+
 	print(file, avg_Rs, " & ")
 
 	#take distance between avg_Rs and gt_R
@@ -404,7 +406,7 @@ function analyze(realities, Vs, gt_V, gt_R)
 	print(file, dist_M)
 	#need to add & after calling analyze the first time
 
-	
+
 	# #compare randomly generated V to groudtruth Vs
 	# num_Rand_Vs = 10
 	# (nrow,_) = size(gt_V)
@@ -448,7 +450,7 @@ end
 #     #perturb fa and miss rates normally with std 0.1
 
 #     for j = 1:length(possible_objects)
-#     	#new FA rate will be between 0 and 1   	
+#     	#new FA rate will be between 0 and 1
 #     	FA = @trace(trunc_normal(choices[(:fa, i)], std, 0.0, 1.0), (:fa, i))
 #         M = @trace(trunc_normal(choices[(:m, i)], std, 0.0, 1.0), (:m, i))
 #     end
@@ -488,18 +490,21 @@ function perturbation_move(trace)
 end;
 
 
-function particle_filter(num_particles::Int, gt_percepts, num_samples::Int)
+function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_samples::Int)
 
-	# construct initial observations
-	init_obs = Gen.choicemap()
-	n_percepts = size(gt_percept)[1]
+	n_percepts = size(gt_percepts)[1]
 	n_frames = size(gt_percepts[1])[1]
 
 	println("in particle_filter")
 
+	# construct initial observations
+	init_obs = Gen.choicemap()
 	p=1
 	for f = 1:n_frames
-		init_obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
+		#init_obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
+		addr = (:perceived_frame,p,f) => :visual_count
+		sm = Gen.get_submap(gt_choices, addr)
+		Gen.set_submap!(init_obs, addr, sm)
 	end
 
 	println("init_obs ", init_obs)
@@ -534,7 +539,7 @@ function particle_filter(num_particles::Int, gt_percepts, num_samples::Int)
 		# 	R,V,_ = Gen.get_retval(tr[i])
 		# 	println("initial R is ", R)
 		# 	println("initial V is ", V)
-		# 	println("log_weight is ", log_weights[i])	
+		# 	println("log_weight is ", log_weights[i])
 
 		# 	avg_V = avg_V + V/num_samples
 		# end
@@ -582,7 +587,10 @@ function particle_filter(num_particles::Int, gt_percepts, num_samples::Int)
 
 		obs = Gen.choicemap()
 		for f = 1:n_frames
-			obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
+			#obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
+			addr = (:perceived_frame,p,f) => :visual_count
+			sm = Gen.get_submap(gt_choices, addr)
+			Gen.set_submap!(obs, addr, sm)
 		end
 
 		Gen.particle_filter_step!(state, (possible_objects, p, n_frames), (UnknownChange(),), obs)
@@ -636,6 +644,7 @@ for p=1:n_percepts
 end
 println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequency table PF & unique_realities PF & mode realities PF & avg_Vs_binned for unique_realities PF & avg_Rs PF & Euclidean distance between avg_Rs and gt_R PF & Euclidean distance FA PF & Euclidean distance M PF &")
 
+##########################
 
 ##For Simulated data
 
@@ -643,6 +652,11 @@ println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequ
 #generates the data and the model
 gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames))
 gt_reality,gt_V,gt_percepts = Gen.get_retval(gt_trace)
+gt_choices = get_choices(gt_trace)
+println(get_choices(gt_trace))
+
+#TODO will have to find a way to generate gt_choices from gt_percepts
+#for when I'm no longer using simulated data
 
 
 
@@ -700,12 +714,12 @@ gt_R_bool = names_to_boolean
 print(file, gt_V, " & ")
 print(file, gt_reality, " & ")
 
-#Translating gt_percepts back into names
+#Saving gt_percepts to file
 percepts = []
 for p = 1:n_percepts
 	percept = []
+	println("gt_percepts[p] ", gt_percepts[p])
 	for f = 1:n_frames
-		println("gt_percepts[p] ", gt_percepts[p])
 		println("gt_percepts[p][f] ", gt_percepts[p][f])
 		#println("possible_objects[gt_percepts[p][f]] ", possible_objects[gt_percepts[p][f]])
 		perceived_frame = gt_percepts[p][f]
@@ -714,15 +728,18 @@ for p = 1:n_percepts
 	print(file, " & ")
 end
 
-println("percept ", gt_percepts)
+println("percepts ", gt_percepts)
 
 
-#get the percepts
-#obs = Gen.get_submap(gt_choices, :percept
+#store the visual counts in the submap to observations
+#not sure this is even used
 observations = Gen.choicemap()
 for p = 1:n_percepts
 	for f = 1:n_frames
-		observations[(:perceived_frame,p,f)] = gt_percepts[p][f]
+		#observations[(:perceived_frame,p,f)] = gt_percepts[p][f]
+		addr = (:perceived_frame,p,f) => :visual_count
+		sm = Gen.get_submap(gt_choices, addr)
+		Gen.set_submap!(observations, addr, sm)
 	end
 end
 
@@ -740,7 +757,7 @@ num_moves = 1
 
 #(traces,time_particle) = @timed particle_filter(num_particles, gt_percept, num_samples);
 #println(file, "time elaped \n ", time_particle)
-(traces, time_PF) = @timed particle_filter(num_particles, gt_percepts, num_samples);
+(traces, time_PF) = @timed particle_filter(num_particles, gt_percepts, gt_choices, num_samples);
 print(file, "time elapsed particle filter  ", time_PF, " & ")
 
 print(file, num_particles, " & ")
