@@ -3,8 +3,8 @@
 #This file accomodates fragmentation.
 
 using Gen
-using Distributions
 using FreqTables
+using Distributions
 using Distances
 using TimerOutputs
 using Random
@@ -180,7 +180,7 @@ end
 #fragmentation_max will be the most fragmentations possible per object. So for a single token object in reality,
 #it can be fragmented at most fragmentation_max times, in addition to being detected once.
 @gen function build_percept(R, V::Matrix{Float64}, fragmentation_lambda::Float64, fragmentation_max::Float64, hallucination_max::Float64, possible_objects)
-	hard_cap = 20 #hard cap on number of times an object can be perceived
+	hard_cap = 20.0 #hard cap on number of times an object can be perceived
 	perceived_frame = []
 
 	for j = 1:length(possible_objects)
@@ -191,6 +191,7 @@ end
 		#since it won't sample 0.0 if 0.0 is low, setting low to -1.0
 		#hallucination_count = @trace(trunc_poisson(hall_lam,-1.0,hallucination_max), (:hallucination_count, j))
 		hallucination_count = @trace(trunc_poisson(hall_lam,-1.0,hallucination_max), (:hallucination_count => j))
+		hallucination_count = convert(Float64, hallucination_count)
 
 		#detections and fragmentations
 		if possible_object in R
@@ -212,18 +213,22 @@ end
 			end
 			prob[2:n] = (1-M)*prob[2:n]/sum(prob[2:n])
 
-			#categorical returns an int between 1 and length(probs). I want to adjust the index a little so a miss is 0
-			detection_count = @trace(Gen.categorical(prob), :detection_count  => j)
-			detection_count = detection_count-1
 
-			visual_count = @trace(Gen.trunc_poisson(detection_count + hallucination_count, -1.0, hard_cap), (:visual_count => j))
+			(M < 0.001) && println("M ", prob[1])
+
+			#categorical returns an int between 1 and length(probs). I want to adjust the index a little so a miss is 0
+			detection_count = @trace(categorical(prob), :detection_count  => j)
+			detection_count = detection_count-1
+			detection_count = convert(Float64, detection_count)
+
+			visual_count = @trace(trunc_poisson(detection_count + hallucination_count, -1.0, hard_cap), (:visual_count => j))
 
 		else #if object isn't in reality, visual_count only depends on hallucination_count
-			visual_count = @trace(Gen.trunc_poisson(hallucination_count, -1.0, hard_cap), (:visual_count => j))
+			visual_count = @trace(trunc_poisson(hallucination_count, -1.0, hard_cap), (:visual_count => j))
 		end #end if
 
 		for i = 1:visual_count
-			push!(perceived_frame, reality)
+			push!(perceived_frame, possible_object)
 		end
 
 	end #end for
@@ -246,7 +251,8 @@ beta = 10
 	#just for now, fragmentation lambda is 3
 	fragmentation_lambda = 3.0
 	#just for now, average number of hallucinations per category will be 0.2
-    hallucination_lambda = 0.2
+    mean_hallucination_lambda = 0.2
+	std_hallucination_lambda = 0.5
 
     #max fragmentation
     fragmentation_max = 10.0
@@ -256,8 +262,11 @@ beta = 10
 	V = Matrix{Float64}(undef, length(possible_objects_immutable), 2)
 
 	for j = 1:length(possible_objects)
-        #set lambda for hallucination
-        V[j,1] = @trace(Gen.poisson(hallucination_lambda), (:hall_lambda, j)) #leads to false alarm rate of around 0.1
+        #set lambda for hallucination. The lambda parameter is sampled from
+		#a truncated normal distribution with mean hallucination_lambda, minimum
+		#0, and maximum 100.0, which is completely arbitrary. The STD I set to
+		#2, which is pretty arbitrary
+        V[j,1] = @trace(trunc_normal(mean_hallucination_lambda, std_hallucination_lambda, 0.0,  100.0), (:hall_lambda, j)) #E[hall_lambda] is 0.2
         #set miss rate
         V[j,2] = @trace(Gen.beta(alpha, beta), (:m, j)) #leads to miss rate of around 0.1
 	end
@@ -283,7 +292,6 @@ beta = 10
 
 
         R = @trace(sample_with_repl(possible_objects_mutable,numObjects), (:R, p))
-        println("R ", R)
         push!(Rs, R)
 
     	percept = []
@@ -457,14 +465,18 @@ end
 # end
 
 #perturb each entry of V independently
-#j is the index of the possible object whose FA or M will be perturbed
-#FA is a boolean for if it will perturb the FA or M. If true, perturb FA. If false, perturb M.
+#j is the index of the possible object whose hall_lambda or M will be perturbed
+#hall is a boolean for if it will perturb the hall_lambda or M. If true, perturb FA. If false, perturb M.
 #std controls the standard deviation of the normal perpurbations of the fa and miss rates
-@gen function perturbation_proposal_individual(prev_trace, std::Float64, j::Int, FA::Bool)
+@gen function perturbation_proposal_individual(prev_trace, std::Float64, j::Int, hall::Bool)
     choices = get_choices(prev_trace)
-    if FA
-		#new FA rate will be between 0 and 1
-    	FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 1.0), (:fa, j))
+    if hall
+		#new hallucination_lamda will be drawn from a normal distribution
+		#centered on previous hallucination_lambda and between 0 and something arbitrary.
+		#to do this right, might not want the upper bound. upper_bound is arbitrary.
+		#exact value shouldn't matter because should be very unlikely anyway
+		upper_bound = 100.0
+    	hall = @trace(trunc_normal(choices[(:hall_lambda, j)], std, 0.0, upper_bound), (:hall_lambda, j))
     else
     	#new M rate will be between 0 and 1
         M = @trace(trunc_normal(choices[(:m, j)], std, 0.0, 1.0), (:m, j))
@@ -475,17 +487,16 @@ end
 # Instead, just add some noise.
 function perturbation_move(trace)
 
-	#Choose order of perturbation proposals randomly
-	#mix up the order of the permutations
-	#2 * for FA and M
-    mixed_up = collect(1:2*length(possible_objects))
-    mixed_up = Random.shuffle!(mixed_up)
-    print(mixed_up)
-	for j = 1:length(mixed_up)
-		i = mixed_up[j]
-		index = floor((i+1)/2)
-		trace, _ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,index,isodd(i)))
-	end
+	# #Choose order of perturbation proposals randomly
+	# #mix up the order of the permutations
+	# #2 * for FA and M
+    # mixed_up = collect(1:2*length(possible_objects))
+    # mixed_up = Random.shuffle!(mixed_up)
+	# for j = 1:length(mixed_up)
+	# 	i = mixed_up[j]
+	# 	index = floor((i+1)/2)
+	# 	trace, _ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,index,isodd(i)))
+	# end
 	return trace
 end;
 
@@ -513,7 +524,6 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
 	#num_percepts is 1 because starting off with just one percept
 	state = Gen.initialize_particle_filter(gm, (possible_objects, 1, n_frames), init_obs, num_particles)
 
-
 	for p = 2:n_percepts
 
 		println("percept ", p-1)
@@ -527,6 +537,13 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
     	(log_total_weight, log_normalized_weights) = normalize_weights(state.log_weights)
     	ess = effective_sample_size(log_normalized_weights)
     	println("ess at start of loop is ", ess)
+
+		if isnan(ess)
+			t = filter(t -> isinf(get_score(t)), state.traces)
+			ts = map(Gen.get_choices, t)
+			println("here here")
+			show(stdout, "text/plain", ts)
+		end
 
 
 
@@ -599,6 +616,12 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
     	ess = effective_sample_size(log_normalized_weights)
         println("ess after particle filter step is ", ess)
 
+		if isnan(ess)
+			t = filter(t -> isinf(get_score(t)), state.traces)
+			ts = map(Gen.get_choices, t)
+			println("here here")
+			show(stdout, "text/plain", ts)
+		end
 	end
 	# return a sample of unweighted traces from the weighted collection
 	tr = Gen.sample_unweighted_traces(state, num_samples)
@@ -653,7 +676,7 @@ println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequ
 gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames))
 gt_reality,gt_V,gt_percepts = Gen.get_retval(gt_trace)
 gt_choices = get_choices(gt_trace)
-println(get_choices(gt_trace))
+println("gt_choices ", gt_choices);
 
 #TODO will have to find a way to generate gt_choices from gt_percepts
 #for when I'm no longer using simulated data
@@ -747,10 +770,10 @@ end
 
 #Perform particle filter
 
-num_particles = 100 #100
+num_particles = 2 #100
 
 #num_samples to return
-num_samples = 100 #100
+num_samples = 2 #100
 
 #num perturbation moves
 num_moves = 1
