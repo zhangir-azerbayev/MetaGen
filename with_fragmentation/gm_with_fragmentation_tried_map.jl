@@ -5,6 +5,7 @@ using FreqTables
 using Distributions
 using Distances
 using TimerOutputs
+using Random
 
 ##############################################################################################
 #Setting up helper functions
@@ -171,64 +172,79 @@ end
 end
 
 ##############################################################################################
+#This function
+@gen function foo(possible_object)
+	hard_cap = 20.0 #hard cap on number of times an object can be perceived
+	perceived_obj = [] #list of however many times the object is perceived
+
+	if possible_object in R
+		#miss rate
+		M =  V[j,2][1]
+		#how many times detected?
+
+		#can be 0, 1, ... , fragmentation_max + 1 times
+		n = fragmentation_max+2
+		n = convert(Int64, n)
+		prob = Array{Float64}(undef, n)
+		#probability of seeing nothing
+		prob[1] = M
+		for i = 2:n
+			#how many fragmentations there are
+			x = i-2
+			#might need low to be -1.0
+			prob[i] = exp(Gen.logpdf(trunc_poisson, x, fragmentation_lambda, 0.0, fragmentation_max))
+		end
+		prob[2:n] = (1-M)*prob[2:n]/sum(prob[2:n])
+
+
+		(M < 0.001) && println("M ", prob[1])
+
+		#categorical returns an int between 1 and length(probs). I want to adjust the index a little so a miss is 0
+		detection_count = @trace(categorical(prob), :detection_count  => j)
+		detection_count = detection_count-1
+		detection_count = convert(Float64, detection_count)
+	else
+		detection_count = 0
+	end #end if
+
+	#hallucinations
+	hall_lam =  V[j,1][1]
+	#since it won't sample 0.0 if 0.0 is low, setting low to -1.0
+	#hallucination_count = @trace(trunc_poisson(hall_lam,-1.0,hallucination_max), (:hallucination_count, j))
+	hallucination_count = @trace(trunc_poisson(hall_lam,-1.0,hallucination_max), (:hallucination_count => j))
+	hallucination_count = convert(Float64, hallucination_count)
+
+	#if object isn't in reality, visual_count only depends on hallucination_count
+	sum_count = max(detection_count + hallucination_count, 1.0E-4)
+	visual_count = @trace(trunc_poisson(sum_count, -1.0, hard_cap), (:visual_count => j))
+
+	for i = 1:visual_count
+		push!(perceived_obj, possible_object)
+	end
+
+	return perceived_obj
+end
+
+
 
 #This function builds the percept for a frame. As input, it takes the reality R,the visual system V,
 # fragmentation_lambda, fragmentation_max, hallucination_max, and possible_objects
 #fragmentation_max will be the most fragmentations possible per object. So for a single token object in reality,
 #it can be fragmented at most fragmentation_max times, in addition to being detected once.
 @gen function build_percept(R, V::Matrix{Float64}, fragmentation_lambda::Float64, fragmentation_max::Float64, hallucination_max::Float64, possible_objects)
-	hard_cap = 20.0 #hard cap on number of times an object can be perceived
-	perceived_frame = []
 
-	for j = 1:length(possible_objects)
-		possible_object = possible_objects[j]
+	len = length(possible_objects)
+	args = fill([R, V, fragmentation_lambda, fragmentation_max, hallucination_max],len)
+	for i = 1:len
+		prepend!(args, possible_objects)
+	end
 
-		#hallucinations
-		hall_lam =  V[j,1][1]
-		#since it won't sample 0.0 if 0.0 is low, setting low to -1.0
-		#hallucination_count = @trace(trunc_poisson(hall_lam,-1.0,hallucination_max), (:hallucination_count, j))
-		hallucination_count = @trace(trunc_poisson(hall_lam,-1.0,hallucination_max), (:hallucination_count => j))
-		hallucination_count = convert(Float64, hallucination_count)
 
-		#detections and fragmentations
-		if possible_object in R
-			#miss rate
-			M =  V[j,2][1]
-			#how many times detected?
+	bar = Map(foo)
+	(trace, _) = Gen.generate(bar, possible_objects)
+	perceived_frame = Gen.get_retval(trace) #will be a list of lists
 
-			#can be 0, 1, ... , fragmentation_max + 1 times
-			n = fragmentation_max+2
-			n = convert(Int64, n)
-			prob = Array{Float64}(undef, n)
-			#probability of seeing nothing
-			prob[1] = M
-			for i = 2:n
-				#how many fragmentations there are
-				x = i-2
-				#TODO might need low to be -1.0
-				prob[i] = exp(Gen.logpdf(trunc_poisson, x, fragmentation_lambda, 0.0, fragmentation_max))
-			end
-			prob[2:n] = (1-M)*prob[2:n]/sum(prob[2:n])
 
-			#don't fragment. Just miss or don't miss.
-			prob = [M, 1-M]
-
-			#categorical returns an int between 1 and length(probs). I want to adjust the index a little so a miss is 0
-			detection_count = @trace(categorical(prob), :detection_count  => j)
-			detection_count = detection_count-1
-			detection_count = convert(Float64, detection_count)
-		else
-			detection_count = 0
-		end #end if
-		#if object isn't in reality, visual_count only depends on hallucination_count
-		sum_count = max(detection_count + hallucination_count, 1.0E-4)
-		visual_count = @trace(trunc_poisson(sum_count, -1.0, hard_cap), (:visual_count => j))
-
-		for i = 1:visual_count
-			push!(perceived_frame, possible_object)
-		end
-
-	end #end for
 	return perceived_frame
 end
 

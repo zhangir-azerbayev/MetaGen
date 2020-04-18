@@ -7,7 +7,6 @@ using FreqTables
 using Distributions
 using Distances
 using TimerOutputs
-using Random
 
 #creating output file
 #outfile = string("output", ARGS[1], ".csv")
@@ -19,8 +18,8 @@ possible_objects = ["person","bicycle","car","motorcycle","airplane"]
 J = length(possible_objects)
 
 #each V sill have n_percepts, that many movies
-n_percepts = 3 #particle filter is set up such that it needs at least 2 percepts
-n_frames = 1
+n_percepts = 100 #particle filter is set up such that it needs at least 2 percepts
+n_frames = 10
 
 
 #file header
@@ -42,6 +41,7 @@ println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequ
 gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames))
 gt_reality,gt_V,gt_percepts = Gen.get_retval(gt_trace)
 gt_choices = get_choices(gt_trace)
+
 println("gt_choices")
 display(gt_choices)
 
@@ -108,9 +108,9 @@ print(file, gt_reality, " & ")
 percepts = []
 for p = 1:n_percepts
 	percept = []
-	println("gt_percepts[p] ", gt_percepts[p])
+	#println("gt_percepts[p] ", gt_percepts[p])
 	for f = 1:n_frames
-		println("gt_percepts[p][f] ", gt_percepts[p][f])
+		#println("gt_percepts[p][f] ", gt_percepts[p][f])
 		#println("possible_objects[gt_percepts[p][f]] ", possible_objects[gt_percepts[p][f]])
 		perceived_frame = gt_percepts[p][f]
 		print(file,  perceived_frame)
@@ -118,7 +118,7 @@ for p = 1:n_percepts
 	print(file, " & ")
 end
 
-println("percepts ", gt_percepts)
+#println("percepts ", gt_percepts)
 
 
 #store the visual counts in the submap to observations
@@ -137,10 +137,10 @@ end
 
 #Perform particle filter
 
-num_particles = 2 #100
+num_particles = 100 #100
 
 #num_samples to return
-num_samples = 2 #100
+num_samples = 100 #100
 
 #num perturbation moves
 num_moves = 1
@@ -165,8 +165,92 @@ for i = 1:num_samples
 	push!(realities,Rs)
 end
 
-analyze(realities, Vs, gt_V, gt_reality)
+#############################################
+#Analysis function needs the realities and Vs resulting from a sampling procedure and gt_V
+function analyze(realities, Vs, gt_V, gt_R)
+
+	#want to make a frequency table of the realities sampled
+	ft = freqtable(realities)
+	println(ft)
+	dictionary = countmemb(realities)
+	print(file ,dictionary, " & ")
+
+	#want, for each reality, to bin Vs
+	unique_realities = unique(realities)
+
+	unique_Vs = unique(Vs)
+
+	avg_Vs_binned = Array{Float64}[]
+	freq = Array{Float64}(undef, length(unique_realities))
+
+	how_many_unique = length(unique_realities)
+	for j = 1:how_many_unique
+		index = findall(isequal(unique_realities[j]),realities)
+		#freq keeps track of how many there are
+		freq[j] = length(index)
+		push!(avg_Vs_binned, mean(Vs[index]))
+	end
+
+
+	#find avg_Vs_binned at most common realities and compute euclidean distances
+	#index of most frequent reality. does not work with ties.
+	idx = findfirst(isequal(maximum(freq)),freq)
+	unique_realities[idx]
+	print(file, unique_realities, " & ")
+	#mode reality
+	print(file, unique_realities[idx], " & ")
+	print(file, avg_Vs_binned, " & ")
+
+
+	#average Rs in boolean format.
+	n_percepts = size(gt_R)[1]
+	#avg_Rs will keep track of the avg_R for each percept
+	avg_Rs = []
+	for p = 1:n_percepts
+		avg_R = zeros(length(possible_objects))
+		for j = 1:how_many_unique
+			total = get(dictionary,string(unique_realities[j]),0)
+			avg_R = avg_R + names_to_boolean(unique_realities[j][p],possible_objects)*total/length(realities)
+		end
+		push!(avg_Rs, avg_R)
+	end
+
+	print(file, avg_Rs, " & ")
+
+	#take distance between avg_Rs and gt_R
+	distances = []
+	gt_R_bools = []
+	for p = 1:n_percepts
+		gt_R_bool = names_to_boolean(gt_R[p],possible_objects)
+		push!(gt_R_bools, gt_R_bool)
+		push!(distances, euclidean(avg_Rs[p], gt_R_bool))
+	end
+	print(file, distances, " & ")
+
+	#compare mean V of most frequent reality to gt_V
+	#for false alarms
+	dist_FA = euclidean(gt_V[1], avg_Vs_binned[idx][1])
+	print(file, dist_FA, " & ")
+	#for miss rates
+	dist_M = euclidean(gt_V[2], avg_Vs_binned[idx][2])
+	print(file, dist_M)
+	#need to add & after calling analyze the first time
+
+end;
+
+#Substituting for frequency table
+function countmemb(itr)
+    d = Dict{String, Int}()
+    for val in itr
+        if isa(val, Number) && isnan(val)
+            continue
+        end
+        d[string(val)] = get!(d, string(val), 0) + 1
+    end
+    return d
+end
+
 #############################################
 
-
+analyze(realities, Vs, gt_V, gt_reality)
 close(file)

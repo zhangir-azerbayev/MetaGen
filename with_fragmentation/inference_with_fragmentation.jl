@@ -6,10 +6,30 @@ using FreqTables
 using Distributions
 using Distances
 using TimerOutputs
-using Random
 
 
 ###################################################################################################################
+#function for shuffling elements of an array
+function homebrew_shuffle(a::AbstractArray)
+    n = length(a)
+    new_array = []
+    memory_array = trues(n) #index hasn't been picked yet
+
+    while length(new_array) < (n-1)
+        candidate = rand(1:n)
+        if memory_array[candidate]
+            push!(new_array, candidate)
+            memory_array[candidate] = false
+        end
+    end
+    #add the last one
+    last = findfirst(memory_array)
+    push!(new_array, last)
+    return new_array
+end
+
+
+
 #Particle filter helper functions
 
 function effective_sample_size(log_normalized_weights::Vector{Float64})
@@ -48,7 +68,7 @@ end
 		#centered on previous hallucination_lambda and between 0 and something arbitrary.
 		#to do this right, might not want the upper bound. upper_bound is arbitrary.
 		#exact value shouldn't matter because should be very unlikely anyway
-		upper_bound = 100.0
+		upper_bound = 100.0 #make sure it matches upper bound in gm
     	hall = @trace(trunc_normal(choices[(:hall_lambda, j)], std, 0.0, upper_bound), (:hall_lambda, j))
     else
     	#new M rate will be between 0 and 1
@@ -60,16 +80,16 @@ end
 # Instead, just add some noise.
 function perturbation_move(trace)
 
-	# #Choose order of perturbation proposals randomly
-	# #mix up the order of the permutations
-	# #2 * for FA and M
-    # mixed_up = collect(1:2*length(possible_objects))
-    # mixed_up = Random.shuffle!(mixed_up)
-	# for j = 1:length(mixed_up)
-	# 	i = mixed_up[j]
-	# 	index = floor((i+1)/2)
-	# 	trace, _ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,index,isodd(i)))
-	# end
+	#Choose order of perturbation proposals randomly
+	#mix up the order of the permutations
+	#2 * for FA and M
+    mixed_up = collect(1:2*length(possible_objects))
+    mixed_up = homebrew_shuffle(mixed_up)
+	for j = 1:length(mixed_up)
+		i = mixed_up[j]
+		index = floor((i+1)/2)
+		trace, _ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,index,isodd(i)))
+	end
 	return trace
 end;
 
@@ -112,14 +132,14 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
     	ess = effective_sample_size(log_normalized_weights)
     	println("ess at start of loop is ", ess)
 
-		if isnan(ess)
-			t = filter(t -> isinf(get_score(t)), state.traces)
-			ts = map(Gen.get_choices, t)
-            println("ts[1]")
-			display(ts[1])
-            println("ts[2]")
-			display(ts[2])
-		end
+		# if isnan(ess)
+		# 	t = filter(t -> isinf(get_score(t)), state.traces)
+		# 	ts = map(Gen.get_choices, t)
+        #     println("ts[1]")
+		# 	display(ts[1])
+        #     println("ts[2]")
+		# 	display(ts[2])
+		# end
 
 
 
@@ -147,23 +167,23 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
 		for i = 1:num_samples
 			R,V,_ = Gen.get_retval(tr[i])
 			avg_V = avg_V + V/num_samples
-			println("R is ", R)
-			println("V is ", V)
+			# println("R is ", R)
+			# println("V is ", V)
 		end
-		println("avg_V is ", avg_V)
+		# println("avg_V is ", avg_V)
 		print(file, avg_V, " & ")
 
 
 		# apply rejuvenation/perturbation move to each particle. optional.
         for i = 1:num_particles
         	R,V,_ = Gen.get_retval(state.traces[i])
-        	println("V before perturbation ", V)
+        	# println("V before perturbation ", V)
 
             state.traces[i] = perturbation_move(state.traces[i])
 
             R,V,_ = Gen.get_retval(state.traces[i])
             #println("R after perturbation is ", R)
-			println("V after perturbation ", V)
+			# println("V after perturbation ", V)
 			#println("log_weight after perturbation is ", log_weights[i])
         end
 
@@ -192,14 +212,14 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
     	ess = effective_sample_size(log_normalized_weights)
         println("ess after particle filter step is ", ess)
 
-		if isnan(ess)
-			t = filter(t -> isinf(get_score(t)), state.traces)
-			ts = map(Gen.get_choices, t)
-			println("ts[1]")
-			display(ts[1])
-            println("ts[2]")
-			display(ts[2])
-		end
+		# if isnan(ess)
+		# 	t = filter(t -> isinf(get_score(t)), state.traces)
+		# 	ts = map(Gen.get_choices, t)
+		# 	println("ts[1]")
+		# 	display(ts[1])
+        #     println("ts[2]")
+		# 	display(ts[2])
+		# end
 	end
 	# return a sample of unweighted traces from the weighted collection
 	tr = Gen.sample_unweighted_traces(state, num_samples)
@@ -211,8 +231,8 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
 	for i = 1:num_samples
 		R,V,_ = Gen.get_retval(tr[i])
 		avg_V = avg_V + V/num_samples
-		println("R is ", R)
-		println("V is ", V)
+		# println("R is ", R)
+		# println("V is ", V)
 	end
 	print(file, avg_V, " & ")
 
