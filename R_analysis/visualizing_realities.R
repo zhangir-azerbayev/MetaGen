@@ -16,7 +16,7 @@ clean <- function(column){
     # lapply(function(x){gsub(pattern = "\\", replacement="",x, fixed = TRUE)})
 }
 
-output111 <- read_delim("output111.csv", 
+output111 <- read_delim("April_May/outputJulian_model_beta3_30.csv", 
                         "&", escape_double = FALSE, trim_ws = TRUE)
 data <- output111
 names(data)<-make.names(names(data),unique = TRUE)
@@ -95,12 +95,15 @@ df$frequency_table <- frequency_table
 # Heatmap 
 p1 <- ggplot(df, aes(X, Y, fill= gt_reality)) + 
   geom_tile() +
+  scale_fill_gradient(limits=c(0, 2)) +
   ggtitle("Ground-truth realities")
 p2 <- ggplot(df, aes(X, Y, fill= perceived_reality)) + 
   geom_tile() +
+  scale_fill_gradient(limits=c(0, 2)) +
   ggtitle("Percepts")
 p3 <- ggplot(df, aes(X, Y, fill= frequency_table)) + 
   geom_tile() +
+  scale_fill_gradient(limits=c(0, 2)) +
   ggtitle("Inferred realities")
 
 all <- align_plots(p1, p2, p3, align="hv", axis="tblr")
