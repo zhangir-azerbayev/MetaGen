@@ -29,7 +29,52 @@ function homebrew_shuffle(a::AbstractArray)
     return new_array
 end
 
+#function for printing stuff to file
+#needs traces, num_samples, possible_objects
+function print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
+    #initialize something for tracking average V
+    avg_V = zeros(length(possible_objects), 2)
+    #initialize something for realities
+    realities = Array{Array{String}}[]
+    for i = 1:num_samples
+        R,_,V,_ = Gen.get_retval(tr[i])
+        avg_V = avg_V + V/num_samples
+        push!(realities,R)
+        # println("R is ", R)
+        # println("V is ", V)
+    end
+    # println("avg_V is ", avg_V)
+    print(file, avg_V, " & ")
+    dictionary = countmemb(realities)
+    print(file ,dictionary, " & ")
+end
 
+#obs is a choicemap to add the observations to
+#gt_choices are the ground truth choices as a choicemap
+function set_observations(obs, gt_choices, p, n_frames)
+    for f = 1:n_frames
+        #init_obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
+        addr = (p => (:perceived_frame,f) => :C)
+        sm = Gen.get_submap(gt_choices, addr)
+        Gen.set_submap!(obs, addr, sm)
+    end
+end
+
+#for printing the ess of a state with some words
+#returns ess
+function print_ess(state, words)
+    (log_total_weight, log_normalized_weights) = normalize_weights(state.log_weights)
+    ess = effective_sample_size(log_normalized_weights)
+    println(words, ess)
+    return ess
+end
+
+#for printing the log_ml_estimate of a state with some words
+function print_log_ml_estimate(state, words)
+    log_weights = get_log_weights(state)
+    log_ml_estimate = Gen.log_ml_estimate(state)
+    println(words, log_ml_estimate)
+end
 
 #Particle filter helper functions
 
@@ -43,20 +88,6 @@ function normalize_weights(log_weights::Vector{Float64})
     log_normalized_weights = log_weights .- log_total_weight
     return (log_total_weight, log_normalized_weights)
 end
-
-# #perturbs V all at once. after more percepts, MH starts to reject the proposals a lot
-# #std controls the standard deviation of the normal perpurbations of the fa and miss rates
-# @gen function perturbation_proposal(prev_trace, std::Float64)
-#     choices = get_choices(prev_trace)
-#     #(T,) = get_args(prev_trace)
-#     #perturb fa and miss rates normally with std 0.1
-
-#     for j = 1:length(possible_objects)
-#     	#new FA rate will be between 0 and 1
-#     	FA = @trace(trunc_normal(choices[(:fa, i)], std, 0.0, 1.0), (:fa, i))
-#         M = @trace(trunc_normal(choices[(:m, i)], std, 0.0, 1.0), (:m, i))
-#     end
-# end
 
 #perturb each entry of V independently
 #j is the index of the possible object whose hall_lambda or M will be perturbed
@@ -88,7 +119,7 @@ end
     # println("choices")
     # display(choices)
 
-    #address is a bit wrong but idea is right
+    #address should be right
     a_first = @trace(bernoulli(0.5), (p => (:perceived_frame, f) => (:a_first, j)))
 end
 
@@ -127,89 +158,41 @@ end;
 
 
 function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_samples::Int)
+    println("in particle_filter")
 
 	n_percepts = size(gt_percepts)[1]
 	n_frames = size(gt_percepts[1])[1]
 
-	println("in particle_filter")
-
 	# construct initial observations
 	init_obs = Gen.choicemap()
-	p=1
-	for f = 1:n_frames
-		#init_obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
-		addr = (p => (:perceived_frame,f)) => :C
-		sm = Gen.get_submap(gt_choices, addr)
-		Gen.set_submap!(init_obs, addr, sm)
-	end
+	p = 1
+	set_observations(init_obs, gt_choices, p, n_frames)
 
 	println("init_obs")
 	display(init_obs)
 
 	#initial state
-	#num_percepts is 1 because starting off with just one percept
-	state = Gen.initialize_particle_filter(gm, (possible_objects, 1, n_frames), init_obs, num_particles)
+	state = Gen.initialize_particle_filter(gm, (possible_objects, p, n_frames), init_obs, num_particles)
 
 	for p = 2:n_percepts
-
 		println("percept ", p-1)
 
-		#tr = Gen.sample_unweighted_traces(state, num_samples)
-		tr = get_traces(state)
-		log_weights = get_log_weights(state)
-		log_ml_estimate = Gen.log_ml_estimate(state)
-		println("log_ml_estimate is ", log_ml_estimate)
+        print_log_ml_estimate(state, "log_ml_estimate at start of loop is ")
+        ess = print_ess(state, "ess at start of loop is ")
 
-    	(log_total_weight, log_normalized_weights) = normalize_weights(state.log_weights)
-    	ess = effective_sample_size(log_normalized_weights)
-    	println("ess at start of loop is ", ess)
-
-		# if isnan(ess)
-		# 	t = filter(t -> isinf(get_score(t)), state.traces)
-		# 	ts = map(Gen.get_choices, t)
-        #     println("ts[1]")
-		# 	display(ts[1])
-        #     println("ts[2]")
-		# 	display(ts[2])
-		# end
-
-
-
-
-		# #how does mean V change?
-		# #initialize something for tracking average V
-		# avg_V = Matrix{Float64}(undef, length(possible_objects), 2)
-		# for i = 1:num_samples
-		# 	#trying to understand what's in state
-		# 	R,V,_ = Gen.get_retval(tr[i])
-		# 	println("initial R is ", R)
-		# 	println("initial V is ", V)
-		# 	println("log_weight is ", log_weights[i])
-
-		# 	avg_V = avg_V + V/num_samples
-		# end
-		# println("avg_V ", avg_V)
-
+		if isnan(ess)
+			t = filter(t -> isinf(get_score(t)), state.traces)
+			ts = map(Gen.get_choices, t)
+            println("ts[1]")
+			display(ts[1])
+            # println("ts[2]")
+			# display(ts[2])
+		end
 
 		# return a sample of unweighted traces from the weighted collection
 		tr = Gen.sample_unweighted_traces(state, num_samples)
 
-		#initialize something for tracking average V
-		avg_V = zeros(length(possible_objects), 2)
-        #initialize something for realities
-        realities = Array{Array{String}}[]
-		for i = 1:num_samples
-			R,_,V,_ = Gen.get_retval(tr[i])
-			avg_V = avg_V + V/num_samples
-            push!(realities,R)
-			# println("R is ", R)
-			# println("V is ", V)
-		end
-		# println("avg_V is ", avg_V)
-		print(file, avg_V, " & ")
-        dictionary = countmemb(realities)
-    	print(file ,dictionary, " & ")
-
+        print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
 
 		# apply rejuvenation/perturbation move to each particle. optional.
         for i = 1:num_particles
@@ -226,64 +209,37 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
 			#println("log_weight after perturbation is ", log_weights[i])
         end
 
-        (log_total_weight, log_normalized_weights) = normalize_weights(state.log_weights)
-    	ess = effective_sample_size(log_normalized_weights)
-        println("ess after perturbation is ", ess)
+        print_ess(state, "ess after perturbation is ")
 
 		do_resample = Gen.maybe_resample!(state, ess_threshold=num_particles/2, verbose=true)
 
-
-        (log_total_weight, log_normalized_weights) = normalize_weights(state.log_weights)
-    	ess = effective_sample_size(log_normalized_weights)
-        println("ess after resample is ", ess)
+        print_ess(state, "ess after resample is ")
 
         #add a new observation
 		obs = Gen.choicemap()
-        for f = 1:n_frames
-    		#init_obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
-    		addr = (p => (:perceived_frame,f)) => :C
-    		sm = Gen.get_submap(gt_choices, addr)
-    		Gen.set_submap!(init_obs, addr, sm)
-    	end
+        set_observations(obs, gt_choices, p, n_frames)
 
-        # println("obs")
-    	# display(obs)
+        println("obs")
+    	display(obs)
 
 		Gen.particle_filter_step!(state, (possible_objects, p, n_frames), (UnknownChange(),), obs)
 
-		(log_total_weight, log_normalized_weights) = normalize_weights(state.log_weights)
-    	ess = effective_sample_size(log_normalized_weights)
-        println("ess after particle filter step is ", ess)
+        ess = print_ess(state, "ess after particle filter step is ")
 
-		# if isnan(ess)
-		# 	t = filter(t -> isinf(get_score(t)), state.traces)
-		# 	ts = map(Gen.get_choices, t)
-		# 	println("ts[1]")
-		# 	display(ts[1])
-        #     println("ts[2]")
-		# 	display(ts[2])
-		# end
+		if isnan(ess)
+			t = filter(t -> isinf(get_score(t)), state.traces)
+			ts = map(Gen.get_choices, t)
+			println("ts[1]")
+			display(ts[1])
+            # println("ts[2]")
+			# display(ts[2])
+		end
 	end
+
+    println("percept ", n_percepts)
 	# return a sample of unweighted traces from the weighted collection
 	tr = Gen.sample_unweighted_traces(state, num_samples)
-
-	println("percept ", n_percepts)
-
-    #initialize something for tracking average V
-    avg_V = zeros(length(possible_objects), 2)
-    #initialize something for realities
-    realities = Array{Array{String}}[]
-    for i = 1:num_samples
-        R,V,_ = Gen.get_retval(tr[i])
-        avg_V = avg_V + V/num_samples
-        push!(realities,R)
-        # println("R is ", R)
-        # println("V is ", V)
-    end
-    # println("avg_V is ", avg_V)
-    print(file, avg_V, " & ")
-    dictionary = countmemb(realities)
-    print(file ,dictionary, " & ")
+    print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
 
 	return tr
 end;
