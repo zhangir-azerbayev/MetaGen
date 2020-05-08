@@ -83,18 +83,18 @@ struct MultivariateUniform <: Distribution{Vector{Float64}} end
 const mvuniform = MultivariateUniform()
 
 #function logpdf(::MultivariateUniform, z::AbstractVector{T}, low_x::Real, low_y::Real, high_x::Real, high_y::Real) where {T <: Real}
-function logpdf(::MultivariateUniform, z::Array{Float64,1}, low_x::Float64, low_y::Float64, high_x::Float64, high_y::Float64)
+function Gen.logpdf(::MultivariateUniform, z::Array{Float64,1}, low_x::Float64, low_y::Float64, high_x::Float64, high_y::Float64)
     log_prob_x = (z[1] >= low_x && z[1] <= high_x) ? -log(high_x-low_x) : -Inf
     log_prob_y = (z[1] >= low_y && z[1] <= high_y) ? -log(high_y-low_y) : -Inf
     return log_prob_x+log_prob_y
 end
 
-function logpdf_grad(::MultivariateUniform, x::AbstractVector{T}, low_x::Real, low_y::Real, high_x::Real, high_y::Real) where {T <: Real}
+function Gen.logpdf_grad(::MultivariateUniform, x::AbstractVector{T}, low_x::Real, low_y::Real, high_x::Real, high_y::Real) where {T <: Real}
     gerror("Not implemented")
 	(nothing, nothing)
 end
 
-function random(::MultivariateUniform, low_x::Real, low_y::Real, high_x::Real, high_y::Real)
+function Gen.random(::MultivariateUniform, low_x::Real, low_y::Real, high_x::Real, high_y::Real)
     z = Vector{Float64}(undef, 2)
     z[1] = rand() * (high_x - low_x) + low_x
     z[2] = rand() * (high_y - low_y) + low_y
@@ -102,6 +102,5 @@ function random(::MultivariateUniform, low_x::Real, low_y::Real, high_x::Real, h
 end
 
 (::MultivariateUniform)(low_x, low_y, high_x, high_y) = random(MultivariateUniform(), low_x, low_y, high_x, high_y)
-
 has_output_grad(::MultivariateNormal) = false
 has_argument_grads(::MultivariateNormal) = (false, false)
