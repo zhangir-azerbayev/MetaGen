@@ -127,7 +127,7 @@ end
 @gen function build_percept(R, V::Matrix{Float64}, locations, possible_objects)
 	#C has two columns, for the two ways of seeing something (correct detection and hallucination)
 	#Each row is for a possible_category.
-	C = Matrix{Union{Array{Array{Float64,1},1}}, Array{Any,1}}(undef, length(possible_objects), 2)
+	C = Matrix{Union{Array{Array{Float64,1},1}, Array{Any,1}}}(undef, length(possible_objects), 2)
 	#Array{Array{Float64,1},1} and Array{Any,1} are the two possible output types from brfs
 
 	for j = 1:length(possible_objects)
@@ -158,9 +158,9 @@ end
 		low_y = 0.0
 		high_y = 40.0
 
-		a_first = @trace(bernoulli(0.5), (:a_first))
-		C[j,1] = a_first ? @trace(brfs(FA, mvuniform, (low_x,low_y, high_x, high_y)), (:C, j, 1)) : @trace(brfs((1-M)*E, mvnormal, (mu,cov)), (:c, j, 1)) #return [x, y] for location or nothing
-		C[j,2] = a_first ? @trace(brfs((1-M)*E, mvnormal, (mu,cov)), (:C, j, 2)) : @trace(brfs(FA, mvuniform, (low_x,low_y, high_x, high_y)), (:c, j, 2)) #return tuple for location or null
+		a_first = @trace(bernoulli(0.5), (:a_first, j))
+		C[j,1] = a_first ? @trace(brfs(FA, mvuniform, (low_x,low_y, high_x, high_y)), (:C => j => 1)) : @trace(brfs((1-M)*E, mvnormal, (mu,cov)), (:C => j => 1)) #return [x, y] for location or nothing
+		C[j,2] = a_first ? @trace(brfs((1-M)*E, mvnormal, (mu,cov)), (:C => j => 2)) : @trace(brfs(FA, mvuniform, (low_x,low_y, high_x, high_y)), (:C => j => 2)) #return tuple for location or null
 
 		#Q_A returns a tuple for location sampled from uniform distribution or null
 		#Q_B returns a tuple for location sampled from gaussian distribution or null
@@ -221,21 +221,21 @@ beta = 10
         possible_objects_mutable = copy(possible_objects)
 
     	#numObjects = @trace(Gen.poisson(lambda_objects), (:numObjects, p))
-		numObjects = @trace(trunc_poisson(lambda_objects, low, num_categories), (:numObjects, p))
+		numObjects = @trace(trunc_poisson(lambda_objects, low, num_categories), (p => :numObjects))
 
 		#changed from sampling with replacement
-        R = @trace(sample_wo_repl(possible_objects, numObjects), (:R, p))
+        R = @trace(sample_wo_repl(possible_objects, numObjects), (p => :R))
         push!(Rs, R)
 		locations = Matrix{Float64}(undef, num_categories, 2)
 		for i = 1:num_categories
 			E = (possible_objects[i] in R)
-			locations[i,:] = E ? @trace(mvuniform(low_x,low_y, high_x, high_y), (:location, i)) : @trace(mvuniform(-1.5,-1.0, -1.5, -1.0), (:location, i)) #gives [x,y] coordinates
+			locations[i,:] = E ? @trace(mvuniform(low_x,low_y, high_x, high_y), (p => :location => i)) : @trace(mvuniform(-1.0,-1.0, -1.0, -1.0), (p => :location => i)) #gives [x,y] coordinates
 		end
 		push!(locationses, locations)
 
     	percept = []
     	for f = 1:n_frames
-    		perceived_frame = @trace(build_percept(R, V, locations, possible_objects), (:perceived_frame, p, f))
+    		perceived_frame = @trace(build_percept(R, V, locations, possible_objects), (p => (:perceived_frame, f)))
     		push!(percept, perceived_frame)
     	end
 

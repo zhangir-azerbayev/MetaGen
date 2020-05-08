@@ -19,8 +19,8 @@ possible_objects = ["person","bicycle","car","motorcycle","airplane"]
 J = length(possible_objects)
 
 #each V sill have n_percepts, that many movies
-n_percepts = 5 #particle filter is set up such that it needs at least 2 percepts
-n_frames = 10
+n_percepts = 3 #particle filter is set up such that it needs at least 2 percepts
+n_frames = 2
 
 
 #file header
@@ -41,9 +41,6 @@ println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequ
 #initializing the generative model. It will create the ground truth V and R
 #generates the data and the model
 gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames))
-gt_choices = get_choices(gt_trace)
-println("gt_choices")
-display(gt_choices)
 gt_reality, gt_locationses, gt_V, gt_percepts = Gen.get_retval(gt_trace)
 gt_choices = get_choices(gt_trace)
 

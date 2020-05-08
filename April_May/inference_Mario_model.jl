@@ -79,33 +79,50 @@ end
 end
 
 #swaps value of a_first
-@gen function perturbation_proposal_a_first(prev_trace)
+@gen function perturbation_proposal_a_first(prev_trace, p, f, j)
+    # println("p ", p)
+    # println("f ", f)
+    # println("j ", j)
+
     choices = get_choices(prev_trace)
+    # println("choices")
+    # display(choices)
 
     #address is a bit wrong but idea is right
-    a_first = @trace(bernoulli(0.5), (:a_first))
+    a_first = @trace(bernoulli(0.5), (p => (:perceived_frame, f) => (:a_first, j)))
 end
 
 # If I allowed a resample of V, that would defeat the purpose of posterior becoming new prior.
 # Instead, just add some noise.
-function perturbation_move(trace)
+# n_p is the current percept, so we'll perturb the a_first for all the percepts
+# before and including percept n_p
+function perturbation_move(trace, n_p)
+    #This is temporary. I know I have to shuffle the order that these
+    #perturbations to a_first happen
+    n_f = 2 #number of frames
+    n_j = 5 #number of categories
 
-    #Mix up a_first
-    trace,_ = Gen.metropolis_hastings(trace, perturbation_proposal_a_first, (0.1,index,isodd(i)))
+    for p=1:n_p
+        for f=1:n_f
+            for j=1:n_j
+                #Mix up a_first
+                trace,_ = Gen.metropolis_hastings(trace, perturbation_proposal_a_first, (p, f, j))
+            end
+        end
+    end
 
-
-	#Choose order of perturbation proposals randomly
-	#mix up the order of the permutations
-	#2 * for FA and M
+    #Choose order of perturbation proposals randomly
+    #mix up the order of the permutations
+    #2 * for FA and M
     mixed_up = collect(1:2*length(possible_objects))
     mixed_up = homebrew_shuffle(mixed_up)
-	for j = 1:length(mixed_up)
-		i = mixed_up[j]
-		index = floor((i+1)/2)
-		trace,_ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,index,isodd(i)))
-	end
+    for j = 1:length(mixed_up)
+        i = mixed_up[j]
+        index = floor((i+1)/2)
+        trace,_ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,index,isodd(i)))
+    end
 
-	return trace
+    return trace
 end;
 
 
@@ -121,7 +138,7 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
 	p=1
 	for f = 1:n_frames
 		#init_obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
-		addr = (:perceived_frame,p,f) => :C
+		addr = (p => (:perceived_frame,f)) => :C
 		sm = Gen.get_submap(gt_choices, addr)
 		Gen.set_submap!(init_obs, addr, sm)
 	end
@@ -182,7 +199,7 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
         #initialize something for realities
         realities = Array{Array{String}}[]
 		for i = 1:num_samples
-			R,V,_ = Gen.get_retval(tr[i])
+			R,_,V,_ = Gen.get_retval(tr[i])
 			avg_V = avg_V + V/num_samples
             push!(realities,R)
 			# println("R is ", R)
@@ -196,12 +213,14 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
 
 		# apply rejuvenation/perturbation move to each particle. optional.
         for i = 1:num_particles
-        	R,V,_ = Gen.get_retval(state.traces[i])
+        	R,_,V,_ = Gen.get_retval(state.traces[i])
         	# println("V before perturbation ", V)
 
-            state.traces[i] = perturbation_move(state.traces[i])
+            #p is for which a_firsts to adjust. Since we haven't added percept
+            #p yet, it's p-1
+            state.traces[i] = perturbation_move(state.traces[i], p-1)
 
-            R,V,_ = Gen.get_retval(state.traces[i])
+            R,_,V,_ = Gen.get_retval(state.traces[i])
             #println("R after perturbation is ", R)
 			# println("V after perturbation ", V)
 			#println("log_weight after perturbation is ", log_weights[i])
@@ -218,13 +237,14 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
     	ess = effective_sample_size(log_normalized_weights)
         println("ess after resample is ", ess)
 
+        #add a new observation
 		obs = Gen.choicemap()
-		for f = 1:n_frames
-			#obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
-            addr = (:perceived_frame,p,f) => :C
+        for f = 1:n_frames
+    		#init_obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
+    		addr = (p => (:perceived_frame,f)) => :C
     		sm = Gen.get_submap(gt_choices, addr)
-    		Gen.set_submap!(obs, addr, sm)
-		end
+    		Gen.set_submap!(init_obs, addr, sm)
+    	end
 
         # println("obs")
     	# display(obs)
