@@ -142,10 +142,10 @@ end
 
 #Perform particle filter
 
-num_particles = 1 #100
+num_particles = 100 #100
 
 #num_samples to return
-num_samples = 1 #100
+num_samples = 100 #100
 
 #num perturbation moves
 num_moves = 1

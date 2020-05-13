@@ -72,9 +72,9 @@ end
 #for printing the log_ml_estimate of a state with some words
 function print_log_ml_estimate(state, words)
     log_weights = get_log_weights(state)
-    println("log_weights ", log_weights)
+    println("log_weights ", words, log_weights)
     log_ml_estimate = Gen.log_ml_estimate(state)
-    println(words, log_ml_estimate)
+    println("log_ml_estimate ", words, log_ml_estimate)
 end
 
 #Particle filter helper functions
@@ -148,7 +148,7 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
 	for p = 2:n_percepts
 		println("percept ", p-1)
 
-        print_log_ml_estimate(state, "log_ml_estimate at start of loop is ")
+        print_log_ml_estimate(state, "at start of loop is ")
         ess = print_ess(state, "ess at start of loop is ")
 
 		if isnan(ess)
@@ -183,10 +183,12 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
         end
 
         print_ess(state, "ess after perturbation is ")
+        print_log_ml_estimate(state, "after perturbation is ")
 
 		do_resample = Gen.maybe_resample!(state, ess_threshold=num_particles/2, verbose=true)
 
         print_ess(state, "ess after resample is ")
+        print_log_ml_estimate(state, "after resample is ")
 
         #add a new observation
 		obs = Gen.choicemap()
@@ -195,8 +197,11 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
         println("obs")
     	display(obs)
 
+        print_log_ml_estimate(state, "before particle step is ")
+
 		Gen.particle_filter_step!(state, (possible_objects, p, n_frames), (UnknownChange(),), obs)
 
+        print_log_ml_estimate(state, "after particle step is ")
         ess = print_ess(state, "ess after particle filter step is ")
 
 		if isnan(ess)
@@ -211,6 +216,8 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
 	end
 
     println("percept ", n_percepts)
+
+    print_log_ml_estimate(state, "just before sampling is ")
 	# return a sample of unweighted traces from the weighted collection
 	tr = Gen.sample_unweighted_traces(state, num_samples)
     print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)

@@ -139,6 +139,8 @@ end
 		M =  V[j,2][1]
         #contains
 		E = (possible_object in R)
+        #epsilon = 0.0001
+        #E = (possible_object in R) ? 1-epsilon : epsilon
 
 		#params for mvnormal for location
 		mu = Vector{Float64}(undef, 2)
@@ -159,7 +161,7 @@ end
 		cov[2,1] = 0
 
 		#dimensions of the frames
-		low_x = 0.0
+		low_x = 0.0 #trying to include stuff that's not in the frame
 		high_x = 40.0
 		low_y = 0.0
 		high_y = 40.0
