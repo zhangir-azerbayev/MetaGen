@@ -1,3 +1,5 @@
+using Gen
+
 ##############################################################################################
 #Setting up helper functions
 function countmemb(itr)
@@ -78,13 +80,13 @@ import Gen: random
 
 export mvuniform
 
-struct MultivariateUniform <: Distribution{Vector{Float64}} end
+struct MultivariateUniform <: Gen.Distribution{Vector{Float64}} end
 
 const mvuniform = MultivariateUniform()
 
-function logpdf(::MultivariateUniform, z::AbstractVector{T}, low_x::Real, low_y::Real, high_x::Real, high_y::Real) where {T <: Real}
+function Gen.logpdf(::MultivariateUniform, z::AbstractVector{T}, low_x::Real, low_y::Real, high_x::Real, high_y::Real) where {T <: Real}
     log_prob_x = (z[1] >= low_x && z[1] <= high_x) ? -log(high_x-low_x) : -Inf
-    log_prob_y = (z[1] >= low_y && z[1] <= high_y) ? -log(high_y-low_y) : -Inf
+    log_prob_y = (z[2] >= low_y && z[2] <= high_y) ? -log(high_y-low_y) : -Inf
     return log_prob_x+log_prob_y
 end
 
