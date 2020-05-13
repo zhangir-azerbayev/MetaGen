@@ -46,35 +46,35 @@ function Gen.logpdf(::MBRFS,
     # MBRFS can only support sets <= number of components
     nx = length(xs)
     if nx > length(params.rvs)
-        println("nx > length(params.rvs)")
+        # println("nx > length(params.rvs)")
         return log(0)
     end
 
     # params = {a, b}
     perms = permutations(1:length(params.rvs)) #how many rvs there are
-    println("perms ", perms)
+    # println("perms ", perms)
     lpdfs = fill(-Inf, length(perms))
     for (i, perm) in enumerate(perms)
         lpdf_perm = 0
         # [a, b] -> [?(x1), ?(x2)]
         for (j, element) in enumerate(perm)
-            println("j ", j)
-            println("element ", element)
+            # println("j ", j)
+            # println("element ", element)
             # a -> x1
             x = (j <= nx) ? xs[j] : []
-            println("x ", x)
-            println("params.rs[element] ", params.rs[element])
-            println("params.rvs[element] ", params.rvs[element])
-            println("params.rvs_args[element] ", params.rvs_args[element])
+            # println("x ", x)
+            # println("params.rs[element] ", params.rs[element])
+            # println("params.rvs[element] ", params.rvs[element])
+            # println("params.rvs_args[element] ", params.rvs_args[element])
             lpdf_perm = lpdf_perm + Gen.logpdf(brfs, x, params.rs[element], params.rvs[element], params.rvs_args[element])
-            println("lpdf_perm ", lpdf_perm)
+            # println("lpdf_perm ", lpdf_perm)
         end
-        println("lpdf_perm ", lpdf_perm)
+        # println("lpdf_perm ", lpdf_perm)
         lpdfs[i] = lpdf_perm
     end
-    println("lpdfs ", lpdfs)
+    # println("lpdfs ", lpdfs)
     lpdf = logsumexp(lpdfs)
-    println("lpdf ", lpdf)
+    # println("lpdf ", lpdf)
 
     return lpdf
 end

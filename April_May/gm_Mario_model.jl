@@ -5,8 +5,8 @@ using Distributions
 using Distances
 using TimerOutputs
 
-include("brfs.jl")
 include("shared_functions.jl")
+include("mbrfs_simplified.jl")
 
 
 
@@ -127,14 +127,18 @@ end
 @gen function build_percept(R, V::Matrix{Float64}, locations, possible_objects)
 	#C has two columns, for the two ways of seeing something (correct detection and hallucination)
 	#Each row is for a possible_category.
-	C = Matrix{Union{Array{Array{Float64,1},1}, Array{Any,1}}}(undef, length(possible_objects), 2)
+	#C = Matrix{Union{Array{Array{Float64,1},1}, Array{Any,1}}}(undef, length(possible_objects), 2)
 	#Array{Array{Float64,1},1} and Array{Any,1} are the two possible output types from brfs
+
+    C = Array{Union{Array{Array{Float64,1},1}, Array{Any,1}}}(undef, length(possible_objects))
 
 	for j = 1:length(possible_objects)
 		possible_object = possible_objects[j]
 
 		FA =  V[j,1][1]
 		M =  V[j,2][1]
+        #contains
+		E = (possible_object in R)
 
 		#params for mvnormal for location
 		mu = Vector{Float64}(undef, 2)
@@ -142,10 +146,12 @@ end
 		sd_x = 1
 		sd_y = 1
 
-		#contains
-		E = (possible_object in R)
-		mu[1] = E ? locations[j,1] : -1 #x-coordinate #else doesn't matter
-		mu[2] = E ? locations[j,2] : -1 #y-coordinate #else doesn't matter
+        #This part is redundant now
+		# mu[1] = E ? locations[j,1] : -1 #x-coordinate #else doesn't matter
+		# mu[2] = E ? locations[j,2] : -1 #y-coordinate #else doesn't matter
+
+        mu[1] = locations[j,1] #x-coordinate #else doesn't matter
+		mu[2] = locations[j,2] #y-coordinate #else doesn't matter
 
 		cov[1,1] = sd_x
 		cov[2,2] = sd_y
@@ -158,9 +164,14 @@ end
 		low_y = 0.0
 		high_y = 40.0
 
-		a_first = @trace(bernoulli(0.5), (:a_first, j))
-		C[j,1] = a_first ? @trace(brfs(FA, mvuniform, (low_x,low_y, high_x, high_y)), (:C => j => 1)) : @trace(brfs((1-M)*E, mvnormal, (mu,cov)), (:C => j => 1)) #return [x, y] for location or nothing
-		C[j,2] = a_first ? @trace(brfs((1-M)*E, mvnormal, (mu,cov)), (:C => j => 2)) : @trace(brfs(FA, mvuniform, (low_x,low_y, high_x, high_y)), (:C => j => 2)) #return tuple for location or null
+		#a_first = @trace(bernoulli(0.5), (:a_first, j))
+
+        params = MBRFSParams([FA, (1-M)*E],
+                             [mvuniform, mvnormal],
+                             [(low_x,low_y, high_x, high_y), (mu,cov)])
+        C[j] = @trace(mbrfs(params), (:C => j))
+		#C[j,1] = a_first ? @trace(brfs(FA, mvuniform, (low_x,low_y, high_x, high_y)), (:C => j => 1)) : @trace(brfs((1-M)*E, mvnormal, (mu,cov)), (:C => j => 1)) #return [x, y] for location or nothing
+		#C[j,2] = a_first ? @trace(brfs((1-M)*E, mvnormal, (mu,cov)), (:C => j => 2)) : @trace(brfs(FA, mvuniform, (low_x,low_y, high_x, high_y)), (:C => j => 2)) #return tuple for location or null
 
 		#Q_A returns a tuple for location sampled from uniform distribution or null
 		#Q_B returns a tuple for location sampled from gaussian distribution or null

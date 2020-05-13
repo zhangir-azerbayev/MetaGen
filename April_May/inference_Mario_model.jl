@@ -72,6 +72,7 @@ end
 #for printing the log_ml_estimate of a state with some words
 function print_log_ml_estimate(state, words)
     log_weights = get_log_weights(state)
+    println("log_weights ", log_weights)
     log_ml_estimate = Gen.log_ml_estimate(state)
     println(words, log_ml_estimate)
 end
@@ -109,39 +110,9 @@ end
     end
 end
 
-#swaps value of a_first
-@gen function perturbation_proposal_a_first(prev_trace, p, f, j)
-    # println("p ", p)
-    # println("f ", f)
-    # println("j ", j)
-
-    choices = get_choices(prev_trace)
-    # println("choices")
-    # display(choices)
-
-    #address should be right
-    a_first = @trace(bernoulli(0.5), (p => (:perceived_frame, f) => (:a_first, j)))
-end
-
 # If I allowed a resample of V, that would defeat the purpose of posterior becoming new prior.
 # Instead, just add some noise.
-# n_p is the current percept, so we'll perturb the a_first for all the percepts
-# before and including percept n_p
 function perturbation_move(trace, n_p)
-    #This is temporary. I know I have to shuffle the order that these
-    #perturbations to a_first happen
-    n_f = 2 #number of frames
-    n_j = 5 #number of categories
-
-    for p=1:n_p
-        for f=1:n_f
-            for j=1:n_j
-                #Mix up a_first
-                trace,_ = Gen.metropolis_hastings(trace, perturbation_proposal_a_first, (p, f, j))
-            end
-        end
-    end
-
     #Choose order of perturbation proposals randomly
     #mix up the order of the permutations
     #2 * for FA and M
@@ -181,18 +152,20 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
         ess = print_ess(state, "ess at start of loop is ")
 
 		if isnan(ess)
-			t = filter(t -> isinf(get_score(t)), state.traces)
-			ts = map(Gen.get_choices, t)
-            println("ts[1]")
-			display(ts[1])
+			#t = filter(t -> isinf(get_score(t)), state.traces)
+			#ts = map(Gen.get_choices, t)
+            #ts = Gen.get_choices(state.traces[1])
+            ts = Gen.get_choices(state.traces[1])
+            println("ts")
+			display(ts)
             # println("ts[2]")
 			# display(ts[2])
 		end
 
-		# return a sample of unweighted traces from the weighted collection
-		tr = Gen.sample_unweighted_traces(state, num_samples)
-
-        print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
+		# # return a sample of unweighted traces from the weighted collection
+		# tr = Gen.sample_unweighted_traces(state, num_samples)
+        #
+        # print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
 
 		# apply rejuvenation/perturbation move to each particle. optional.
         for i = 1:num_particles
@@ -227,10 +200,11 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
         ess = print_ess(state, "ess after particle filter step is ")
 
 		if isnan(ess)
-			t = filter(t -> isinf(get_score(t)), state.traces)
-			ts = map(Gen.get_choices, t)
+			# t = filter(t -> isinf(get_score(t)), state.traces)
+			# ts = map(Gen.get_choices, t)
+            ts = Gen.get_choices(state.traces[1])
 			println("ts[1]")
-			display(ts[1])
+			display(ts)
             # println("ts[2]")
 			# display(ts[2])
 		end

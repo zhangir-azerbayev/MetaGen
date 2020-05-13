@@ -9,6 +9,7 @@ using Distributions
 using Distances
 using TimerOutputs
 
+
 #creating output file
 #outfile = string("output", ARGS[1], ".csv")
 outfile = string("output111.csv")
