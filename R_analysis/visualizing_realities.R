@@ -16,7 +16,9 @@ clean <- function(column){
     # lapply(function(x){gsub(pattern = "\\", replacement="",x, fixed = TRUE)})
 }
 
-output111 <- read_delim("April_May/outputOld_model_printing_fts.csv", 
+# output111 <- read_delim("April_May/outputOld_model_printing_fts.csv", 
+#                         "&", escape_double = FALSE, trim_ws = TRUE)
+output111 <- read_delim("output111.csv",
                         "&", escape_double = FALSE, trim_ws = TRUE)
 data <- output111
 names(data)<-make.names(names(data),unique = TRUE)
@@ -27,7 +29,9 @@ data$mode.realities.PF <- data$mode.realities.PF  %>%
 data$gt_R <- clean(data$gt_R) #gt_R is a list. it has one element, gt_R[[1]] is characters.
 data$gt_R[[1]] <- substr(data$gt_R[[1]], start=2, stop=nchar(data$gt_R[[1]])-1) #removed extra brackets
 #gsub(pattern = "\\", replacement="",data$gt_R[[1]], fixed = TRUE) #not working
-gt_R <- as.list(strsplit(data$gt_R[[1]], "], [", fixed=TRUE)[[1]])
+#because if reality is empty, have to split based on ", S"
+#temp <- as.list(strsplit(data$gt_R[[1]], "], [", fixed=TRUE)[[1]])
+gt_R <- as.list(strsplit(data$gt_R[[1]], "], ", fixed=TRUE)[[1]])
 
 dealing_with_frequency_tables <- function(ft, n_percepts){
   ft <- ft  %>% lapply(function(x){gsub(pattern = "Dict(\"Array{String,N} where N", replacement="",x, fixed = TRUE)})
@@ -72,7 +76,9 @@ frequency_table_2d <- matrix(0, nrow = num_categories, ncol = n_percepts)
 some_zeros <- rep(0, len_ft*num_categories*n_percepts)
 frequency_table_3d <- array(some_zeros, c(num_categories, n_percepts, len_ft))
 
-percepts_list <- grep('percept', colnames(data), value=TRUE)
+matches <- regmatches(colnames(data), gregexpr("percept[[:digit:]]+", colnames(data)))
+percepts_list <- unlist(regmatches(colnames(data), gregexpr("percept[[:digit:]]+", colnames(data))))
+#percepts_list <- grep(text = gregexpr("percept[[:digit:]]+"), colnames(data), value=TRUE)
 #count up how many objects of each category in each percept and tally it in matrix
 for(p in 1:n_percepts){
   for(cat in 1:num_categories){
@@ -107,21 +113,25 @@ df$frequency_table <- frequency_table
 df$thresholded <- thresholded
 
 # Heatmap 
+#low="black", high="white", in scale_fill_gradient
 p1 <- ggplot(df, aes(X, Y, fill= gt_reality)) + 
   geom_tile() +
-  scale_fill_gradient(low="black", high="white", limits=c(0, 2)) +
-  ggtitle("Ground-truth realities")
+  scale_fill_gradient(limits=c(0, 1)) +
+  ggtitle("Ground-truth realities") +
+  xlab("Realities") + ylab("Categories")
 p2 <- ggplot(df, aes(X, Y, fill= perceived_reality)) + 
   geom_tile() +
-  scale_fill_gradient(low="black", high="white", limits=c(0, 2)) +
-  ggtitle("Percepts")
+  scale_fill_gradient(limits=c(0, 1)) +
+  ggtitle("Percepts") +
+  xlab("Percepts presented") + ylab("Categories")
 p3 <- ggplot(df, aes(X, Y, fill= frequency_table)) + 
   geom_tile() +
-  scale_fill_gradient(low="black", high="white", limits=c(0, 2)) +
-  ggtitle("Inferred realities")
+  scale_fill_gradient(limits=c(0, 1)) +
+  ggtitle("Inferred realities") +
+  xlab("Percepts presented") + ylab("Categories")
 p4 <- ggplot(df, aes(X, Y, fill= thresholded)) + 
   geom_tile() +
-  scale_fill_gradient(low="black", high="white", limits=c(0, 2)) +
+  scale_fill_gradient(limits=c(0, 1)) +
   ggtitle("Realities from thresholding percepts")
 
 all <- align_plots(p1, p2, p3, p4, align="hv", axis="tblr")
@@ -182,8 +192,6 @@ for (i in 1:length(sequence)){
   
   ggdraw(p)
 }
-
-
 
 
 

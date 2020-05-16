@@ -1,5 +1,7 @@
 #Inference procedure file
-include("gm_Mario_model.jl")
+#include("gm_with_fragmentation.jl")
+include("gm_with_FA_M.jl")
+#include("gm_Julian_intermediate.jl")
 include("shared_functions.jl") #just want countmemb function
 
 using Gen
@@ -37,7 +39,7 @@ function print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
     #initialize something for realities
     realities = Array{Array{String}}[]
     for i = 1:num_samples
-        R,_,V,_ = Gen.get_retval(tr[i])
+        R,V,_ = Gen.get_retval(tr[i])
         avg_V = avg_V + V/num_samples
         push!(realities,R)
         # println("R is ", R)
@@ -49,16 +51,9 @@ function print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
     print(file ,dictionary, " & ")
 end
 
-#obs is a choicemap to add the observations to
-#gt_choices are the ground truth choices as a choicemap
-function set_observations(obs, gt_choices, p, n_frames)
-    for f = 1:n_frames
-        #init_obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
-        addr = (p => (:perceived_frame,f) => :C)
-        sm = Gen.get_submap(gt_choices, addr)
-        Gen.set_submap!(obs, addr, sm)
-    end
-end
+
+
+#Particle filter helper functions
 
 #for printing the ess of a state with some words
 #returns ess
@@ -69,15 +64,13 @@ function print_ess(state, words)
     return ess
 end
 
-#for printing the log_ml_estimate of a state with some words
-function print_log_ml_estimate(state, words)
+#for printing the log weights and log_ml_estimate of a state with some words
+function print_weights(state, words)
     log_weights = get_log_weights(state)
     println("log_weights ", words, log_weights)
     log_ml_estimate = Gen.log_ml_estimate(state)
     println("log_ml_estimate ", words, log_ml_estimate)
 end
-
-#Particle filter helper functions
 
 function effective_sample_size(log_normalized_weights::Vector{Float64})
     log_ess = -logsumexp(2. * log_normalized_weights)
@@ -89,6 +82,32 @@ function normalize_weights(log_weights::Vector{Float64})
     log_normalized_weights = log_weights .- log_total_weight
     return (log_total_weight, log_normalized_weights)
 end
+
+#obs is a choicemap to add the observations to
+#gt_choices are the ground truth choices as a choicemap
+function set_observations(obs, gt_choices, p, n_frames)
+    for f = 1:n_frames
+        #init_obs[(:perceived_frame,p,f)] = gt_percepts[p][f]
+        addr = (:perceived_frame,p,f) => :visual_count #for old model version
+        #addr = (:perceived_frame,p,f) #for gm_Julian_intermediate
+        sm = Gen.get_submap(gt_choices, addr)
+        Gen.set_submap!(obs, addr, sm)
+    end
+end
+
+# #perturbs V all at once. after more percepts, MH starts to reject the proposals a lot
+# #std controls the standard deviation of the normal perpurbations of the fa and miss rates
+# @gen function perturbation_proposal(prev_trace, std::Float64)
+#     choices = get_choices(prev_trace)
+#     #(T,) = get_args(prev_trace)
+#     #perturb fa and miss rates normally with std 0.1
+
+#     for j = 1:length(possible_objects)
+#     	#new FA rate will be between 0 and 1
+#     	FA = @trace(trunc_normal(choices[(:fa, i)], std, 0.0, 1.0), (:fa, i))
+#         M = @trace(trunc_normal(choices[(:m, i)], std, 0.0, 1.0), (:m, i))
+#     end
+# end
 
 #perturb each entry of V independently
 #j is the index of the possible object whose hall_lambda or M will be perturbed
@@ -112,133 +131,101 @@ end
 
 # If I allowed a resample of V, that would defeat the purpose of posterior becoming new prior.
 # Instead, just add some noise.
-function perturbation_move(trace, n_p)
-    #Choose order of perturbation proposals randomly
-    #mix up the order of the permutations
-    #2 * for FA and M
+function perturbation_move(trace)
+
+	#Choose order of perturbation proposals randomly
+	#mix up the order of the permutations
+	#2 * for FA and M
     mixed_up = collect(1:2*length(possible_objects))
     mixed_up = homebrew_shuffle(mixed_up)
-    for j = 1:length(mixed_up)
-        i = mixed_up[j]
-        index = floor((i+1)/2)
-        trace,_ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,index,isodd(i)))
-    end
-
-    return trace
+	for j = 1:length(mixed_up)
+		i = mixed_up[j]
+		index = floor((i+1)/2)
+		trace,_ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,index,isodd(i)))
+	end
+	return trace
 end;
 
 
 function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_samples::Int)
-    println("in particle_filter")
 
 	n_percepts = size(gt_percepts)[1]
 	n_frames = size(gt_percepts[1])[1]
 
+	println("in particle_filter")
+
 	# construct initial observations
 	init_obs = Gen.choicemap()
-	p = 1
-	set_observations(init_obs, gt_choices, p, n_frames)
+	p=1
+    set_observations(init_obs, gt_choices, p, n_frames)
 
 	println("init_obs")
 	display(init_obs)
 
 	#initial state
-	state = Gen.initialize_particle_filter(gm, (possible_objects, p, n_frames), init_obs, num_particles)
+	#num_percepts is 1 because starting off with just one percept
+	state = Gen.initialize_particle_filter(gm, (possible_objects, 1, n_frames), init_obs, num_particles)
 
 	for p = 2:n_percepts
+
 		println("percept ", p-1)
+        print_weights(state, "at start of loop is ")
+        print_ess(state, "ess at start of loop is ")
 
-        print_log_ml_estimate(state, "at start of loop is ")
-        ess = print_ess(state, "ess at start of loop is ")
+		# return a sample of unweighted traces from the weighted collection
+		tr = Gen.sample_unweighted_traces(state, num_samples)
 
-        # t = filter(t -> isinf(get_score(t)), state.traces)
-        # ts = map(Gen.get_choices, t)
-        # println("ts[1] is inf")
-        # display(ts[1])
-        #
-        # t = filter(t -> !isinf(get_score(t)), state.traces)
-        # ts = map(Gen.get_choices, t)
-        # println("ts[1] is not inf")
-        # display(ts[1])
-
-        log_weights = get_log_weights(state)
-        traces = get_traces(state)
-        choices = map(Gen.get_choices, traces)
-
-        println("log_weights[1] ", log_weights[1])
-        println("choices[1] ")
-        display(choices[1])
-        println("get_score(traces[1]) ", get_score(traces[1]))
-
-		# if isnan(ess)
-		# 	#t = filter(t -> isinf(get_score(t)), state.traces)
-		# 	#ts = map(Gen.get_choices, t)
-        #     #ts = Gen.get_choices(state.traces[1])
-        #     ts = Gen.get_choices(state.traces[1])
-        #     println("ts")
-		# 	display(ts)
-        #     # println("ts[2]")
-		# 	# display(ts[2])
-		# end
-
-		# # return a sample of unweighted traces from the weighted collection
-		# tr = Gen.sample_unweighted_traces(state, num_samples)
-        #
-        # print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
+		print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
 
 		# apply rejuvenation/perturbation move to each particle. optional.
         for i = 1:num_particles
-        	R,_,V,_ = Gen.get_retval(state.traces[i])
+        	R,V,_ = Gen.get_retval(state.traces[i])
         	# println("V before perturbation ", V)
 
-            #p is for which a_firsts to adjust. Since we haven't added percept
-            #p yet, it's p-1
-            state.traces[i] = perturbation_move(state.traces[i], p-1)
+            state.traces[i] = perturbation_move(state.traces[i])
 
-            R,_,V,_ = Gen.get_retval(state.traces[i])
+            R,V,_ = Gen.get_retval(state.traces[i])
             #println("R after perturbation is ", R)
 			# println("V after perturbation ", V)
 			#println("log_weight after perturbation is ", log_weights[i])
         end
 
-        print_ess(state, "ess after perturbation is ")
-        print_log_ml_estimate(state, "after perturbation is ")
+        print_weights(state, "after perturbation ")
+        print_ess(state, "after perturbation ")
 
 		do_resample = Gen.maybe_resample!(state, ess_threshold=num_particles/2, verbose=true)
 
-        print_ess(state, "ess after resample is ")
-        print_log_ml_estimate(state, "after resample is ")
+        print_weights(state, "after resample ")
+        print_ess(state, "after resample ")
 
-        #add a new observation
 		obs = Gen.choicemap()
-        set_observations(obs, gt_choices, p, n_frames)
+		set_observations(obs, gt_choices, p, n_frames)
 
         # println("obs")
     	# display(obs)
 
-        print_log_ml_estimate(state, "before particle step is ")
+        print_weights(state, "after setting observation ")
+        print_ess(state, "after setting observation ")
 
 		Gen.particle_filter_step!(state, (possible_objects, p, n_frames), (UnknownChange(),), obs)
 
-        print_log_ml_estimate(state, "after particle step is ")
-        ess = print_ess(state, "ess after particle filter step is ")
+        print_weights(state, "after particle filter step ")
+        print_ess(state, "after particle filter step ")
 
-		if isnan(ess)
-			# t = filter(t -> isinf(get_score(t)), state.traces)
-			# ts = map(Gen.get_choices, t)
-            ts = Gen.get_choices(state.traces[1])
-			println("ts[1]")
-			display(ts)
-            # println("ts[2]")
-			# display(ts[2])
-		end
+		# if isnan(ess)
+		# 	t = filter(t -> isinf(get_score(t)), state.traces)
+		# 	ts = map(Gen.get_choices, t)
+		# 	println("ts[1]")
+		# 	display(ts[1])
+        #     println("ts[2]")
+		# 	display(ts[2])
+		# end
 	end
-
-    println("percept ", n_percepts)
-
-    print_log_ml_estimate(state, "just before sampling is ")
 	# return a sample of unweighted traces from the weighted collection
 	tr = Gen.sample_unweighted_traces(state, num_samples)
+
+	println("percept ", n_percepts)
+
     print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
 
 	return tr

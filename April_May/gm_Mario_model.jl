@@ -155,6 +155,8 @@ end
         mu[1] = locations[j,1] #x-coordinate #else doesn't matter
 		mu[2] = locations[j,2] #y-coordinate #else doesn't matter
 
+        #may need to truncate the mvnormal distribution at some point so it's within the frame,
+        #but that doesn't seem to be a problem yet
 		cov[1,1] = sd_x
 		cov[2,2] = sd_y
 		cov[1,2] = 0
@@ -205,10 +207,7 @@ beta = 10
 	V = Matrix{Float64}(undef, length(possible_objects_immutable), 2)
 
 	for j = 1:length(possible_objects)
-        #set lambda for hallucination. The lambda parameter is sampled from
-		#a truncated normal distribution with mean hallucination_lambda, minimum
-		#0, and maximum 100.0, which is completely arbitrary. The STD I set to
-		#2, which is pretty arbitrary
+        #set false alarm rate
         V[j,1] = @trace(Gen.beta(alpha, beta), (:fa, j)) #leads to miss rate of around 0.1
         #set miss rate
         V[j,2] = @trace(Gen.beta(alpha, beta), (:m, j)) #leads to miss rate of around 0.1
@@ -216,7 +215,7 @@ beta = 10
 
 	#Determining frame of reality R
 	lambda_objects = 1 #must be <= length of possible_objects
-	low = 0  #seems that low is never sampled, so this distribution will go from low+1 to high
+	low = -1  #seems that low is never sampled, so this distribution will go from low+1 to high
 	num_categories = length(possible_objects_immutable)
 
 	#generate each percept
@@ -236,7 +235,7 @@ beta = 10
     	#numObjects = @trace(Gen.poisson(lambda_objects), (:numObjects, p))
 		numObjects = @trace(trunc_poisson(lambda_objects, low, num_categories), (p => :numObjects))
 
-		#changed from sampling with replacement
+		#building R
         R = @trace(sample_wo_repl(possible_objects, numObjects), (p => :R))
         push!(Rs, R)
 		locations = Matrix{Float64}(undef, num_categories, 2)

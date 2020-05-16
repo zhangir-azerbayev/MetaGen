@@ -1,7 +1,6 @@
 #Main script for executing data simulation and inference using the generative model
-#include("gm_Julian_intermediate.jl")
-include("gm_with_FA_M.jl")
-include("inference.jl")
+include("gm_with_FA_M_and_locations.jl")
+include("inference_with_FA_M_and_locations.jl")
 include("shared_functions.jl") #just want countmemb function
 
 using Gen
@@ -25,13 +24,15 @@ n_frames = 10
 
 
 #file header
-print(file, "gt_V & gt_R & ")
+print(file, "gt_V & gt_R & gt_locationses & ")
 for p=1:n_percepts
 	print(file, "percept", p, " & ")
+	print(file, "percept_locations", p, " & ")
 end
 for p=1:n_percepts
 	print(file, "avg V after p", p, " & ")
-	print(file, "frequency table PF after p", p, " & ")
+	print(file, "frequency table of Rs PF after p", p, " & ")
+	print(file, "frequency table of Rs_locationses PF after p", p, " & ")
 end
 println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequency table PF & unique_realities PF & mode realities PF & avg_Vs_binned for unique_realities PF & avg_Rs PF & Euclidean distance between avg_Rs and gt_R PF & Euclidean distance FA PF & Euclidean distance M PF &")
 
@@ -42,11 +43,11 @@ println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequ
 #initializing the generative model. It will create the ground truth V and R
 #generates the data and the model
 gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames))
-gt_reality,gt_V,gt_percepts = Gen.get_retval(gt_trace)
 gt_choices = get_choices(gt_trace)
-
 println("gt_choices")
 display(gt_choices)
+
+gt_reality, gt_Rs_locationses, gt_V, gt_percepts, gt_percepts_locationses = Gen.get_retval(gt_trace)
 
 #will have to find a way to generate gt_choices from gt_percepts
 #for when I'm no longer using simulated data
@@ -106,19 +107,29 @@ display(gt_choices)
 gt_R_bool = names_to_boolean
 print(file, gt_V, " & ")
 print(file, gt_reality, " & ")
+print(file, gt_Rs_locationses, " & ")
 
 #println("gt_percepts", gt_percepts)
 
 #Saving gt_percepts to file
 percepts = []
+percepts_locationses = []
 for p = 1:n_percepts
 	percept = []
+	percept_locations = []
 	#println("gt_percepts[p] ", gt_percepts[p])
 	for f = 1:n_frames
 		#println("gt_percepts[p][f] ", gt_percepts[p][f])
 		#println("possible_objects[gt_percepts[p][f]] ", possible_objects[gt_percepts[p][f]])
 		perceived_frame = gt_percepts[p][f]
-		print(file,  perceived_frame)
+		print(file, perceived_frame)
+	end
+	print(file, " & ")
+	for f = 1:n_frames
+		#println("gt_percepts[p][f] ", gt_percepts[p][f])
+		#println("possible_objects[gt_percepts[p][f]] ", possible_objects[gt_percepts[p][f]])
+		perceived_frame_locations = gt_percepts_locationses[p][f]
+		print(file, perceived_frame_locations)
 	end
 	print(file, " & ")
 end
@@ -152,7 +163,7 @@ num_moves = 1
 
 #(traces,time_particle) = @timed particle_filter(num_particles, gt_percept, num_samples);
 #println(file, "time elaped \n ", time_particle)
-(traces, time_PF) = @timed particle_filter(num_particles, gt_percepts, gt_choices, num_samples);
+(traces, time_PF) = @timed particle_filter(num_particles, gt_percepts, gt_percepts_locationses, gt_choices, num_samples);
 print(file, "time elapsed particle filter  ", time_PF, " & ")
 
 print(file, num_particles, " & ")
@@ -164,7 +175,7 @@ print(file, num_moves, " & ")
 realities = Array{Array{String}}[]
 Vs = Array{Float64}[]
 for i = 1:num_samples
-	Rs,V,_ = Gen.get_retval(traces[i])
+	Rs,_,V,_,_ = Gen.get_retval(traces[i])
 	push!(Vs,V)
 	push!(realities,Rs)
 end

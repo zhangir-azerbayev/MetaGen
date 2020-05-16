@@ -13,11 +13,11 @@ library(truncnorm)
 #  })%>%
 #  bind_rows
 
-# data <- read.csv("output111.csv",header=TRUE, sep='&')
+data <- read.csv("output111.csv",header=TRUE, sep='&')
 
-output111 <- read_delim("with_fragmentation/output111.csv", 
-                        "&", escape_double = FALSE, trim_ws = TRUE)
-data <- output111
+# output111 <- read_delim("outputOld_model.csv", 
+#                         "&", escape_double = FALSE, trim_ws = TRUE)
+#data <- output111
 names(data)<-make.names(names(data),unique = TRUE)
 
 #clean up the data
@@ -59,13 +59,16 @@ gt_V <- matrix(as.numeric(temp_var), ncol=2, byrow=TRUE)
 n_objects = 5
 
 #truncated normal prior for hallucination lambda
-trunc_norm_mean <- qtruncnorm(0.5, 0, 100, 0.2, 0.5)
+trunc_norm_mean <- etruncnorm(0, 100, 0.2, 0.5) #expected value
 temp_var1 <- rep(trunc_norm_mean, n_objects)
 #beta distribution prior for miss rate
-beta_mean = qbeta(0.5, 2, 10)
+beta_mean = 3/(3+30) #mean of a beta with alpha = 2 and beta = 10
 temp_var2 <- rep(beta_mean, n_objects)
 #matrix where first column is expected hallucination lambdas, second is M rate
-exp_mat <- cbind(temp_var1, temp_var2)
+exp_mat <- cbind(temp_var2, temp_var2) #for when it's fa rather than hall lambda
+
+MSE_exp_hall = sum((gt_V[,1] - exp_mat[,1])^2)/5
+MSE_exp_M = sum((gt_V[,2] - exp_mat[,2])^2)/5
 
 
 MSE_hall <- vector(mode="double", length=n_percepts)
@@ -78,13 +81,29 @@ for(p in 1:n_percepts){
 }
 
 x <- rep(1:n_percepts)
+toPlot <- data.frame(MSE_hall,MSE_M, x)
+
+ggplot(toPlot, aes(x=x, y=MSE_hall)) + 
+  geom_point() +
+  geom_hline(yintercept = MSE_exp_hall) +
+  ggtitle("MSE of estimates of False Alarm Rate over time") +
+  xlab("Number of Percepts Observed") + ylab("MSE for False Alarm Rate") +
+  coord_cartesian(ylim = c(0, 0.025))
+
+ggplot(toPlot, aes(x=x, y=MSE_M)) + 
+  geom_point() +
+  geom_hline(yintercept = MSE_exp_M) +
+  ggtitle("MSE of estimates of Miss Rate over time") +
+  xlab("Number of Percepts Observed") + ylab("MSE for Miss Rate") +
+  coord_cartesian(ylim = c(0, 0.025))
+
 
 category_names = c("person","bicycle","car","motorcycle","airplane")
-
 num_categories = length(category_names)
+
 for(cat in 1:num_categories){
   
-  cat = 3
+  cat = 5
   
   MSE_mean_hall_lambda_cat = (gt_V[cat,1] - exp_mat[cat,1])^2
   MSE_beta_mean_M_cat = (gt_V[cat,2] - exp_mat[cat,2])^2
@@ -140,12 +159,13 @@ for(cat in 1:num_categories){
     }
   }
   
-  toPlot <- data.frame(x, FA_cat, M_cat, MSE_hall_cat, MSE_M_cat, false_alarm_count, miss_count)
+  toPlot <- data.frame(x, hall_cat, M_cat, MSE_hall_cat, MSE_M_cat, false_alarm_count, miss_count)
   
-  ggplot(toPlot, aes(x=x, y=M_cat, color=miss_count )) + 
+  ggplot(toPlot, aes(x=x, y=M_cat)) + 
     geom_point() +
     geom_hline(yintercept = gt_V[cat,2]) +
-    ggtitle(category_names[cat]) +
+    ggtitle(paste("Category ", category_names[cat])) +
+    xlab("Number of Percepts Observed") + ylab("Miss Rate") +
     coord_cartesian(ylim = c(0, 1)) 
   
   # ggplot(toPlot, aes(x=x, y=MSE_M_cat, color=miss_count )) + 
@@ -153,10 +173,11 @@ for(cat in 1:num_categories){
   #   geom_hline(yintercept = MSE_beta_mean_M_cat) +
   #   ggtitle(category_names[cat])
   
-  ggplot(toPlot, aes(x=x, y=hall_cat, color=false_alarm_count )) + 
+  ggplot(toPlot, aes(x=x, y=hall_cat)) + 
     geom_point() +
     geom_hline(yintercept = gt_V[cat,1]) +
-    ggtitle(category_names[cat]) +
+    ggtitle(paste("Category ", category_names[cat])) +
+    xlab("Number of Percepts Observed") + ylab("False Alarm Rate") +
     coord_cartesian(ylim = c(0, 2)) 
   
   # ggplot(toPlot, aes(x=x, y=MSE_FA_cat, color=false_alarm_count )) + 

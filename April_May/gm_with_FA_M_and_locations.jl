@@ -176,27 +176,41 @@ end
 # fragmentation_lambda, fragmentation_max, hallucination_max, and possible_objects
 #fragmentation_max will be the most fragmentations possible per object. So for a single token object in reality,
 #it can be fragmented at most fragmentation_max times, in addition to being detected once.
-@gen function build_percept(R, V::Matrix{Float64}, possible_objects)
+@gen function build_percept(R, V::Matrix{Float64}, locations, possible_objects)
 	perceived_frame = []
+	perceived_location = []
 
 	for j = 1:length(possible_objects)
 		possible_object = possible_objects[j]
 
-		# works
 		FA =  V[j,1][1]
 		M =  V[j,2][1]
-		if possible_object in R
-			#detection
-			visual_count = @trace(bernoulli(1-M), :visual_count  => j)
-		else
-			visual_count = @trace(bernoulli(FA), :visual_count  => j)
-		end
+		#contains
+		E = (possible_object in R)
 
-		for i = 1:(visual_count)
+		#params for mvnormal for location
+		mu = Vector{Float64}(undef, 2)
+		cov = Matrix{Float64}(undef, 2, 2)
+		sd_x = 10
+		sd_y = 10
+		mu[1] = locations[j,1]
+		mu[2] = locations[j,2]
+		#may need to truncate the mvnormal distribution at some point so it's within the frame,
+        #but that doesn't seem to be a problem yet
+		cov[1,1] = sd_x
+		cov[2,2] = sd_y
+		cov[1,2] = 0
+		cov[2,1] = 0
+
+		visual_count = E ? @trace(bernoulli(1-M), :visual_count  => j) : @trace(bernoulli(FA), :visual_count  => j)
+		visual_location = visual_count ? @trace(mvnormal(mu,cov), :location => j) : @trace(mvuniform(-1,-1,0,0), :location => j)
+
+		if visual_count
 			push!(perceived_frame, possible_object)
+			push!(perceived_location, visual_location)
 		end
 	end #end for
-	return perceived_frame
+	return (perceived_frame, perceived_location)
 end
 
 
@@ -209,8 +223,15 @@ beta = 10
 #per percepts.
 @gen function gm(possible_objects::Vector{String}, n_percepts::Int, n_frames::Int)
 
+	#dimensions of the frames
+	low_x = 0.0
+	high_x = 40.0
+	low_y = 0.0
+	high_y = 40.0
+
 	#need to make one possible_objects to change when replaced, another to not change?
 	possible_objects_immutable = copy(possible_objects)
+	num_categories = length(possible_objects_immutable)
 
 	#Determining visual system V
 	V = Matrix{Float64}(undef, length(possible_objects_immutable), 2)
@@ -231,9 +252,10 @@ beta = 10
 
     #percepts will contain many percepts.
     percepts = []
-
+	percepts_locationses = []
     #Rs will contain many realities
     Rs = []
+	Rs_locationses = []
 
     for p = 1:n_percepts
 
@@ -242,19 +264,26 @@ beta = 10
     	#numObjects = @trace(Gen.poisson(lambda_objects), (:numObjects, p))
 		numObjects = @trace(trunc_poisson(lambda_objects, low, high), (:numObjects, p))
 
-		#changed from sampling with replacement
+		#building R
         R = @trace(sample_wo_repl(possible_objects, numObjects), (:R, p))
         push!(Rs, R)
+		r_locations = Matrix{Float64}(undef, num_categories, 2)
+		for i = 1:num_categories
+			r_locations[i,:] = @trace(mvuniform(low_x,low_y, high_x, high_y), (p => :location => i)) #gives [x,y] coordinates
+		end
+		push!(Rs_locationses, r_locations)
 
     	percept = []
+		percept_locations = []
     	for f = 1:n_frames
-    		perceived_frame = @trace(build_percept(R, V, possible_objects), (:perceived_frame, p, f))
+    		(perceived_frame, perceived_frame_location) = @trace(build_percept(R, V, r_locations, possible_objects), (p => (:perceived_frame, f)))
     		push!(percept, perceived_frame)
+			push!(percept_locations, perceived_frame_location)
     	end
-
         push!(percepts, percept)
+		push!(percepts_locationses, percept_locations)
 
     end
 
-	return (Rs,V,percepts); #returning reality R, (optional)
+	return (Rs, Rs_locationses, V, percepts, percepts_locationses); #returning reality R, (optional)
 end;

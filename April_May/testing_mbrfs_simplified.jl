@@ -106,3 +106,10 @@ println("a ", a)
 println("b ", b)
 
 println(a==b) #checks out! Hurray!!!!!!!!!!
+
+#Test
+
+params = MBRFSParams([0.5, 0.5],
+                   [mvuniform, mvnormal],
+                   [(1, 3, 3, 5), (mu,cov_mat)])
+xs = mbrfs(params)

@@ -2,10 +2,10 @@ library(dplyr)
 library(readr)
 library(ggplot2)
 
-data <- list.files("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/Simulated_data_and_analysis/with10realities/test", pattern='output') %>%
-lapply(function(x){read.csv(x, header=TRUE, sep='&')})%>%bind_rows()
+# data <- list.files("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/Simulated_data_and_analysis/with10realities/test", pattern='output') %>%
+# lapply(function(x){read.csv(x, header=TRUE, sep='&')})%>%bind_rows()
 
-# data <- read.csv("output111.csv",header=TRUE, sep='&')
+data <- read.csv("output111.csv",header=TRUE, sep='&')
 
 #clean up the data
 data$mode.realities.MH <- data$mode.realities.MH  %>%
@@ -58,13 +58,11 @@ gt_V <- matrix(as.numeric(temp_var), ncol=2, byrow=TRUE)
 #parameters of beta distribution priors
 alpha = 2
 beta = 10
-beta_mean = qbeta(0.5, 2, 6)
+beta_mean = alpha/(alpha+beta)
 temp_var <- rep(beta_mean, 10)
 Beta_mat <- matrix(temp_var, ncol = 2, byrow = 2)
 MSE_beta_mean_FA = sum((gt_V[,1] - Beta_mat[,1])^2)/5
 MSE_beta_mean_M = sum((gt_V[,2] - Beta_mat[,2])^2)/5
-
-
 
 MSE_FA <- vector(mode="double", length=n_percepts)
 MSE_M <- vector(mode="double", length=n_percepts)
@@ -74,7 +72,18 @@ for(p in 1:n_percepts){
   MSE_FA[p] <- mean((gt_V[,1] - mat[,1])^2)
   MSE_M[p] <- mean((gt_V[,2] - mat[,2])^2)
 }
+
 x <- rep(1:n_percepts)
+toPlot <- data.frame(MSE_FA, MSE_M, x)
+ggplot(toPlot, aes(x=x, y=MSE_FA)) + 
+  geom_point() +
+  geom_hline(yintercept = MSE_beta_mean_FA) +
+  ggtitle("MSE_FA")
+
+ggplot(toPlot, aes(x=x, y=MSE_M)) + 
+  geom_point() +
+  geom_hline(yintercept = MSE_beta_mean_M) +
+  ggtitle("MSE_M")
 
 
 category_names = c("person","bicycle","car","motorcycle","airplane")
@@ -82,7 +91,7 @@ category_names = c("person","bicycle","car","motorcycle","airplane")
 num_categories = length(category_names)
 for(cat in 1:num_categories){
   
-  cat = 2
+  cat = 5
   
   MSE_beta_mean_FA_cat = (gt_V[cat,1] - Beta_mat[cat,1])^2
   MSE_beta_mean_M_cat = (gt_V[cat,2] - Beta_mat[cat,2])^2
