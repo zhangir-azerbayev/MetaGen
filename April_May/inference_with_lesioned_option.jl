@@ -1,6 +1,6 @@
 #Inference procedure file
 #include("gm_with_fragmentation.jl")
-include("gm_with_FA_M_and_locations.jl")
+include("gm_with_FA_M.jl")
 #include("gm_Julian_intermediate.jl")
 include("shared_functions.jl") #just want countmemb function
 
@@ -38,21 +38,17 @@ function print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
     avg_V = zeros(length(possible_objects), 2)
     #initialize something for realities
     realities = Array{Array{String}}[]
-    Rs_locationses_array = Array{Matrix{Float64}}[]
     for i = 1:num_samples
-        R,Rs_locationses,V,_,_ = Gen.get_retval(tr[i])
+        R,V,_ = Gen.get_retval(tr[i])
         avg_V = avg_V + V/num_samples
         push!(realities,R)
-        push!(Rs_locationses_array,Rs_locationses)
         # println("R is ", R)
         # println("V is ", V)
     end
     # println("avg_V is ", avg_V)
     print(file, avg_V, " & ")
     dictionary = countmemb(realities)
-    print(file, dictionary, " & ")
-    dictionary_locations = countmemb(Rs_locationses_array)
-    print(file, dictionary_locations, " & ")
+    print(file ,dictionary, " & ")
 end
 
 
@@ -89,41 +85,57 @@ end
 
 #obs is a choicemap to add the observations to
 #gt_choices are the ground truth choices as a choicemap
+function set_initial_observations(obs, gt_choices, p, n_frames, mean_Beta)
+    for f = 1:n_frames
+        addr = (:perceived_frame,p,f) => :visual_count #for old model versionte
+        sm = Gen.get_submap(gt_choices, addr)
+        Gen.set_submap!(obs, addr, sm)
+
+        for j = 1:length(possible_objects)
+            obs[(:fa, j)] = mean_Beta
+            obs[(:m, j)] = mean_Beta
+        end
+    end
+end
+
+#obs is a choicemap to add the observations to
+#gt_choices are the ground truth choices as a choicemap
 function set_observations(obs, gt_choices, p, n_frames)
     for f = 1:n_frames
-        #giving it visual_count and all the locations (for hallucinated and non-hallucinated objects)
-        addr = p => (:perceived_frame,f) #for gm_Julian_intermediate
+        addr = (:perceived_frame,p,f) => :visual_count #for old model versionte
         sm = Gen.get_submap(gt_choices, addr)
         Gen.set_submap!(obs, addr, sm)
     end
 end
 
-#perturb the location of an object
-#resample the location of an object in R.
-#j gives which object we're perturbing the location of
-@gen function perturbation_proposal_location(prev_trace, std::Float64, p::Int, j::Int)
-    choices = get_choices(prev_trace)
-    mu = choices[(p => :location => j)]
+# #perturbs V all at once. after more percepts, MH starts to reject the proposals a lot
+# #std controls the standard deviation of the normal perpurbations of the fa and miss rates
+# @gen function perturbation_proposal(prev_trace, std::Float64)
+#     choices = get_choices(prev_trace)
+#     #(T,) = get_args(prev_trace)
+#     #perturb fa and miss rates normally with std 0.1
 
-    #may need to truncate the mvnormal distribution at some point so it's within the frame,
-    #but that doesn't seem to be a problem yet
-    cov = Matrix{Float64}(undef, 2, 2)
-    cov[1,1] = std
-    cov[2,2] = std
-    cov[1,2] = 0
-    cov[2,1] = 0
+#     for j = 1:length(possible_objects)
+#     	#new FA rate will be between 0 and 1
+#     	FA = @trace(trunc_normal(choices[(:fa, i)], std, 0.0, 1.0), (:fa, i))
+#         M = @trace(trunc_normal(choices[(:m, i)], std, 0.0, 1.0), (:m, i))
+#     end
+# end
 
-    new_location = @trace(mvnormal(mu, cov),(p => :location => j))
-end
-
-#perturb an entry in the matrix V
-#j is the index of the possible object whose FA or M will be perturbed
-#hall is a boolean for if it will perturb the FA or M. If true, perturb FA. If false, perturb M.
+#perturb each entry of V independently
+#j is the index of the possible object whose hall_lambda or M will be perturbed
+#hall is a boolean for if it will perturb the hall_lambda or M. If true, perturb FA. If false, perturb M.
 #std controls the standard deviation of the normal perpurbations of the fa and miss rates
-@gen function perturbation_proposal_V(prev_trace, std::Float64, j::Int, hall::Bool)
+@gen function perturbation_proposal_individual(prev_trace, std::Float64, j::Int, hall::Bool)
     choices = get_choices(prev_trace)
     if hall
-	    FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 1.0), (:fa, j))
+		#new hallucination_lamda will be drawn from a normal distribution
+		#centered on previous hallucination_lambda and between 0 and something arbitrary.
+		#to do this right, might not want the upper bound. upper_bound is arbitrary.
+		#exact value shouldn't matter because should be very unlikely anyway
+		#upper_bound = 100.0 #make sure it matches upper bound in gm
+    	#hall = @trace(trunc_normal(choices[(:hall_lambda, j)], std, 0.0, upper_bound), (:hall_lambda, j))
+        FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 1.0), (:fa, j))
     else
     	#new M rate will be between 0 and 1
         M = @trace(trunc_normal(choices[(:m, j)], std, 0.0, 1.0), (:m, j))
@@ -132,39 +144,24 @@ end
 
 # If I allowed a resample of V, that would defeat the purpose of posterior becoming new prior.
 # Instead, just add some noise.
-function perturbation_move(trace, p)
-    J = length(possible_objects)
-    # #perturb all the locations in a different order each time
-    # mixed_up = collect(1:J)
-    # mixed_up = homebrew_shuffle(mixed_up)
-    # for j = 1:J
-	# 	i = mixed_up[j]
-	# 	trace,_ = Gen.metropolis_hastings(trace, perturbation_proposal_location, (10, p, i))
-    # end
+function perturbation_move(trace)
 
 	#Choose order of perturbation proposals randomly
 	#mix up the order of the permutations
 	#2 * for FA and M
-    mixed_up = collect(1:2*J)
+    mixed_up = collect(1:2*length(possible_objects))
     mixed_up = homebrew_shuffle(mixed_up)
-	for j = 1:J
+	for j = 1:length(mixed_up)
 		i = mixed_up[j]
 		index = floor((i+1)/2)
-		trace,_ = Gen.metropolis_hastings(trace, perturbation_proposal_V, (0.1,index,isodd(i)))
+		trace,_ = Gen.metropolis_hastings(trace, perturbation_proposal_individual, (0.1,index,isodd(i)))
 	end
-
-    # #perturb all the locations in a different order each time
-    # mixed_up = collect(1:J)
-    # mixed_up = homebrew_shuffle(mixed_up)
-    # for j = 1:J
-	# 	i = mixed_up[j]
-	# 	trace,_ = Gen.metropolis_hastings(trace, perturbation_proposal_location, (10, p, i))
-    # end
 	return trace
 end;
 
 
-function particle_filter(num_particles::Int, gt_percepts, gt_percepts_locationses, gt_choices, num_samples::Int)
+#if lesion is true, than set FA and M in initial obseration
+function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_samples::Int, mean_Beta::Float64, lesion::Bool)
 
 	n_percepts = size(gt_percepts)[1]
 	n_frames = size(gt_percepts[1])[1]
@@ -174,7 +171,7 @@ function particle_filter(num_particles::Int, gt_percepts, gt_percepts_locationse
 	# construct initial observations
 	init_obs = Gen.choicemap()
 	p=1
-    set_observations(init_obs, gt_choices, p, n_frames)
+    lesion ? set_initial_observations(init_obs, gt_choices, p, n_frames, mean_Beta) : set_observations(init_obs, gt_choices, p, n_frames)
 
 	println("init_obs")
 	display(init_obs)
@@ -186,38 +183,35 @@ function particle_filter(num_particles::Int, gt_percepts, gt_percepts_locationse
 	for p = 2:n_percepts
 
 		println("percept ", p-1)
-        #print_weights(state, "at start of loop is ")
-        #print_ess(state, "ess at start of loop is ")
+        # print_weights(state, "at start of loop is ")
+        # print_ess(state, "ess at start of loop is ")
 
-
-		# #tr = Gen.sample_unweighted_traces(state, num_samples)
-		# tr = get_traces(state)
-        #
 		# return a sample of unweighted traces from the weighted collection
 		tr = Gen.sample_unweighted_traces(state, num_samples)
 
-        print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
+        if lesion==false
+            print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
+            # apply rejuvenation/perturbation move to each particle. optional.
+            for i = 1:num_particles
+                R,V,_ = Gen.get_retval(state.traces[i])
+                # println("V before perturbation ", V)
 
-		# apply rejuvenation/perturbation move to each particle. optional.
-        for i = 1:num_particles
-        	#R,_,V,_,_,_ = Gen.get_retval(state.traces[i])
-        	# println("V before perturbation ", V)
+                state.traces[i] = perturbation_move(state.traces[i])
 
-            state.traces[i] = perturbation_move(state.traces[i], p-1)
+                R,V,_ = Gen.get_retval(state.traces[i])
+                #println("R after perturbation is ", R)
+                # println("V after perturbation ", V)
+                #println("log_weight after perturbation is ", log_weights[i])
+            end
 
-            #R,_,V,_,_,_ = Gen.get_retval(state.traces[i])
-            #println("R after perturbation is ", R)
-			# println("V after perturbation ", V)
-			#println("log_weight after perturbation is ", log_weights[i])
-        end
-
-        #print_weights(state, "after perturbation ")
-        #print_ess(state, "after perturbation ")
+            # print_weights(state, "after perturbation ")
+            # print_ess(state, "after perturbation ")
+        end #end if lesion==false
 
 		do_resample = Gen.maybe_resample!(state, ess_threshold=num_particles/2, verbose=true)
 
-        #print_weights(state, "after resample ")
-        #print_ess(state, "after resample ")
+        # print_weights(state, "after resample ")
+        # print_ess(state, "after resample ")
 
 		obs = Gen.choicemap()
 		set_observations(obs, gt_choices, p, n_frames)
@@ -225,13 +219,13 @@ function particle_filter(num_particles::Int, gt_percepts, gt_percepts_locationse
         # println("obs")
     	# display(obs)
 
-        #print_weights(state, "after setting observation ")
-        #print_ess(state, "after setting observation ")
+        # print_weights(state, "after setting observation ")
+        # print_ess(state, "after setting observation ")
 
 		Gen.particle_filter_step!(state, (possible_objects, p, n_frames), (UnknownChange(),), obs)
 
-        #print_weights(state, "after particle filter step ")
-        #print_ess(state, "after particle filter step ")
+        # print_weights(state, "after particle filter step ")
+        # print_ess(state, "after particle filter step ")
 
 		# if isnan(ess)
 		# 	t = filter(t -> isinf(get_score(t)), state.traces)
@@ -242,12 +236,14 @@ function particle_filter(num_particles::Int, gt_percepts, gt_percepts_locationse
 		# 	display(ts[2])
 		# end
 	end
-
-    println("percept ", n_percepts)
 	# return a sample of unweighted traces from the weighted collection
 	tr = Gen.sample_unweighted_traces(state, num_samples)
 
-    print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
+	println("percept ", n_percepts)
+
+    if lesion==false
+        print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
+    end
 
 	return tr
 end;

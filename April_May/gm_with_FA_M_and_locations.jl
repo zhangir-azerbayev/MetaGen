@@ -202,13 +202,16 @@ end
 		cov[1,2] = 0
 		cov[2,1] = 0
 
+		# visual_count = E ? @trace(bernoulli(1-M), :visual_count  => j) : @trace(bernoulli(FA), :visual_count  => j)
+		# visual_location = visual_count ? @trace(mvnormal(mu,cov), :location => j) : @trace(mvuniform(-101,-101,-100,-100), :location => j)
+
 		visual_count = E ? @trace(bernoulli(1-M), :visual_count  => j) : @trace(bernoulli(FA), :visual_count  => j)
-		visual_location = visual_count ? @trace(mvnormal(mu,cov), :location => j) : @trace(mvuniform(-1,-1,0,0), :location => j)
+		visual_location = visual_count ? @trace(mvuniform(0.0,0.0, 40.0, 40.0), (:location => j))  : @trace(mvuniform(-140,-140,-100,-100), :location => j)
 
 		if visual_count
 			push!(perceived_frame, possible_object)
-			push!(perceived_location, visual_location)
 		end
+		push!(perceived_location, visual_location)
 	end #end for
 	return (perceived_frame, perceived_location)
 end

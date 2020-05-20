@@ -1,6 +1,7 @@
 #Main script for executing data simulation and inference using the generative model
-include("gm_with_FA_M_and_locations.jl")
-include("inference_with_FA_M_and_locations.jl")
+#include("gm_Julian_intermediate.jl")
+include("gm_with_FA_M.jl")
+include("inference_with_lesioned_option.jl")
 include("shared_functions.jl") #just want countmemb function
 
 using Gen
@@ -19,22 +20,20 @@ possible_objects = ["person","bicycle","car","motorcycle","airplane"]
 J = length(possible_objects)
 
 #each V sill have n_percepts, that many movies
-n_percepts = 3 #particle filter is set up such that it needs at least 2 percepts
-n_frames = 2
+n_percepts = 50 #particle filter is set up such that it needs at least 2 percepts
+n_frames = 10
 
 
 #file header
-print(file, "gt_V & gt_R & gt_locationses & ")
+print(file, "gt_V & gt_R & ")
 for p=1:n_percepts
 	print(file, "percept", p, " & ")
-	print(file, "percept_locations", p, " & ")
 end
 for p=1:n_percepts
 	print(file, "avg V after p", p, " & ")
-	print(file, "frequency table of Rs PF after p", p, " & ")
-	print(file, "frequency table of Rs_locationses PF after p", p, " & ")
+	print(file, "frequency table PF after p", p, " & ")
 end
-println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequency table PF & unique_realities PF & mode realities PF & avg_Vs_binned for unique_realities PF & avg_Rs PF & Euclidean distance between avg_Rs and gt_R PF & Euclidean distance FA PF & Euclidean distance M PF &")
+println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequency table PF & time elapsed lesioned PF & frequency table lesioned PF  & ")
 
 ##########################
 
@@ -43,11 +42,11 @@ println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequ
 #initializing the generative model. It will create the ground truth V and R
 #generates the data and the model
 gt_trace,_ = Gen.generate(gm, (possible_objects, n_percepts, n_frames))
+gt_reality,gt_V,gt_percepts = Gen.get_retval(gt_trace)
 gt_choices = get_choices(gt_trace)
+
 println("gt_choices")
 display(gt_choices)
-
-gt_reality, gt_Rs_locationses, gt_V, gt_percepts, gt_percepts_locationses = Gen.get_retval(gt_trace)
 
 #will have to find a way to generate gt_choices from gt_percepts
 #for when I'm no longer using simulated data
@@ -107,29 +106,19 @@ gt_reality, gt_Rs_locationses, gt_V, gt_percepts, gt_percepts_locationses = Gen.
 gt_R_bool = names_to_boolean
 print(file, gt_V, " & ")
 print(file, gt_reality, " & ")
-print(file, gt_Rs_locationses, " & ")
 
 #println("gt_percepts", gt_percepts)
 
 #Saving gt_percepts to file
 percepts = []
-percepts_locationses = []
 for p = 1:n_percepts
 	percept = []
-	percept_locations = []
 	#println("gt_percepts[p] ", gt_percepts[p])
 	for f = 1:n_frames
 		#println("gt_percepts[p][f] ", gt_percepts[p][f])
 		#println("possible_objects[gt_percepts[p][f]] ", possible_objects[gt_percepts[p][f]])
 		perceived_frame = gt_percepts[p][f]
-		print(file, perceived_frame)
-	end
-	print(file, " & ")
-	for f = 1:n_frames
-		#println("gt_percepts[p][f] ", gt_percepts[p][f])
-		#println("possible_objects[gt_percepts[p][f]] ", possible_objects[gt_percepts[p][f]])
-		perceived_frame_locations = gt_percepts_locationses[p][f]
-		print(file, perceived_frame_locations)
+		print(file,  perceived_frame)
 	end
 	print(file, " & ")
 end
@@ -151,6 +140,23 @@ end
 
 # ##############################################
 
+#############################################
+#Analysis function needs the realities and Vs resulting from a sampling procedure and gt_V
+function analyze(realities)
+
+	#want to make a frequency table of the realities sampled
+	ft = freqtable(realities)
+	println(ft)
+	dictionary = countmemb(realities)
+	print(file ,dictionary, " & ")
+end;
+
+#############################################
+
+alpha = 2
+beta = 10
+mean_Beta = alpha/(alpha+beta)
+
 #Perform particle filter
 
 num_particles = 100 #100
@@ -163,7 +169,7 @@ num_moves = 1
 
 #(traces,time_particle) = @timed particle_filter(num_particles, gt_percept, num_samples);
 #println(file, "time elaped \n ", time_particle)
-(traces, time_PF) = @timed particle_filter(num_particles, gt_percepts, gt_percepts_locationses, gt_choices, num_samples);
+(traces, time_PF) = @timed particle_filter(num_particles, gt_percepts, gt_choices, num_samples, mean_Beta, false);
 print(file, "time elapsed particle filter  ", time_PF, " & ")
 
 print(file, num_particles, " & ")
@@ -173,87 +179,28 @@ print(file, num_moves, " & ")
 
 #extract results
 realities = Array{Array{String}}[]
-Vs = Array{Float64}[]
 for i = 1:num_samples
-	Rs,_,V,_,_ = Gen.get_retval(traces[i])
-	push!(Vs,V)
+	Rs,V,_ = Gen.get_retval(traces[i])
 	push!(realities,Rs)
 end
 
-#############################################
-#Analysis function needs the realities and Vs resulting from a sampling procedure and gt_V
-function analyze(realities, Vs, gt_V, gt_R)
 
-	#want to make a frequency table of the realities sampled
-	ft = freqtable(realities)
-	println(ft)
-	dictionary = countmemb(realities)
-	print(file ,dictionary, " & ")
-
-	#want, for each reality, to bin Vs
-	unique_realities = unique(realities)
-
-	unique_Vs = unique(Vs)
-
-	avg_Vs_binned = Array{Float64}[]
-	freq = Array{Float64}(undef, length(unique_realities))
-
-	how_many_unique = length(unique_realities)
-	for j = 1:how_many_unique
-		index = findall(isequal(unique_realities[j]),realities)
-		#freq keeps track of how many there are
-		freq[j] = length(index)
-		push!(avg_Vs_binned, mean(Vs[index]))
-	end
-
-
-	#find avg_Vs_binned at most common realities and compute euclidean distances
-	#index of most frequent reality. does not work with ties.
-	idx = findfirst(isequal(maximum(freq)),freq)
-	unique_realities[idx]
-	print(file, unique_realities, " & ")
-	#mode reality
-	print(file, unique_realities[idx], " & ")
-	print(file, avg_Vs_binned, " & ")
-
-
-	#average Rs in boolean format.
-	n_percepts = size(gt_R)[1]
-	#avg_Rs will keep track of the avg_R for each percept
-	avg_Rs = []
-	for p = 1:n_percepts
-		avg_R = zeros(length(possible_objects))
-		for j = 1:how_many_unique
-			total = get(dictionary,string(unique_realities[j]),0)
-			avg_R = avg_R + names_to_boolean(unique_realities[j][p],possible_objects)*total/length(realities)
-		end
-		push!(avg_Rs, avg_R)
-	end
-
-	print(file, avg_Rs, " & ")
-
-	#take distance between avg_Rs and gt_R
-	distances = []
-	gt_R_bools = []
-	for p = 1:n_percepts
-		gt_R_bool = names_to_boolean(gt_R[p],possible_objects)
-		push!(gt_R_bools, gt_R_bool)
-		push!(distances, euclidean(avg_Rs[p], gt_R_bool))
-	end
-	print(file, distances, " & ")
-
-	#compare mean V of most frequent reality to gt_V
-	#for false alarms
-	dist_FA = euclidean(gt_V[1], avg_Vs_binned[idx][1])
-	print(file, dist_FA, " & ")
-	#for miss rates
-	dist_M = euclidean(gt_V[2], avg_Vs_binned[idx][2])
-	print(file, dist_M)
-	#need to add & after calling analyze the first time
-
-end;
+analyze(realities)
 
 #############################################
 
-analyze(realities, Vs, gt_V, gt_reality)
+#execute lesioned inference procedure
+(traces, time_PF) = @timed particle_filter(num_particles, gt_percepts, gt_choices, num_samples, mean_Beta, true);
+
+print(file, "time elapsed lesioned particle filter  ", time_PF, " & ")
+
+#extract results
+realities = Array{Array{String}}[]
+for i = 1:num_samples
+	Rs,_,_ = Gen.get_retval(traces[i])
+	push!(realities,Rs)
+end
+
+analyze(realities)
+
 close(file)
