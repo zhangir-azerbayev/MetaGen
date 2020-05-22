@@ -5,7 +5,7 @@ library(readr)
 library(stringr)
 
 dealing_with_frequency_tables <- function(ft, n_percepts){
-  #ft <- ft  %>% lapply(function(x){gsub(pattern = "Dict(\"Array{String,N} where N", replacement="",x, fixed = TRUE)})
+  ft <- ft  %>% lapply(function(x){gsub(pattern = "Dict(\"Array{String,N} where N", replacement="",x, fixed = TRUE)})
   ft <- ft  %>% lapply(function(x){gsub(pattern = "Dict(Array{String,N} where N", replacement="",x, fixed = TRUE)})
   
   frequency_table_as_list <- as.list(strsplit(ft[[1]], "Array{String,N} where N", fixed=TRUE)[[1]])
