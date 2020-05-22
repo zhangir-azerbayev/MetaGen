@@ -84,6 +84,7 @@ accuracy <- function(data){
     }
   }
   #naive realist says if I saw it in any frame, its there
+  perceived_reality <- perceived_reality/n_frames
   naive_reality <- 1*(perceived_reality>0)
   
   # gt_reality
@@ -127,7 +128,7 @@ accuracy <- function(data){
     A_retrospective_metagen[n_perc] <- 1*(sum(abs(gt_reality[,n_perc] - retrospective_metagen[,n_perc]))==0)
     A_lesioned_metagen[n_perc] <- 1*(sum(abs(gt_reality[,n_perc] - lesioned_metagen[,n_perc]))==0)
     A_naive_reality[n_perc] <- 1*(sum(abs(gt_reality[,n_perc] - naive_reality[,n_perc]))==0)
-    A_threshold[n_perc] <- 1*(sum(abs(gt_reality[,n_perc] - perceived_reality[,n_perc]>0.5))==0)
+    A_threshold[n_perc] <- 1*(sum(abs(gt_reality[,n_perc] - (perceived_reality[,n_perc]>=0.5)))==0)
   }
   
   percept_number <- 1:num_percepts
