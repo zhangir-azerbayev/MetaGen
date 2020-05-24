@@ -9,6 +9,7 @@ library(Rfast)
 source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/accuracy.R")
 source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/visualize_reality.R")
 source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/MSE_Vs.R")
+source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/parse_ambiguous_percept.R")
 
 # data <-
 #   list.files(
@@ -48,11 +49,14 @@ raw_data <- cbind(simID, raw_data)
 # data <- data[-3478,]
 raw_data <- na.omit(raw_data)
 
-#I <- nrow(raw_data)
-I <- 3477 #3477 for partially completed run
+I <- nrow(raw_data)
+#I <- 3477 #3477 for partially completed run
 #I <- 10
 
-combined_data <- map_df(1:I,function(x){return(cbind(simID = x, MSE_Vs(raw_data[x,]), accuracy(raw_data[x,])))})
+combined_data <- map_df(1:I,function(x){return(cbind(simID = x, MSE_Vs(raw_data[x,]), accuracy(raw_data[x,]), inferred_ambiguous_percept = parse_ambiguous_percept(raw_data[x,])))})
+#combined_data <- map_df(1:I,function(x){return(cbind(simID = x, MSE_Vs(raw_data[x,]), accuracy(raw_data[x,])))})
+
+
 
 ###################################################################
 
@@ -101,7 +105,7 @@ accuracy_plot <- function(data){
       fill = Model,
       group = Model
     )
-  ) + geom_ribbon() + geom_line() + coord_cartesian(ylim = c(0.70, 0.90))
+  ) + geom_ribbon() + geom_line() + coord_cartesian(ylim = c(0.70, 1))
 }
 
 
@@ -133,81 +137,34 @@ mse_V_plot <- function(data){
       fill = V_param,
       group = V_param
     )
-  ) + geom_ribbon() + geom_line() + coord_cartesian(ylim = c(0, 0.05))
+  ) + geom_ribbon() + geom_line() + coord_cartesian(ylim = c(0, 0.02))
 }
 
 ###################################################################
 accuracy_plot(combined_data)
 mse_V_plot(combined_data)
 
-# below_median <- combined_data %>% filter()
-# upper_half <- combined_data %>% filter(MSE_FA < midpoint)
-# lower_half <- combined_data %>% filter(MSE_FA > midpoint)
-
 ###################################################################
-#Split by simulations in which MSE for FA and M was above or below median
-#for both
+#Look at ambiguous percept results
 
-n_percepts = 50
-#Try splitting by metagen's last MSE FA and M. Split into top and bottom half
-last_percept <- combined_data %>% filter(percept_number==n_percepts)
-midpoint_FA <- median(last_percept$MSE_FA)
-midpoint_M <- median(last_percept$MSE_M)
+#if FA > M, should infer no airplane. just motorcycle
+FA_bigger <- combined_data %>% filter(gt_FA_airplane > gt_M_airplane)
+proportion_without_airplane <- (sum(FA_bigger$inferred_ambiguous_percept=="motorcycle"))/nrow(FA_bigger)
 
-#split so it's for sim such that MSE on last percept is above or below median
-last_percept_below_median <- last_percept %>% filter(MSE_FA < midpoint_FA && MSE_M < midpoint_M)
-below_median <- combined_data %>% filter(simID %in% last_percept_below_median$simID)
+#if M > FA, should infer no airplane
+M_bigger <- combined_data %>% filter(gt_M_airplane > gt_FA_airplane)
+proportion_with_airplane <- (sum(M_bigger$inferred_ambiguous_percept=="motorcycle airplane"))/nrow(M_bigger)
 
-last_percept_above_median <- last_percept %>% filter(MSE_FA > midpoint_FA && MSE_M > midpoint_M)
-above_median <- combined_data %>% filter(simID %in% last_percept_above_median$simID)
+#poisson lambda 1 prior is driving a preference for just motorcycle, not motorcycle and airplane
 
-#Empty. Bizarre
-######################################################################
+combined_data <- combined_data %>% mutate(
+  gt_diff_airplane = gt_M_airplane - gt_FA_airplane
+  )
 
-last_percept_below_median_FA <- last_percept %>% filter(MSE_FA < midpoint_FA)
-below_median_FA <- combined_data %>% filter(simID %in% last_percept_below_median_FA$simID)
-
-accuracy_plot(below_median_FA)
-mse_V_plot(below_median_FA)
-
-last_percept_above_median_FA <- last_percept %>% filter(MSE_FA > midpoint_FA)
-above_median_FA <- combined_data %>% filter(simID %in% last_percept_above_median_FA$simID)
-
-accuracy_plot(above_median_FA)
-mse_V_plot(above_median_FA)
-
-#########################
-#Repeat for M
-
-last_percept_below_median_M <- last_percept %>% filter(MSE_M < midpoint_M)
-below_median_M <- combined_data %>% filter(simID %in% last_percept_below_median_M$simID)
-
-accuracy_plot(below_median_M)
-mse_V_plot(below_median_M)
-
-last_percept_above_median_M <- last_percept %>% filter(MSE_M > midpoint_M)
-above_median_M <- combined_data %>% filter(simID %in% last_percept_above_median_M$simID)
-
-accuracy_plot(above_median_M)
-mse_V_plot(above_median_M)
-
-#Try splitting by metagen's last MSE FA and M. Split into top and bottom half
-
-#filter
-
-# below_median <- combined_data %>% filter(MSE_M < midpoint)
-# above_median <- combined_data %>% filter(MSE_M > midpoint)
-
-# last_percept_below_median <- last_percept %>% filter(MSE_M < midpoint)
-# below_median <- combined_data %>% filter(simID %in% last_percept_below_median$simID)
-# 
-# last_percept_above_median <- last_percept %>% filter(MSE_M > midpoint)
-# above_median <- combined_data %>% filter(simID %in% last_percept_above_median$simID)
-# 
-# 
-# accuracy_plot(below_median)
-# mse_V_plot(below_median)
-# 
-# accuracy_plot(above_median)
-# mse_V_plot(above_median)
-
+ggplot(
+  combined_data,
+  aes(
+    x = gt_diff_airplane,
+    y = inferred_ambiguous_percept,
+  )
+) + geom_point()

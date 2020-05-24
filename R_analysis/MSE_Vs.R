@@ -60,7 +60,11 @@ MSE_Vs <- function(data){
   percept_number <- rep(1:n_percepts)
   exp_MSE_FA <- rep(MSE_exp_FA, n_percepts)
   exp_MSE_M <- rep(MSE_exp_M, n_percepts)
-  toPlot <- data.frame(percept_number, exp_MSE_FA, exp_MSE_M, MSE_FA, MSE_M)
+  
+  gt_FA_airplane <- rep(gt_V[5,1], n_percepts)
+  gt_M_airplane <- rep(gt_V[5,2], n_percepts)
+  
+  toPlot <- data.frame(percept_number, exp_MSE_FA, exp_MSE_M, MSE_FA, MSE_M, gt_FA_airplane, gt_M_airplane)
 
   return(toPlot)
 }
