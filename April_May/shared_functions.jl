@@ -14,6 +14,39 @@ function countmemb(itr)
 end
 
 ##############################################################################################
+
+#function for printing stuff to file
+#needs traces, num_samples, possible_objects
+function print_Vs_and_Rs_to_file(tr, num_samples, possible_objects, last_time::Bool=false)
+    #initialize something for tracking average V
+    avg_V = zeros(length(possible_objects), 2)
+    #initialize something for realities
+    realities = Array{Array{String}}[]
+    Vs = Array{Float64}[]
+    for i = 1:num_samples
+        R,V,_ = Gen.get_retval(tr[i])
+        avg_V = avg_V + V/num_samples
+        push!(Vs, V)
+        push!(realities,R)
+        # println("R is ", R)
+        # println("V is ", V)
+    end
+    # println("avg_V is ", avg_V)
+    print(file, avg_V, " & ")
+
+    dictionary_Vs = countmemb(Vs)
+    print(file, dictionary_Vs, " & ")
+
+    if last_time #if this is the last thing printing, don't put &
+        dictionary = countmemb(realities)
+        print(file ,dictionary)
+    else
+        dictionary = countmemb(realities)
+        print(file ,dictionary, " & ")
+    end
+end
+
+##############################################################################################
 #Distributions
 #TruncatedPoisson
 export trunc_poisson

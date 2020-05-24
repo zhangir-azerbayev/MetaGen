@@ -11,8 +11,8 @@ using Distances
 using TimerOutputs
 
 #creating output file
-#outfile = string("output", ARGS[1], ".csv")
-outfile = string("output111.csv")
+outfile = string("output", ARGS[1], ".csv")
+#outfile = string("output111.csv")
 file = open(outfile, "w")
 
 #Defining observations / constraints
@@ -20,7 +20,7 @@ possible_objects = ["person","bicycle","car","motorcycle","airplane"]
 J = length(possible_objects)
 
 #each V sill have n_percepts, that many movies
-n_percepts = 50 #particle filter is set up such that it needs at least 2 percepts
+n_percepts = 100 #particle filter is set up such that it needs at least 2 percepts
 n_frames = 10
 
 
@@ -31,9 +31,10 @@ for p=1:n_percepts
 end
 for p=1:n_percepts
 	print(file, "avg V after p", p, " & ")
+	print(file, "frequency table Vs after p", p, " & ")
 	print(file, "frequency table PF after p", p, " & ")
 end
-println(file, "time elapsed PF & num_particles & num_samples & num_moves & frequency table PF & time elapsed lesioned PF & frequency table lesioned PF  & ")
+print(file, "time elapsed PF & num_particles & num_samples & num_moves & avg_V PF & frequency table Vs after PF & frequency table PF & time elapsed lesioned PF & avg_V lesioned PF & frequency table Vs after lesioned PF & frequency table lesioned PF \n")
 
 ##########################
 
@@ -149,58 +150,44 @@ function analyze(realities)
 	println(ft)
 	dictionary = countmemb(realities)
 	print(file ,dictionary, " & ")
+
 end;
 
 #############################################
 
+#parameters for truncated normal for FA and M
 alpha = 2
 beta = 10
-mean_Beta = alpha/(alpha+beta)
+beta_mean = alpha / (alpha + beta)
 
 #Perform particle filter
 
-num_particles = 100 #100
+num_particles = 200 #100
 
 #num_samples to return
-num_samples = 100 #100
+num_samples = 200 #100
 
 #num perturbation moves
 num_moves = 1
 
 #(traces,time_particle) = @timed particle_filter(num_particles, gt_percept, num_samples);
 #println(file, "time elaped \n ", time_particle)
-(traces, time_PF) = @timed particle_filter(num_particles, gt_percepts, gt_choices, num_samples, mean_Beta, false);
+(traces, time_PF) = @timed particle_filter(num_particles, gt_percepts, gt_choices, num_samples, beta_mean, false);
 print(file, "time elapsed particle filter  ", time_PF, " & ")
 
 print(file, num_particles, " & ")
 print(file, num_samples, " & ")
 print(file, num_moves, " & ")
 
-
-#extract results
-realities = Array{Array{String}}[]
-for i = 1:num_samples
-	Rs,V,_ = Gen.get_retval(traces[i])
-	push!(realities,Rs)
-end
-
-
-analyze(realities)
+print_Vs_and_Rs_to_file(traces, num_samples, possible_objects)
 
 #############################################
 
 #execute lesioned inference procedure
-(traces, time_PF) = @timed particle_filter(num_particles, gt_percepts, gt_choices, num_samples, mean_Beta, true);
+(traces, time_PF) = @timed particle_filter(num_particles, gt_percepts, gt_choices, num_samples, beta_mean, true);
 
 print(file, "time elapsed lesioned particle filter  ", time_PF, " & ")
 
-#extract results
-realities = Array{Array{String}}[]
-for i = 1:num_samples
-	Rs,_,_ = Gen.get_retval(traces[i])
-	push!(realities,Rs)
-end
-
-analyze(realities)
+print_Vs_and_Rs_to_file(traces, num_samples, possible_objects, true)
 
 close(file)

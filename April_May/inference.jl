@@ -169,8 +169,8 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
 	for p = 2:n_percepts
 
 		println("percept ", p-1)
-        print_weights(state, "at start of loop is ")
-        print_ess(state, "ess at start of loop is ")
+        #print_weights(state, "at start of loop is ")
+        #print_ess(state, "ess at start of loop is ")
 
 		# return a sample of unweighted traces from the weighted collection
 		tr = Gen.sample_unweighted_traces(state, num_samples)
@@ -190,13 +190,13 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
 			#println("log_weight after perturbation is ", log_weights[i])
         end
 
-        print_weights(state, "after perturbation ")
-        print_ess(state, "after perturbation ")
+        # print_weights(state, "after perturbation ")
+        # print_ess(state, "after perturbation ")
 
 		do_resample = Gen.maybe_resample!(state, ess_threshold=num_particles/2, verbose=true)
 
-        print_weights(state, "after resample ")
-        print_ess(state, "after resample ")
+        # print_weights(state, "after resample ")
+        # print_ess(state, "after resample ")
 
 		obs = Gen.choicemap()
 		set_observations(obs, gt_choices, p, n_frames)
@@ -204,13 +204,13 @@ function particle_filter(num_particles::Int, gt_percepts, gt_choices, num_sample
         # println("obs")
     	# display(obs)
 
-        print_weights(state, "after setting observation ")
-        print_ess(state, "after setting observation ")
+        # print_weights(state, "after setting observation ")
+        # print_ess(state, "after setting observation ")
 
 		Gen.particle_filter_step!(state, (possible_objects, p, n_frames), (UnknownChange(),), obs)
 
-        print_weights(state, "after particle filter step ")
-        print_ess(state, "after particle filter step ")
+        #print_weights(state, "after particle filter step ")
+        #print_ess(state, "after particle filter step ")
 
 		# if isnan(ess)
 		# 	t = filter(t -> isinf(get_score(t)), state.traces)

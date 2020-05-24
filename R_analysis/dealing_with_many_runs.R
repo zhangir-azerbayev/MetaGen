@@ -4,6 +4,7 @@ library(readr)
 library(tidyboot)
 library(ggplot2)
 library(tidyverse)
+library(Rfast)
 
 source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/accuracy.R")
 source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/visualize_reality.R")
@@ -48,7 +49,8 @@ raw_data <- cbind(simID, raw_data)
 raw_data <- na.omit(raw_data)
 
 #I <- nrow(raw_data)
-I <- 1000 #3477 for partially completed run
+I <- 3477 #3477 for partially completed run
+#I <- 10
 
 combined_data <- map_df(1:I,function(x){return(cbind(simID = x, MSE_Vs(raw_data[x,]), accuracy(raw_data[x,])))})
 
@@ -69,64 +71,143 @@ which(combined_data$A_threshold==0)
 #end noisiest percept
 
 ###################################################################
+accuracy_plot <- function(data){
+  df_Accuracy <-
+    data %>% gather(
+      Model,
+      Score,
+      A_retrospective_metagen,
+      A_lesioned_metagen,
+      A_online_metagen,
+      #A_naive_reality,
+      A_threshold
+    )
+  
+  GetLowerCI <- function(x,y){return(prop.test(x,y)$conf.int[1])}
+  GetTopCI <- function(x,y){return(prop.test(x,y)$conf.int[2])}
+  
+  toPlot_Accuracy <- df_Accuracy %>% group_by(percept_number,Model) %>% summarize(Samples=n(),Hits=sum(Score),Mean=mean(Score),Lower=GetLowerCI(Hits,Samples),Top=GetTopCI(Hits,Samples))
+  
+  #group_by(percept_number)
+  #MyDataFrame <- df %>% group_by(percept_number, Model) %>% tidyboot_mean(Score)
+  
+  ggplot(
+    toPlot_Accuracy,
+    aes(
+      x = percept_number,
+      y = Mean,
+      ymin = Lower,
+      ymax = Top,
+      fill = Model,
+      group = Model
+    )
+  ) + geom_ribbon() + geom_line() + coord_cartesian(ylim = c(0.70, 0.90))
+}
 
-df <-
-  combined_data %>% gather(
-    Model,
-    Score,
-    A_retrospective_metagen,
-    A_lesioned_metagen,
-    A_online_metagen,
-    A_naive_reality,
-    A_threshold
-  )
-
-GetLowerCI <- function(x,y){return(prop.test(x,y)$conf.int[1])}
-GetTopCI <- function(x,y){return(prop.test(x,y)$conf.int[2])}
-
-MyDataFrame <- df %>% group_by(percept_number,Model) %>% summarize(Samples=n(),Hits=sum(Score),Mean=mean(Score),Lower=GetLowerCI(Hits,Samples),Top=GetTopCI(Hits,Samples))
-
-#group_by(percept_number)
-#MyDataFrame <- df %>% group_by(percept_number, Model) %>% tidyboot_mean(Score)
-
-ggplot(
-  MyDataFrame,
-  aes(
-    x = percept_number,
-    y = Mean,
-    ymin = Lower,
-    ymax = Top,
-    fill = Model,
-    group = Model
-  )
-) + geom_ribbon() + geom_line()
 
 ###################################################################
+mse_V_plot <- function(data){
+  df_V <-
+    data %>% gather(
+      V_param,
+      MSE,
+      MSE_FA,
+      MSE_M,
+      exp_MSE_FA,
+      exp_MSE_M,
+    )
+  
+  GetMean <- function(x){return(t.test(x)$estimate)}
+  GetLowerCI <- function(x){return(t.test(x)$conf.int[1])}
+  GetTopCI <- function(x){return(t.test(x)$conf.int[2])}
+  
+  toPlot_V <- df_V %>% group_by(percept_number,V_param) %>% summarize(Mean_MSE=GetMean(MSE),Lower=GetLowerCI(MSE),Top=GetTopCI(MSE))
+  
+  ggplot(
+    toPlot_V,
+    aes(
+      x = percept_number,
+      y = Mean_MSE,
+      ymin = Lower,
+      ymax = Top,
+      fill = V_param,
+      group = V_param
+    )
+  ) + geom_ribbon() + geom_line() + coord_cartesian(ylim = c(0, 0.05))
+}
 
-df <-
-  combined_data %>% gather(
-    V_param,
-    MSE,
-    MSE_FA,
-    MSE_M,
-    exp_MSE_FA,
-    exp_MSE_M,
-  )
+###################################################################
+accuracy_plot(combined_data)
+mse_V_plot(combined_data)
 
-GetMean <- function(x){return(t.test(x)$estimate)}
-GetLowerCI <- function(x){return(t.test(x)$conf.int[1])}
-GetTopCI <- function(x){return(t.test(x)$conf.int[2])}
+# below_median <- combined_data %>% filter()
+# upper_half <- combined_data %>% filter(MSE_FA < midpoint)
+# lower_half <- combined_data %>% filter(MSE_FA > midpoint)
 
-MyDataFrame <- df %>% group_by(percept_number,V_param) %>% summarize(Mean_MSE=GetMean(MSE),Lower=GetLowerCI(MSE),Top=GetTopCI(MSE))
+###################################################################
+#Split by simulations in which MSE for FA and M was above or below median
+#for both
 
-ggplot(
-  MyDataFrame,
-  aes(
-    x = percept_number,
-    y = Mean_MSE,
-    ymin = Lower,
-    ymax = Top,
-    fill = V_param,
-    group = V_param
-  )
-) + geom_ribbon() + geom_line() + coord_cartesian(ylim = c(0, 0.1)) + coord_cartesian(ylim = c(0, 0.1))
+n_percepts = 50
+#Try splitting by metagen's last MSE FA and M. Split into top and bottom half
+last_percept <- combined_data %>% filter(percept_number==n_percepts)
+midpoint_FA <- median(last_percept$MSE_FA)
+midpoint_M <- median(last_percept$MSE_M)
+
+#split so it's for sim such that MSE on last percept is above or below median
+last_percept_below_median <- last_percept %>% filter(MSE_FA < midpoint_FA && MSE_M < midpoint_M)
+below_median <- combined_data %>% filter(simID %in% last_percept_below_median$simID)
+
+last_percept_above_median <- last_percept %>% filter(MSE_FA > midpoint_FA && MSE_M > midpoint_M)
+above_median <- combined_data %>% filter(simID %in% last_percept_above_median$simID)
+
+#Empty. Bizarre
+######################################################################
+
+last_percept_below_median_FA <- last_percept %>% filter(MSE_FA < midpoint_FA)
+below_median_FA <- combined_data %>% filter(simID %in% last_percept_below_median_FA$simID)
+
+accuracy_plot(below_median_FA)
+mse_V_plot(below_median_FA)
+
+last_percept_above_median_FA <- last_percept %>% filter(MSE_FA > midpoint_FA)
+above_median_FA <- combined_data %>% filter(simID %in% last_percept_above_median_FA$simID)
+
+accuracy_plot(above_median_FA)
+mse_V_plot(above_median_FA)
+
+#########################
+#Repeat for M
+
+last_percept_below_median_M <- last_percept %>% filter(MSE_M < midpoint_M)
+below_median_M <- combined_data %>% filter(simID %in% last_percept_below_median_M$simID)
+
+accuracy_plot(below_median_M)
+mse_V_plot(below_median_M)
+
+last_percept_above_median_M <- last_percept %>% filter(MSE_M > midpoint_M)
+above_median_M <- combined_data %>% filter(simID %in% last_percept_above_median_M$simID)
+
+accuracy_plot(above_median_M)
+mse_V_plot(above_median_M)
+
+#Try splitting by metagen's last MSE FA and M. Split into top and bottom half
+
+#filter
+
+# below_median <- combined_data %>% filter(MSE_M < midpoint)
+# above_median <- combined_data %>% filter(MSE_M > midpoint)
+
+# last_percept_below_median <- last_percept %>% filter(MSE_M < midpoint)
+# below_median <- combined_data %>% filter(simID %in% last_percept_below_median$simID)
+# 
+# last_percept_above_median <- last_percept %>% filter(MSE_M > midpoint)
+# above_median <- combined_data %>% filter(simID %in% last_percept_above_median$simID)
+# 
+# 
+# accuracy_plot(below_median)
+# mse_V_plot(below_median)
+# 
+# accuracy_plot(above_median)
+# mse_V_plot(above_median)
+

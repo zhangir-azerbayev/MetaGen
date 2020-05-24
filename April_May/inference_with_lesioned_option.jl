@@ -31,28 +31,6 @@ function homebrew_shuffle(a::AbstractArray)
     return new_array
 end
 
-#function for printing stuff to file
-#needs traces, num_samples, possible_objects
-function print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
-    #initialize something for tracking average V
-    avg_V = zeros(length(possible_objects), 2)
-    #initialize something for realities
-    realities = Array{Array{String}}[]
-    for i = 1:num_samples
-        R,V,_ = Gen.get_retval(tr[i])
-        avg_V = avg_V + V/num_samples
-        push!(realities,R)
-        # println("R is ", R)
-        # println("V is ", V)
-    end
-    # println("avg_V is ", avg_V)
-    print(file, avg_V, " & ")
-    dictionary = countmemb(realities)
-    print(file ,dictionary, " & ")
-end
-
-
-
 #Particle filter helper functions
 
 #for printing the ess of a state with some words
@@ -135,10 +113,13 @@ end
 		#exact value shouldn't matter because should be very unlikely anyway
 		#upper_bound = 100.0 #make sure it matches upper bound in gm
     	#hall = @trace(trunc_normal(choices[(:hall_lambda, j)], std, 0.0, upper_bound), (:hall_lambda, j))
-        FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 1.0), (:fa, j))
+        #FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 1.0), (:fa, j))
+        FA = @trace(trunc_normal(choices[(:fa, j)], std, 0.0, 0.5), (:fa, j))
+
     else
-    	#new M rate will be between 0 and 1
-        M = @trace(trunc_normal(choices[(:m, j)], std, 0.0, 1.0), (:m, j))
+        #new M rate will be between 0 and 1
+        #M = @trace(trunc_normal(choices[(:m, j)], std, 0.0, 1.0), (:m, j))
+        M = @trace(trunc_normal(choices[(:m, j)], std, 0.0, 0.5), (:m, j))
     end
 end
 
