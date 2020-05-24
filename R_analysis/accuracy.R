@@ -15,7 +15,8 @@ dealing_with_frequency_tables <- function(ft, n_percepts){
     frequency_table_as_list[[j]] <- as.list(strsplit(frequency_table_as_list[[j]], "], [", fixed=TRUE)[[1]])
     #getting the number of times this reality was sampled in particple filter
     N <- nchar(frequency_table_as_list[[j]][[n_percepts]])
-    weights[j] <- substr(frequency_table_as_list[[j]][[n_percepts]], N-3, N-1)
+    #weights[j] <- substr(frequency_table_as_list[[j]][[n_percepts]], N-3, N-1)
+    weights[j] <- frequency_table_as_list[[j]][[n_percepts]]
   } #now frequency_table_as_list is a list of lists
   matches <- regmatches(weights, gregexpr("[[:digit:]]+", weights))
   weights <- as.numeric(unlist(matches))
@@ -61,7 +62,7 @@ accuracy <- function(data){
   # #assertthat(sum(weights) == num_particles)
   
   
-  n_frames <- 10
+  #n_frames <- 10
   category_names = c("person","bicycle","car","motorcycle","airplane")
   num_categories = length(category_names)
   
@@ -82,9 +83,13 @@ accuracy <- function(data){
       frequency_table_2d[cat,p] <- str_count(frequency_table_as_list[index][[1]][[p]], pattern = category_names[cat])
       frequency_table_2d_lesioned[cat,p] <- str_count(frequency_table_as_list_lesioned[index_lesioned][[1]][[p]], pattern = category_names[cat])
     }
+    #for perceived_reality (used in thresholding), need to know how many frames this percept has
+    #Word "Any" is before every frame. if 10 frames, any shows up 10 times
+    n_frames <- str_count(data[[percepts_list[p]]], pattern = "Any")
+    print(n_frames)
+    perceived_reality[,p] <- perceived_reality[,p]/n_frames
   }
   #naive realist says if I saw it in any frame, its there
-  perceived_reality <- perceived_reality/n_frames
   naive_reality <- 1*(perceived_reality>0)
   
   # gt_reality
@@ -112,7 +117,8 @@ accuracy <- function(data){
     returned <- dealing_with_frequency_tables(ft, n_perc)
     frequency_table_as_list <- returned$frequency_table_as_list
     weights <- returned$weights
-    index_online = which(weights==max(weights))
+    index_online = which(weights==max(weights)) #going by mode over this reality and previous ones
+    #might be better to go with mode over just this reality rather than previous ones
     
     vec <- rep(0, num_categories)
     for (cat in 1:num_categories) {
@@ -121,7 +127,7 @@ accuracy <- function(data){
     online_metagen <- vec
     
     #how unusual (or bad) was each percept? How different was it from reality?
-    perceived_noise[n_perc] <- sum(abs(gt_reality[,n_perc] - (perceived_reality[,n_perc])/n_frames))
+    perceived_noise[n_perc] <- sum(abs(gt_reality[,n_perc] - perceived_reality[,n_perc]))
     
     #accuracy is does the gt_reality equal inferred one or not
     A_online_metagen[n_perc] <- 1*(sum(abs(gt_reality[,n_perc] - online_metagen))==0)
