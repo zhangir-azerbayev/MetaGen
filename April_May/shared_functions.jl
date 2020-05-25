@@ -2,6 +2,51 @@ using Gen
 
 ##############################################################################################
 #Setting up helper functions
+#This function, given a gt_percepts and gt_reality, calculates the ground truth FA and M rates
+#of the visual system that produced those percepts from that reality
+function calculate_V(gt_percepts, gt_reality)
+    gt_V = Matrix{Float64}(undef, length(possible_objects), 2)
+
+    negatives_and_positives = Matrix{Int64}(undef, length(possible_objects), 2)
+    fill!(negatives_and_positives, zero(Int64))
+    FAs_and_Misses = Matrix{Int64}(undef, length(possible_objects), 2)
+    fill!(FAs_and_Misses, zero(Int64))
+
+    J = length(possible_objects)
+    num_percepts = length(gt_percepts)
+    @assert num_percepts==length(gt_reality)
+    for p = 1:num_percepts
+        num_frames = length(gt_percepts[p])
+        for f = 1:num_frames
+            for j = 1:J
+                possible_object = possible_objects[j]
+                #if possitive
+                if possible_object in gt_reality[p]
+                    negatives_and_positives[j,2] = negatives_and_positives[j,2] + 1
+                    #if miss
+                    if !(possible_object in gt_percepts[p][f])
+                        FAs_and_Misses[j, 2] = FAs_and_Misses[j, 2] + 1
+                    end
+                #if negative
+                else
+                    negatives_and_positives[j,1] = negatives_and_positives[j,1] + 1
+                    #if false alarm
+                    if (possible_object in gt_percepts[p][f])
+                        FAs_and_Misses[j, 1] = FAs_and_Misses[j, 1] + 1
+                    end
+                end
+            end
+        end
+    end
+
+    gt_V = FAs_and_Misses./negatives_and_positives
+    #replace nans with 0s (comes from dividing 0 by 0)
+    gt_V[isnan.(gt_V)].=0
+    return gt_V
+end
+
+##############################################################################################
+#Setting up helper functions
 function countmemb(itr)
     d = Dict{String, Int}()
     for val in itr
