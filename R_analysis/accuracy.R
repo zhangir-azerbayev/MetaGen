@@ -86,7 +86,6 @@ accuracy <- function(data){
     #for perceived_reality (used in thresholding), need to know how many frames this percept has
     #Word "Any" is before every frame. if 10 frames, any shows up 10 times
     n_frames <- str_count(data[[percepts_list[p]]], pattern = "Any")
-    print(n_frames)
     perceived_reality[,p] <- perceived_reality[,p]/n_frames
   }
   #naive realist says if I saw it in any frame, its there

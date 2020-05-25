@@ -5,11 +5,13 @@ library(tidyboot)
 library(ggplot2)
 library(tidyverse)
 library(Rfast)
+library(pandas)
 
 source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/accuracy.R")
 source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/visualize_reality.R")
 source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/MSE_Vs.R")
 source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/parse_ambiguous_percept.R")
+#source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/accuracy_fake.R")
 
 # data <-
 #   list.files(
@@ -47,14 +49,35 @@ raw_data <- cbind(simID, raw_data)
 #Row 3478 is messed up. I think these didn't finish running or something
 #and row 3510
 # data <- data[-3478,]
-raw_data <- na.omit(raw_data)
+# raw_data <- na.omit(raw_data)
 
-I <- nrow(raw_data)
+# raw_data <- raw_data %>% 
+#   mutate_all(~ifelse(. %in% c("N/A", "null", ""), NA, .)) %>% 
+#   na.omit()
+# 
+# raw_data.dropna(axis = 0, how = 'any')
+
+#some files were messed up. seems that sometime the header gets read into
+#the value for a column. Want to remove rows where this happened. Could
+#have been the result of a cancelation on the cluster
+data2 <- raw_data
+data2 <- data2 %>% filter_all(all_vars(.!= "gt_R"))
+
+I <- nrow(data2)
 #I <- 3477 #3477 for partially completed run
 #I <- 10
 
-combined_data <- map_df(1:I,function(x){return(cbind(simID = x, MSE_Vs(raw_data[x,]), accuracy(raw_data[x,]), inferred_ambiguous_percept = parse_ambiguous_percept(raw_data[x,])))})
+#combined_data <- map_df(1:I,function(x){return(cbind(simID = x, MSE_Vs(raw_data[x,]), accuracy(raw_data[x,]), inferred_ambiguous_percept = parse_ambiguous_percept(raw_data[x,])))})
 #combined_data <- map_df(1:I,function(x){return(cbind(simID = x, MSE_Vs(raw_data[x,]), accuracy(raw_data[x,])))})
+
+#combined_data <- map_df(1:I,function(x){return(cbind(simID = x, accuracy_fake(raw_data[x,])))})
+
+combined_data <- vector(mode = "list", length = length(data))
+for(i in 1:I){
+  print(i)
+  combined_data[[i]] <- cbind(simID = i, MSE_Vs(data2[i,]), accuracy(data2[i,]), inferred_ambiguous_percept = parse_ambiguous_percept(data2[i,]))
+}
+combined_data <- combined_data %>% bind_rows
 
 
 
@@ -65,7 +88,8 @@ noisiest_row <- combined_data[which(combined_data$perceived_noise == max(combine
 noisiest_sim <- noisiest_row$simID
 noisiest_percept <- noisiest_row$percept_number
 
-noisiest_df <- raw_data %>% filter(simID == noisiest_sim)
+noisiest_df <- raw_data %>% filter(simID == noisiest_sim[1])
+accuracy(noisiest_df)$perceived_noise #sanity check fails
 visualize_reality(noisiest_df) #have to uncomment each graph that I want to see. or put a break point
 #another way
 data <- noisiest_df #then run analysis_of_Vs line by line
