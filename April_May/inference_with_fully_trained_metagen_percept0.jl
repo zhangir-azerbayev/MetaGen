@@ -163,8 +163,8 @@ function particle_filter(num_particles::Int, n_percepts, n_frames, gt_choices, n
 		# return a sample of unweighted traces from the weighted collection
 		tr = Gen.sample_unweighted_traces(state, num_samples)
 
+        print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
         if lesion==false
-            print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
             # apply rejuvenation/perturbation move to each particle. optional.
             for i = 1:num_particles
                 R,V,_ = Gen.get_retval(state.traces[i])
@@ -215,9 +215,7 @@ function particle_filter(num_particles::Int, n_percepts, n_frames, gt_choices, n
 	# return a sample of unweighted traces from the weighted collection
 	tr = Gen.sample_unweighted_traces(state, num_samples)
 
-    if lesion==false
-        print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
-    end
+    print_Vs_and_Rs_to_file(tr, num_samples, possible_objects)
 
 	return tr
 end;

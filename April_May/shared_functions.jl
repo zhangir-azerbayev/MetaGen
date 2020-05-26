@@ -2,6 +2,7 @@ using Gen
 
 ##############################################################################################
 #Setting up helper functions
+#Just for if we're using real data
 #This function, given a gt_percepts and gt_reality, calculates the ground truth FA and M rates
 #of the visual system that produced those percepts from that reality
 function calculate_V(gt_percepts, gt_reality)
@@ -79,15 +80,31 @@ function print_Vs_and_Rs_to_file(tr, num_samples, possible_objects, last_time::B
     # println("avg_V is ", avg_V)
     print(file, avg_V, " & ")
 
-    dictionary_Vs = countmemb(Vs)
-    print(file, dictionary_Vs, " & ")
+    # dictionary_Vs = countmemb(Vs)
+    # print(file, dictionary_Vs, " & ")
+
+    #instead of printing dictionary of realities, just print the mode
+    dictionary_realities = countmemb(realities)
+    #invert the mapping
+    frequency_realities = Dict()
+    for (k, v) in dictionary_realities
+        if haskey(frequency_realities, v)
+            push!(frequency_realities[v],k)
+        else
+            frequency_realities[v] = [k]
+        end
+    end
+
+    arr = collect(keys(frequency_realities))
+    arr_as_numeric = convert(Array{Int64,1}, arr)
+    m = maximum(arr_as_numeric) #finding mode
+    #length(frequency_Vs[m])==1 ? V = frequency_Vs[m] : V = frequency_Vs[m][1] #in case of tie, take the first V
+    reality_as_string = frequency_realities[m][1]
 
     if last_time #if this is the last thing printing, don't put &
-        dictionary = countmemb(realities)
-        print(file ,dictionary)
+        print(file ,reality_as_string)
     else
-        dictionary = countmemb(realities)
-        print(file ,dictionary, " & ")
+        print(file ,reality_as_string, " & ")
     end
 end
 
