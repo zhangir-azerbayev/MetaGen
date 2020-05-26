@@ -13,82 +13,19 @@ clean_V <- function(column){
     lapply(function(x){gsub(pattern = ";", replacement="",x, fixed = TRUE)})
 }
 
-dealing_with_frequency_tables_Vs <- function(ft){
-  ft <- ft  %>% lapply(function(x){gsub(pattern = "Dict(\"Array{String,N} where N", replacement="",x, fixed = TRUE)})
-  ft <- ft  %>% lapply(function(x){gsub(pattern = "Dict(Array{String,N} where N", replacement="",x, fixed = TRUE)})
-  ft <- ft  %>% lapply(function(x){gsub(pattern = "Dict(\"", replacement="",x, fixed = TRUE)})
-  
-  
-  n_objects <- 5
-  frequency_table_as_list <- as.list(strsplit(ft[[1]], ",", fixed=TRUE)[[1]])
-  len_ft <- length(frequency_table_as_list)
-  
-  weights <- vector(mode="double", length=len_ft) #will hold number of times each different reality was sampled in particle filter
-  Vs <- lapply(1:len_ft, function(x) matrix(NA, nrow=n_objects, ncol=2))
-   
-  for(j in 1:len_ft){
-    string <- frequency_table_as_list[[j]]
-    start_for_weights <- str_locate(string, "=>")[1]
-    stop_for_weights <- nchar(string)
-    weights_as_str <- substring(string, start_for_weights, stop_for_weights)
-    matches <- str_extract_all(weights_as_str, "[[:digit:]]+")
-    weights[j] <- as.numeric(unlist(matches))
-    
-    V_as_str <- substring(string, 1, start_for_weights)
-    
-    #have to deal with e-numbers (scientific notation)
-    #so rare to enter if that I don't care about using stringr for speed
-    if(str_detect(V_as_str, "e")[1]){
-      list_of_things_in_exponential_notation <- regmatches(V_as_str, gregexpr("[[:digit:]].[[:digit:]]+e-[[:digit:]]+", V_as_str))
-      for(i in 1:length(list_of_things_in_exponential_notation)){
-        #going to parse from e-5 or whatever to 0.00000
-        pattern = list_of_things_in_exponential_notation[[i]]
-        exponential_part = regmatches(pattern, regexpr("e-[[:digit:]]+", pattern)) 
-        N = as.numeric(regmatches(exponential_part, regexpr("[[:digit:]]+", exponential_part)))
-        non_exponential_part = sub(exponential_part, "", pattern)
-        non_exponential_part = sub("[.]", "", non_exponential_part) #remove the period
-        
-        replacement = "0."
-        for(n in 1:(N-1)){
-          replacement = paste(replacement,"0", sep ="")
-        }
-        replacement = paste(replacement, non_exponential_part, sep="")
-        V_as_str = sub(pattern, replacement, V_as_str)
-      }
-    }
-    
-    
-    matches <- str_extract_all(V_as_str, "[[:digit:]].[[:digit:]]+") #for 0.blah
-
-    assert("matches is proper length",{length(matches[[1]])==2*n_objects})
-    if(length(matches[[1]])!=2*n_objects){
-      print(j)
-    }
-    
-    V <- matrix(as.numeric(unlist(matches)), ncol=2, byrow=TRUE)
-    Vs[[j]] <- V
-  }
-  return(list("Vs_as_list" = Vs, "weights" = weights))
-}
-
 MSE_Vs <- function(data){
   
   #clean up the data
   data$gt_R <- data$gt_R %>%
     lapply(function(x){gsub(pattern = "Any", replacement="",x, fixed = TRUE)})
   
-  list <- grep('frequency.table.Vs.after.p', colnames(data), value=TRUE)
+  list <- grep('online.avg.V.after.p', colnames(data), value=TRUE)
   n_percepts = length(list)
   #n_objects (length of possible objects)
   n_objects = 5
   
-  mode_Vs <- lapply(1:n_percepts, function(x) matrix(NA, nrow=n_objects, ncol=2))
   for(p in 1:n_percepts){
-    returned <- dealing_with_frequency_tables_Vs(data[[list[p]]])
-    Vs_as_list <- returned$Vs_as_list
-    weights <- returned$weights
-    index <- which(weights==max(weights))[1] #take the first one in case of tie
-    mode_Vs[p] <- Vs_as_list[index]
+    data[[list[p]]] <- clean_V(data[[list[p]]])
   }
   
   data$gt_V <- clean_V(data$gt_V)
@@ -114,9 +51,8 @@ MSE_Vs <- function(data){
   MSE_M <- vector(mode="double", length=n_percepts)
   for(p in 1:n_percepts){
     #temp_var <- unlist(strsplit(as.character(data[[list[p]]]), split = " "))[-1] #[-1] is needed sometimes because there might be a space at the beginning of gt_V
-    #temp_var <- unlist(strsplit(as.character(data[[list[p]]]), split = " "))
-    #mat <- matrix(as.numeric(temp_var), ncol=2, byrow=TRUE)
-    mat <- mode_Vs[[p]]
+    temp_var <- unlist(strsplit(as.character(data[[list[p]]]), split = " "))
+    mat <- matrix(as.numeric(temp_var), ncol=2, byrow=TRUE)
     MSE_FA[p] <- sum((gt_V[,1] - mat[,1])^2)/n_objects
     MSE_M[p] <- sum((gt_V[,2] - mat[,2])^2)/n_objects
   }
@@ -125,10 +61,10 @@ MSE_Vs <- function(data){
   exp_MSE_FA <- rep(MSE_exp_FA, n_percepts)
   exp_MSE_M <- rep(MSE_exp_M, n_percepts)
   
-  gt_FA_airplane <- rep(gt_V[5,1], n_percepts)
-  gt_M_airplane <- rep(gt_V[5,2], n_percepts)
+  #gt_FA_airplane <- rep(gt_V[5,1], n_percepts)
+  #gt_M_airplane <- rep(gt_V[5,2], n_percepts)
   
-  toPlot <- data.frame(percept_number, exp_MSE_FA, exp_MSE_M, MSE_FA, MSE_M, gt_FA_airplane, gt_M_airplane)
+  toPlot <- data.frame(percept_number, exp_MSE_FA, exp_MSE_M, MSE_FA, MSE_M)
 
   return(toPlot)
 }
