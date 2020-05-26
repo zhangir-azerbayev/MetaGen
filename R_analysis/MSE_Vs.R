@@ -2,6 +2,7 @@ library(dplyr)
 library(readr)
 library(ggplot2)
 library(truncnorm)
+library(testit)
 
 #function for cleaning up Vs
 clean_V <- function(column){
@@ -14,6 +15,8 @@ clean_V <- function(column){
 dealing_with_frequency_tables_Vs <- function(ft){
   ft <- ft  %>% lapply(function(x){gsub(pattern = "Dict(\"Array{String,N} where N", replacement="",x, fixed = TRUE)})
   ft <- ft  %>% lapply(function(x){gsub(pattern = "Dict(Array{String,N} where N", replacement="",x, fixed = TRUE)})
+  ft <- ft  %>% lapply(function(x){gsub(pattern = "Dict(\"", replacement="",x, fixed = TRUE)})
+  
   
   n_objects <- 5
   frequency_table_as_list <- as.list(strsplit(ft[[1]], ",", fixed=TRUE)[[1]])
@@ -31,7 +34,39 @@ dealing_with_frequency_tables_Vs <- function(ft){
     weights[j] <- as.numeric(unlist(matches))
     
     V_as_str <- substring(string, 1, start_for_weights)
+    
+    #have to deal with e-numbers (scientific notation)
+    if(grep("e", V_as_str)){
+      list_of_things_in_exponential_notation <- regmatches(V_as_str, gregexpr("[[:digit:]].[[:digit:]]+e-[[:digit:]]+", V_as_str))
+      for(i in 1:length(list_of_things_in_exponential_notation)){
+        #going to parse from e-5 or whatever to 0.00000
+        pattern = list_of_things_in_exponential_notation[[i]]
+        exponential_part = regmatches(pattern, regexpr("e-[[:digit:]]+", pattern)) 
+        N = as.numeric(regmatches(exponential_part, regexpr("[[:digit:]]+", exponential_part)))
+        non_exponential_part = sub(exponential_part, "", pattern)
+        non_exponential_part = sub("[.]", "", non_exponential_part) #remove the period
+        
+        replacement = "0."
+        for(n in 1:(N-1)){
+          replacement = paste(replacement,"0", sep ="")
+        }
+        replacement = paste(replacement, non_exponential_part, sep="")
+        V_as_str = sub(pattern, replacement, V_as_str)
+      }
+    }
+    
+    
     matches <- regmatches(V_as_str, gregexpr("[[:digit:]].[[:digit:]]+", V_as_str)) #for 0.blah
+    
+    
+    
+    
+    assert("matches is proper length",{length(matches[[1]])==2*n_objects})
+    if(length(matches[[1]])!=2*n_objects){
+      print(j)
+    }
+    
+    
     V <- matrix(as.numeric(unlist(matches)), ncol=2, byrow=TRUE)
     Vs[[j]] <- V
   }
