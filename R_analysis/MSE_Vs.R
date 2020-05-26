@@ -3,6 +3,7 @@ library(readr)
 library(ggplot2)
 library(truncnorm)
 library(testit)
+library(stringr)
 
 #function for cleaning up Vs
 clean_V <- function(column){
@@ -27,16 +28,17 @@ dealing_with_frequency_tables_Vs <- function(ft){
    
   for(j in 1:len_ft){
     string <- frequency_table_as_list[[j]]
-    start_for_weights <- regexpr("=>", string)
+    start_for_weights <- str_locate(string, "=>")[1]
     stop_for_weights <- nchar(string)
     weights_as_str <- substring(string, start_for_weights, stop_for_weights)
-    matches <- regmatches(weights_as_str, gregexpr("[[:digit:]]+", weights_as_str))
+    matches <- str_extract_all(weights_as_str, "[[:digit:]]+")
     weights[j] <- as.numeric(unlist(matches))
     
     V_as_str <- substring(string, 1, start_for_weights)
     
     #have to deal with e-numbers (scientific notation)
-    if(grepl("e", V_as_str)){
+    #so rare to enter if that I don't care about using stringr for speed
+    if(str_detect(V_as_str, "e")[1]){
       list_of_things_in_exponential_notation <- regmatches(V_as_str, gregexpr("[[:digit:]].[[:digit:]]+e-[[:digit:]]+", V_as_str))
       for(i in 1:length(list_of_things_in_exponential_notation)){
         #going to parse from e-5 or whatever to 0.00000
@@ -56,16 +58,12 @@ dealing_with_frequency_tables_Vs <- function(ft){
     }
     
     
-    matches <- regmatches(V_as_str, gregexpr("[[:digit:]].[[:digit:]]+", V_as_str)) #for 0.blah
-    
-    
-    
-    
+    matches <- str_extract_all(V_as_str, "[[:digit:]].[[:digit:]]+") #for 0.blah
+
     assert("matches is proper length",{length(matches[[1]])==2*n_objects})
     if(length(matches[[1]])!=2*n_objects){
       print(j)
     }
-    
     
     V <- matrix(as.numeric(unlist(matches)), ncol=2, byrow=TRUE)
     Vs[[j]] <- V

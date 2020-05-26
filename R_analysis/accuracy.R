@@ -18,7 +18,7 @@ dealing_with_frequency_tables <- function(ft, n_percepts){
     #weights[j] <- substr(frequency_table_as_list[[j]][[n_percepts]], N-3, N-1)
     weights[j] <- frequency_table_as_list[[j]][[n_percepts]]
   } #now frequency_table_as_list is a list of lists
-  matches <- regmatches(weights, gregexpr("[[:digit:]]+", weights))
+  matches <- str_extract_all(weights, "[[:digit:]]+")
   weights <- as.numeric(unlist(matches))
   
   return(list("frequency_table_as_list" = frequency_table_as_list, "weights" = weights))
@@ -72,8 +72,8 @@ accuracy <- function(data){
   frequency_table_2d <- matrix(0, nrow = num_categories, ncol = n_percepts)
   frequency_table_2d_lesioned <- matrix(0, nrow = num_categories, ncol = n_percepts)
   
-  matches <- regmatches(colnames(data), gregexpr("percept[[:digit:]]+", colnames(data)))
-  percepts_list <- unlist(regmatches(colnames(data), gregexpr("percept[[:digit:]]+", colnames(data))))
+  matches <- str_extract_all(colnames(data), "percept[[:digit:]]+")
+  percepts_list <- unlist(matches)
   #percepts_list <- grep(text = gregexpr("percept[[:digit:]]+"), colnames(data), value=TRUE)
   #count up how many objects of each category in each percept and tally it in matrix
   for(p in 1:n_percepts){
