@@ -36,7 +36,7 @@ dealing_with_frequency_tables_Vs <- function(ft){
     V_as_str <- substring(string, 1, start_for_weights)
     
     #have to deal with e-numbers (scientific notation)
-    if(grep("e", V_as_str)){
+    if(grepl("e", V_as_str)){
       list_of_things_in_exponential_notation <- regmatches(V_as_str, gregexpr("[[:digit:]].[[:digit:]]+e-[[:digit:]]+", V_as_str))
       for(i in 1:length(list_of_things_in_exponential_notation)){
         #going to parse from e-5 or whatever to 0.00000
