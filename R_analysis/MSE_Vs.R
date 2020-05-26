@@ -3,8 +3,40 @@ library(readr)
 library(ggplot2)
 library(truncnorm)
 
-#Just want the dealing_with_frequency_tables function
-source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/accuracy.R")
+#function for cleaning up Vs
+clean_V <- function(column){
+  column <- column %>%
+    lapply(function(x){gsub(pattern = "[", replacement="",x, fixed = TRUE)}) %>%
+    lapply(function(x){gsub(pattern = "]", replacement="",x, fixed = TRUE)}) %>%
+    lapply(function(x){gsub(pattern = ";", replacement="",x, fixed = TRUE)})
+}
+
+dealing_with_frequency_tables_Vs <- function(ft){
+  ft <- ft  %>% lapply(function(x){gsub(pattern = "Dict(\"Array{String,N} where N", replacement="",x, fixed = TRUE)})
+  ft <- ft  %>% lapply(function(x){gsub(pattern = "Dict(Array{String,N} where N", replacement="",x, fixed = TRUE)})
+  
+  n_objects <- 5
+  frequency_table_as_list <- as.list(strsplit(ft[[1]], ",", fixed=TRUE)[[1]])
+  len_ft <- length(frequency_table_as_list)
+  
+  weights <- vector(mode="double", length=len_ft) #will hold number of times each different reality was sampled in particle filter
+  Vs <- lapply(1:len_ft, function(x) matrix(NA, nrow=n_objects, ncol=2))
+   
+  for(j in 1:len_ft){
+    string <- frequency_table_as_list[[j]]
+    start_for_weights <- regexpr("=>", string)
+    stop_for_weights <- nchar(string)
+    weights_as_str <- substring(string, start_for_weights, stop_for_weights)
+    matches <- regmatches(weights_as_str, gregexpr("[[:digit:]]+", weights_as_str))
+    weights[j] <- as.numeric(unlist(matches))
+    
+    V_as_str <- substring(string, 1, start_for_weights)
+    matches <- regmatches(V_as_str, gregexpr("[[:digit:]].[[:digit:]]+", V_as_str)) #for 0.blah
+    V <- matrix(as.numeric(unlist(matches)), ncol=2, byrow=TRUE)
+    Vs[[j]] <- V
+  }
+  return(list("Vs_as_list" = Vs, "weights" = weights))
+}
 
 MSE_Vs <- function(data){
   
@@ -12,26 +44,21 @@ MSE_Vs <- function(data){
   data$gt_R <- data$gt_R %>%
     lapply(function(x){gsub(pattern = "Any", replacement="",x, fixed = TRUE)})
   
-  #function for cleaning up Vs
-  clean_V <- function(column){
-    column <- column %>%
-      lapply(function(x){gsub(pattern = "[", replacement="",x, fixed = TRUE)}) %>%
-      lapply(function(x){gsub(pattern = "]", replacement="",x, fixed = TRUE)}) %>%
-      lapply(function(x){gsub(pattern = ";", replacement="",x, fixed = TRUE)})
-  }
-  
-  list <- grep('avg.V.after.p', colnames(data), value=TRUE)
+  list <- grep('frequency.table.Vs.after.p', colnames(data), value=TRUE)
   n_percepts = length(list)
   #n_objects (length of possible objects)
   n_objects = 5
   
+  mode_Vs <- lapply(1:n_percepts, function(x) matrix(NA, nrow=n_objects, ncol=2))
   for(p in 1:n_percepts){
-    data[[list[p]]] <- clean_V(data[[list[p]]])
+    returned <- dealing_with_frequency_tables_Vs(data[[list[p]]])
+    Vs_as_list <- returned$Vs_as_list
+    weights <- returned$weights
+    index <- which(weights==max(weights))[1] #take the first one in case of tie
+    mode_Vs[p] <- Vs_as_list[index]
   }
   
   data$gt_V <- clean_V(data$gt_V)
-  
-
   
   #analysis questions
   
@@ -54,8 +81,9 @@ MSE_Vs <- function(data){
   MSE_M <- vector(mode="double", length=n_percepts)
   for(p in 1:n_percepts){
     #temp_var <- unlist(strsplit(as.character(data[[list[p]]]), split = " "))[-1] #[-1] is needed sometimes because there might be a space at the beginning of gt_V
-    temp_var <- unlist(strsplit(as.character(data[[list[p]]]), split = " "))
-    mat <- matrix(as.numeric(temp_var), ncol=2, byrow=TRUE)
+    #temp_var <- unlist(strsplit(as.character(data[[list[p]]]), split = " "))
+    #mat <- matrix(as.numeric(temp_var), ncol=2, byrow=TRUE)
+    mat <- mode_Vs[[p]]
     MSE_FA[p] <- sum((gt_V[,1] - mat[,1])^2)/n_objects
     MSE_M[p] <- sum((gt_V[,2] - mat[,2])^2)/n_objects
   }

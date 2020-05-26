@@ -75,7 +75,7 @@ I <- nrow(data2)
 combined_data <- vector(mode = "list", length = length(data))
 for(i in 1:I){
   print(i)
-  combined_data[[i]] <- cbind(simID = i, MSE_Vs(data2[i,]), accuracy(data2[i,]), inferred_ambiguous_percept = parse_ambiguous_percept(data2[i,]))
+  combined_data[[i]] <- cbind(simID = i, MSE_Vs(data2[i,]), accuracy(data2[i,]))
 }
 combined_data <- combined_data %>% bind_rows
 

@@ -46,7 +46,7 @@ accuracy <- function(data){
   n_percepts <- length(gt_R)
   
   #retrospective metagen
-  returned <- dealing_with_frequency_tables(data$frequency.table.PF, n_percepts)
+  returned <- dealing_with_frequency_tables(data$frequency.table.retrospective.PF, n_percepts)
   frequency_table_as_list <- returned$frequency_table_as_list
   weights <- returned$weights
   index <- which(weights==max(weights))
@@ -108,12 +108,12 @@ accuracy <- function(data){
   perceived_noise <- rep(0, num_percepts)
   
   list <- grep('frequency.table.PF.after.p', colnames(data), value=TRUE)
-  
+
   for(n_perc in 1:num_percepts){
     
     #all this stuff is for online metagen
-    ft <- data[[list[n_perc]]]
-    returned <- dealing_with_frequency_tables(ft, n_perc)
+    ft <- data[[list[n_perc+1]]] ##adding +1 to skip percept0
+    returned <- dealing_with_frequency_tables(ft, n_perc) 
     frequency_table_as_list <- returned$frequency_table_as_list
     weights <- returned$weights
     index_online = which(weights==max(weights)) #going by mode over this reality and previous ones
@@ -138,6 +138,10 @@ accuracy <- function(data){
   
   percept_number <- 1:num_percepts
   toPlot <- data.frame(percept_number, A_retrospective_metagen, A_lesioned_metagen, A_online_metagen, A_naive_reality, A_threshold, perceived_noise)
+  
+  #simply add NAs to beginning of each vector to make up for percept 0
+  padding <- rep(NA, ncol(toPlot))
+  toPlot <- rbind(padding, toPlot)
   
   return(toPlot)
 }
