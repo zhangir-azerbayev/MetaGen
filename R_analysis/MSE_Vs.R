@@ -3,6 +3,9 @@ library(readr)
 library(ggplot2)
 library(truncnorm)
 
+#Just want the dealing_with_frequency_tables function
+source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project3/R_analysis/accuracy.R")
+
 MSE_Vs <- function(data){
   
   #clean up the data
