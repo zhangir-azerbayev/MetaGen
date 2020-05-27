@@ -29,11 +29,11 @@ source("/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/ORB_project
 # }
 # combined_data <- combined_data %>% bind_rows
 
-# raw_data <- read_delim("output111.csv",
-#                        "&", escape_double = FALSE, trim_ws = TRUE)
+raw_data <- read_delim("output111.csv",
+                       "&", escape_double = FALSE, trim_ws = TRUE)
 
 raw_data <- read_delim("merged.csv",
-                        "&", escape_double = FALSE, trim_ws = TRUE)
+                        "&", escape_double = FALSE, trim_ws = TRUE, n_max = 500)
 names(raw_data)<-str_replace_all(names(raw_data), c(" " = "."))
 
 simID <- 1:dim(raw_data)[1]
@@ -80,7 +80,6 @@ for(i in 1:I){
 combined_data <- combined_data %>% bind_rows
 
 
-
 ###################################################################
 
 #find noisiest percept
@@ -100,6 +99,9 @@ which(combined_data$A_threshold==0)
 
 ###################################################################
 accuracy_plot <- function(data){
+  #drop rows for percept0
+  data <- na.omit(data)
+  
   df_Accuracy <-
     data %>% gather(
       Model,
@@ -165,30 +167,53 @@ mse_V_plot <- function(data){
 }
 
 ###################################################################
-accuracy_plot(combined_data)
-mse_V_plot(combined_data)
+noise_vs_accuracy_plot <- function(data){
+  #drop rows for percept0
+  data <- na.omit(data)
+  
+  #fail <- data %>% filter(perceived_noise<0.05 & A_retrospective_metagen == 0)
+  
+  df_Accuracy <-
+    data %>% gather(
+      Model,
+      Score,
+      A_retrospective_metagen,
+      #A_lesioned_metagen,
+      A_online_metagen,
+      #A_naive_reality,
+      A_threshold
+    )
+  
+  #GetLowerCI <- function(x,y){return(prop.test(x,y)$conf.int[1])}
+  #GetTopCI <- function(x,y){return(prop.test(x,y)$conf.int[2])}
+  
+  toPlot_Accuracy <- df_Accuracy %>% group_by(Model)# %>% summarize(Samples=n(),Hits=sum(Score),Mean=mean(Score),Lower=GetLowerCI(Hits,Samples),Top=GetTopCI(Hits,Samples))
+  
+  #fail <- toPlot_Accuracy %>% filter(perceived_noise<0.05 & A_retrospective_metagen == 0)
+  #fail <- toPlot_Accuracy %>% filter(perceived_noise<0.05 & Score == 0 & Model=="A_retrospective_metagen")
+  
+  b <- ggplot(toPlot_Accuracy, aes(x = perceived_noise, y = Score))
+  b + geom_point(aes(color = Model)) +
+    scale_color_manual(values = c("#00AFBB", "#E7B800", "#FC4E07")) +
+    #ggline(lowess(Score ~ perceived_noise, toPlot_Accuracy))
+    geom_smooth(aes(color = Model), method="gam")
+  
+  # #Warning message:
+  # Computation failed in `stat_smooth()`:
+  #   workspace required (8438306300) is too large probably because of setting 'se = TRUE'.
+}
+
+
+
 
 ###################################################################
-#Look at ambiguous percept results
 
-#if FA > M, should infer no airplane. just motorcycle
-FA_bigger <- combined_data %>% filter(gt_FA_airplane > gt_M_airplane)
-proportion_without_airplane <- (sum(FA_bigger$inferred_ambiguous_percept=="motorcycle"))/nrow(FA_bigger)
+data <- head(combined_data)
 
-#if M > FA, should infer no airplane
-M_bigger <- combined_data %>% filter(gt_M_airplane > gt_FA_airplane)
-proportion_with_airplane <- (sum(M_bigger$inferred_ambiguous_percept=="motorcycle airplane"))/nrow(M_bigger)
 
-#poisson lambda 1 prior is driving a preference for just motorcycle, not motorcycle and airplane
+fail <- combined_data %>% filter(perceived_noise<0.05 && A_retrospective_metagen == 0)
 
-combined_data <- combined_data %>% mutate(
-  gt_diff_airplane = gt_M_airplane - gt_FA_airplane
-  )
+accuracy_plot(combined_data)
+mse_V_plot(combined_data)
+noise_vs_accuracy_plot(combined_data)
 
-ggplot(
-  combined_data,
-  aes(
-    x = gt_diff_airplane,
-    y = inferred_ambiguous_percept,
-  )
-) + geom_point()
