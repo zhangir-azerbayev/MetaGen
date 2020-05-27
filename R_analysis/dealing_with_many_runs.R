@@ -207,13 +207,15 @@ noise_vs_accuracy_plot <- function(data){
 
 
 ###################################################################
-
-data <- head(combined_data)
-
-
-fail <- combined_data %>% filter(perceived_noise<0.05 && A_retrospective_metagen == 0)
-
 accuracy_plot(combined_data)
 mse_V_plot(combined_data)
 noise_vs_accuracy_plot(combined_data)
 
+#Cherry-pick run to visualize...
+
+m <- max(combined_data$diff_between_retro_and_threshold, na.rm = TRUE)
+biggest_win_for_metagen <- combined_data %>% filter(diff_between_retro_and_threshold==m)
+sim <- biggest_win_for_metagen$simID[1]
+visualize_reality(raw_data[sim,])
+
+data <- raw_data[sim,]
