@@ -101,8 +101,9 @@ accuracy <- function(data){
   }
   
   percept_number <- 1:num_percepts
-  diff_between_retro_and_threshold <- (sum(A_retrospective_metagen)-sum(A_threshold))/num_percepts
-  toPlot <- data.frame(percept_number, A_retrospective_metagen, A_lesioned_metagen, A_online_metagen, A_naive_reality, A_threshold, perceived_noise, diff_between_retro_and_threshold)
+  avg_diff_between_retro_and_threshold <- (sum(A_retrospective_metagen)-sum(A_threshold))/num_percepts
+  diff_between_retro_and_threshold <- A_retrospective_metagen-A_threshold
+  toPlot <- data.frame(percept_number, A_retrospective_metagen, A_lesioned_metagen, A_online_metagen, A_naive_reality, A_threshold, perceived_noise, diff_between_retro_and_threshold, avg_diff_between_retro_and_threshold)
   
   #simply add NAs to beginning of each vector to make up for percept 0
   padding <- c(0, rep(NA, ncol(toPlot)-1))

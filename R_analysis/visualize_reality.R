@@ -108,42 +108,48 @@ visualize_reality <- function(data){
   df$frequency_table_online <- frequency_table_online
   df$frequency_table_lesioned <- frequency_table_lesioned
   
+  mutated <- df %>% mutate(MetaGenWasRight=(gt_reality==frequency_table_retrospective),ThreshWasRight=(gt_reality==thresholded))
+  
+  mutated %>% ggplot(aes(X,Y,fill=MetaGenWasRight))+geom_tile()+theme(aspect.ratio=1)
+  
+  mutated %>% ggplot(aes(X,Y,fill=ThreshWasRight))+geom_tile()+theme(aspect.ratio=1) 
+  
   # Heatmap 
   #low="black", high="white", in scale_fill_gradient
   p1 <- ggplot(df, aes(X, Y, fill= gt_reality)) + 
     geom_tile() +
     scale_fill_gradient(limits=c(0, 1)) +
     ggtitle("Ground-truth realities") +
-    xlab("Realities") + ylab("Categories")
+    xlab("Realities") + ylab("Categories") + theme(aspect.ratio=1)
   p2 <- ggplot(df, aes(X, Y, fill= perceived_reality)) + 
     geom_tile() +
     scale_fill_gradient(limits=c(0, 1)) +
     ggtitle("Percepts") +
-    xlab("Percepts presented") + ylab("Categories")
+    xlab("Percepts presented") + ylab("Categories") + theme(aspect.ratio=1)
   p3 <- ggplot(df, aes(X, Y, fill= frequency_table_retrospective)) + 
     geom_tile() +
     scale_fill_gradient(limits=c(0, 1)) +
     ggtitle("Inferred realities retrospective MetaGen") +
-    xlab("Percepts presented") + ylab("Categories")
-  p4 <- ggplot(df, aes(X, Y, fill= frequency_table_online)) + 
-    geom_tile() +
-    scale_fill_gradient(limits=c(0, 1)) +
-    ggtitle("Inferred realities online MetaGen") +
-    xlab("Percepts presented") + ylab("Categories")
-  p5 <- ggplot(df, aes(X, Y, fill= frequency_table_lesioned)) + 
-    geom_tile() +
-    scale_fill_gradient(limits=c(0, 1)) +
-    ggtitle("Inferred realities lesioned MetaGen") +
-    xlab("Percepts presented") + ylab("Categories")
+    xlab("Percepts presented") + ylab("Categories") + theme(aspect.ratio=1)
+  # p4 <- ggplot(df, aes(X, Y, fill= frequency_table_online)) + 
+  #   geom_tile() +
+  #   scale_fill_gradient(limits=c(0, 1)) +
+  #   ggtitle("Inferred realities online MetaGen") +
+  #   xlab("Percepts presented") + ylab("Categories")
+  # p5 <- ggplot(df, aes(X, Y, fill= frequency_table_lesioned)) + 
+  #   geom_tile() +
+  #   scale_fill_gradient(limits=c(0, 1)) +
+  #   ggtitle("Inferred realities lesioned MetaGen") +
+  #   xlab("Percepts presented") + ylab("Categories")
   p6 <- ggplot(df, aes(X, Y, fill= thresholded)) + 
     geom_tile() +
     scale_fill_gradient(limits=c(0, 1)) +
     ggtitle("Realities from thresholding percepts") + 
-    xlab("Percepts presented") + ylab("Categories")
+    xlab("Percepts presented") + ylab("Categories") + theme(aspect.ratio=1)
   
   par(mfrow=c(1,6))
   
-  #all <- align_plots(p1, p2, p3, p4, p5, p6, align="hv", axis="tblr")
+  all <- align_plots(p1, p2, p3, p4, p5, p6, align="hv", axis="tblr")
   ggdraw(all[[1]])
   ggdraw(all[[2]])
   ggdraw(all[[3]])
