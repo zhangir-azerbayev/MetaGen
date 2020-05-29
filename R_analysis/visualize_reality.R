@@ -114,6 +114,27 @@ visualize_reality <- function(data){
   
   mutated %>% ggplot(aes(X,Y,fill=ThreshWasRight))+geom_tile()+theme(aspect.ratio=1) 
   
+  coded_mistakes <- function(gt_reality, frequency_table_retrospective){
+    to_return <- rep(0, length(gt_reality))
+    for (i in 1:length(gt_reality)){
+      if(gt_reality[i]==frequency_table_retrospective[i]){
+        to_return[i]=0
+      } else if(gt_reality[i]==1 & frequency_table_retrospective[i]==0){
+        to_return[i]=1# miss
+      } else{
+        to_return[i]=2 #FA
+      }
+    }
+    return(to_return)
+  }
+  #0 if they're the same, 1 if it's a miss, 2 if it's a false alarm
+  mutated <- df %>% mutate(MetaGenCodedMistakes=coded_mistakes(gt_reality, frequency_table_retrospective), 
+                           ThreshWasCodedMistakes=coded_mistakes(gt_reality, thresholded))
+  
+  mutated %>% ggplot(aes(X,Y,fill=factor(MetaGenCodedMistakes)))+geom_tile()+theme(aspect.ratio=1)
+  
+  mutated %>% ggplot(aes(X,Y,fill=factor(ThreshWasCodedMistakes)))+geom_tile()+theme(aspect.ratio=1) 
+  
   # Heatmap 
   #low="black", high="white", in scale_fill_gradient
   p1 <- ggplot(df, aes(X, Y, fill= gt_reality)) + 
@@ -153,8 +174,8 @@ visualize_reality <- function(data){
   ggdraw(all[[1]])
   ggdraw(all[[2]])
   ggdraw(all[[3]])
-  ggdraw(all[[4]])
-  ggdraw(all[[5]])
+  #ggdraw(all[[4]])
+  #ggdraw(all[[5]])
   ggdraw(all[[6]])
 }
 
