@@ -1,9 +1,6 @@
-library(dplyr)
-library(readr)
-library(ggplot2)
-library(truncnorm)
-library(testit)
-library(stringr)
+#This is file provides support functions called by the main analysis_of_raw_data.R script
+
+library(tidyverse)
 
 #function for cleaning up Vs
 clean_V <- function(column){
@@ -19,7 +16,6 @@ MSE_Vs <- function(data){
   data$gt_R <- data$gt_R %>%
     lapply(function(x){gsub(pattern = "Any", replacement="",x, fixed = TRUE)})
   
-  #list <- grep('avg.V.after.p', colnames(data), value=TRUE)
   list <- grep('online.avg.V.after.p', colnames(data), value=TRUE)
   n_percepts = length(list)
   #n_objects (length of possible objects)
@@ -30,13 +26,8 @@ MSE_Vs <- function(data){
   }
   
   data$gt_V <- clean_V(data$gt_V)
-  
-  #analysis questions
-  
- 
+
   #look at how V changes after each percept for the PFs
-  #avg.V.after.p1
-  
   temp_var <- unlist(strsplit(as.character(data$gt_V), split = " "))
   gt_V <- matrix(as.numeric(temp_var), ncol=2, byrow=TRUE)
   
@@ -61,9 +52,6 @@ MSE_Vs <- function(data){
   percept_number <- rep(1:n_percepts)
   exp_MSE_FA <- rep(MSE_exp_FA, n_percepts)
   exp_MSE_M <- rep(MSE_exp_M, n_percepts)
-  
-  #gt_FA_airplane <- rep(gt_V[5,1], n_percepts)
-  #gt_M_airplane <- rep(gt_V[5,2], n_percepts)
   
   toPlot <- data.frame(percept_number, exp_MSE_FA, exp_MSE_M, MSE_FA, MSE_M)
 
