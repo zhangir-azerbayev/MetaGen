@@ -4,9 +4,9 @@
 #In line 19, name the outfile whatever you'd like
 #n_percepts (line 23) specifies the number of observations
 
-include("gm_for_NEURIPS.jl")
-include("inference_for_NEURIPS.jl")
-include("shared_functions_for_NEURIPS.jl")
+include("gm.jl")
+include("inference.jl")
+include("shared_functions.jl")
 
 using Gen
 using FreqTables

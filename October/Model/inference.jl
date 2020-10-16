@@ -1,7 +1,7 @@
 #This file provides support functions called by the main script execute_for_NEURIPS.jl
 #Inference procedure file
-include("gm_for_NEURIPS.jl")
-include("shared_functions_for_NEURIPS.jl")
+include("gm.jl")
+include("shared_functions.jl")
 
 using Gen
 using FreqTables
