@@ -2,34 +2,22 @@ struct Multinomial <: Gen.Distribution{Vector{Int}} end
 
 const multinomial = Multinomial()
 
-#N is the number of times sampled
-function Gen.logpdf(::Multinomial, x::AbstractArray{Int}, N::Int, probs::AbstractArray{U,1}) where {U <: Real}
-    if length(x) != N
-        return 0
-    end
-    p = 1
-    d = Distributions.Categorical(probs)
-    for i in 1:length(x)
-        temp = Distributions.logpdf(d, x[i], probs)
-        p = p*temp
-    end
-    return p
+function Gen.random(::Multinomial, n::Int, probs::AbstractArray{U,1})  where {U <: Real}
+    collect(Int64, map(i -> rand(Distributions.Categorical(probs)), 1:n))
 end
 
-function Gen.logpdf_grad(::Multinomial, x::AbstractArray{Int}, N::Int, probs::AbstractArray{U,1})  where {U <: Real}
+#n is the number of times sampled
+function Gen.logpdf(::Multinomial, x::AbstractArray{Int}, n::Int, probs::AbstractArray{U,1}) where {U <: Real}
+    length(x) != n && return -Inf
+    sum(map(i -> Gen.logpdf(categorical, i, probs), x))
+end
+
+function Gen.logpdf_grad(::Multinomial, x::AbstractArray{Int}, n::Int, probs::AbstractArray{U,1})  where {U <: Real}
 	gerror("Not implemented")
 	(nothing, nothing)
 end
 
-function Gen.random(::Multinomial, N::Int, probs::AbstractArray{U,1})  where {U <: Real}
-	x = Vector{Int}(undef, N)
-    for i in 1:N
-        x[i] = rand(Distributions.Categorical(probs))
-    end
-    return x
-end
-
-(::Multinomial)(N, probs) = random(Multinomial(), N, probs)
+(::Multinomial)(n, probs) = Gen.random(Multinomial(), n, probs)
 is_discrete(::Multinomial) = true
 
 has_output_grad(::Multinomial) = false
@@ -40,36 +28,34 @@ export multinomial
 
 
 # #Object distribution
-struct objectdistribution <: Distribution{Vector{T}} where {T <: Real} end
+struct Object_Distribution_Present <: Gen.Distribution{AbstractVector{T}} where {T <: Real} end #ERROR: invalid subtyping in definition of Object_Distribution_Present
 
-const objectdistribution = ObjectDistribution()
+const object_distribution_present = Object_Distribution_Present()
 
-function logpdf(::ObjectDistribution, x::AbstractVector{T}, mu::AbstractVector{U},
+function random(::Object_Distribution_Present, mu::AbstractVector{U},
+                cov::AbstractMatrix{V}, cat::Int) where {U <: Real, V <: Real}
+    [rand(Distributions.MvNormal(mu, cov)), cat]
+end
+
+function logpdf(::Object_Distribution_Present, x::AbstractVector{T}, mu::AbstractVector{U},
                 cov::AbstractMatrix{V}, cat::Int) where {T <: Real, U <: Real, V <: Real}
 
     n = length(x)
     #if category mismatch
-    if cat!=x[n]
-        return 0
-    end
+    cat!=x[n] && return -Inf
     dist = Distributions.MvNormal(mu, cov)
     Distributions.logpdf(dist, x[1:n-1])
 end
 
-function logpdf_grad(::ObjectDistribution, x::AbstractVector{T}, mu::AbstractVector{U},
+function logpdf_grad(::Object_Distribution_Present, x::AbstractVector{T}, mu::AbstractVector{U},
     cov::AbstractMatrix{V}, cat::Int) where {T <: Real,U <: Real, V <: Real}
     gerror("Not implemented")
     (nothing, nothing)
 end
 
-function random(::MultivariateNormal, mu::AbstractVector{U},
-                cov::AbstractMatrix{V}, cat::Int) where {U <: Real, V <: Real}
-    [rand(Distributions.MvNormal(mu, cov)), cat]
-end
+(::Object_Distribution_Present)(mu, cov, cat) = Gen.random(Object_Distribution_Present(), mu, cov, cat)
 
-(::ObjectDistribution)(mu, cov, cat) = random(ObjectDistribution(), mu, cov, cat)
+has_output_grad(::Object_Distribution_Present) = false
+has_argument_grads(::Object_Distribution_Present) = (false,)
 
-has_output_grad(::ObjectDistribution) = false
-has_argument_grads(::ObjectDistribution) = (false,)
-
-export objectdistribution
+export object_distribution_present
