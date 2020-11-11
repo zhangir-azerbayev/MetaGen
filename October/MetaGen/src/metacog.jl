@@ -4,19 +4,16 @@
     #set up visual system's parameters
     #Determining visual system V
 	v = Matrix{Float64}(undef, length(possible_objects), 2)
-    # shape_a = 0.5
-    # scale_a = 1.0 #very close to 0
-    # shape_p = 2
-    # scale_p = 1 #mean is 2, mode is 1
-	# for j = 1:length(possible_objects)
-    #     #set lambda when target absent
-    #     v[j,1] = @trace(Gen.gamma(shape_a, scale_a), (:lam_absent, j))
-    #     #set lambda when target present
-    #     v[j,2] = @trace(Gen.gamma(shape_p, scale_p), (:lam_present, j))
-	# end
-
-
-	v[:, :] .= 1.0
+	alpha = 2
+	beta = 10
+    shape_p = 2
+    scale_p = 1 #mean is 2, mode is 1
+	for j = 1:length(possible_objects)
+        #set lambda when target absent
+        v[j,1] = @trace(Gen.beta(alpha, beta), (:fa, j)) #leads to fa rate of around 0.1
+        #set lambda when target present
+        v[j,2] = @trace(Gen.gamma(shape_p, scale_p), (:lam_present, j))
+	end
 
     params = Video_Params(v = v, possible_objects = possible_objects)
 

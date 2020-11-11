@@ -62,3 +62,36 @@ has_output_grad(::Object_Distribution_Present) = false
 has_argument_grads(::Object_Distribution_Present) = (false,)
 
 export object_distribution_present
+
+##############################################################################################
+#Distributions
+#TruncatedPoisson
+export trunc_poisson
+
+struct TruncatedPoisson <: Gen.Distribution{Int} end
+
+const trunc_poisson = TruncatedPoisson()
+
+function Gen.logpdf(::TruncatedPoisson, x::Int, lambda::U, low::U, high::U) where {U <: Real}
+	d = Distributions.Poisson(lambda)
+	td = Distributions.Truncated(d, low, high)
+	Distributions.logpdf(td, x)
+end
+
+function Gen.logpdf_grad(::TruncatedPoisson, x::Int, lambda::U, low::U, high::U)  where {U <: Real}
+	gerror("Not implemented")
+	(nothing, nothing)
+end
+
+function Gen.random(::TruncatedPoisson, lambda::U, low::U, high::U)  where {U <: Real}
+	d = Distributions.Poisson(lambda)
+	rand(Distributions.Truncated(d, low, high))
+end
+
+(::TruncatedPoisson)(lambda, low, high) = random(TruncatedPoisson(), lambda, low, high)
+is_discrete(::TruncatedPoisson) = true
+
+has_output_grad(::TruncatedPoisson) = false
+has_argument_grads(::TruncatedPoisson) = (false,)
+
+export trunc_poisson

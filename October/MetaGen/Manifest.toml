@@ -223,9 +223,7 @@ version = "0.3.5"
 
 [[GenRFS]]
 deps = ["Cassette", "Combinatorics", "Gen", "LRUCache", "ProfileView", "Revise", "StatProfilerHTML", "Test"]
-git-tree-sha1 = "0ab88e2a4b0b595eaa929ffb351790fe09cfce2a"
-repo-rev = "master"
-repo-url = "https://github.com/CNCLgithub/GenRFS"
+path = "/Users/marleneberke/.julia/dev/GenRFS"
 uuid = "56ab6c88-a2ab-44ec-99ca-7b9069b439c2"
 version = "0.1.0"
 
