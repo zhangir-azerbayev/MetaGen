@@ -1,4 +1,8 @@
-Detection = Tuple{Float64, Float64, Int64}
+Detection2D = Tuple{Float64, Float64, Int64} #x on image, y on image, category
+
+Detection = Tuple{Float64, Float64, Float64, Int64} #x, y, z, category
+
+##############################################################################################
 
 struct Multinomial <: Gen.Distribution{Vector{Int}} end
 
@@ -27,7 +31,7 @@ has_argument_grads(::Multinomial) = (false,)
 
 export multinomial
 
-
+##############################################################################################
 
 # #Object distribution
 struct Object_Distribution_Present <: Gen.Distribution{Detection} end
