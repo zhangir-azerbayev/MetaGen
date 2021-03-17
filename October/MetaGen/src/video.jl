@@ -62,10 +62,11 @@ end
 
     sd_x = 1.
     sd_y = 1.
-    cov = [sd_x 0.;0. sd_y]
+    sd_z = 1.
+    cov = [sd_x 0. 0.; 0. sd_y 0.; 0. 0. sd_z]
 
     BernoulliElement{Detection}(fa, object_distribution_present,
-                              ([x,y], cov, cat))
+                              ([x,y,z], cov, cat))
 end
 
 possible_detection_map = Gen.Map(gen_possible_detection)
@@ -74,7 +75,21 @@ possible_hallucination_map = Gen.Map(gen_possible_hallucination)
 
 #given a 3D detection, return either a 2D detctection or NAs/nothing
 @gen function gen_render(camera_params::Camera_Params, permanent_camera_params::Permanent_Camera_Params, observation_3D::Detection)
-
+    object = Coordinate(observation_3D[1], observation_3D[2], observation_3D[3])
+    x, y = get_image_xy(camera_params, permanent_camera_params, object)
+    #add noise to this x and y
+    sd_x = 1.
+    sd_y = 1.
+    sd_z = 1.
+    cov = [sd_x 0. 0.; 0. sd_y 0.; 0. 0. sd_z]
+    detection = @trace(object_distribution_image([x, y], cov, observation_3D[4]), :detection2d)
+    #might cause a control flow problem
+    #want to "crop image." so only return the detection if it's within the image dim
+    if abs(detection[1])<(permanent_camera_params.image_dim_x/2) & abs(detection[2])<(permanent_camera_params.image_dim_y/2)
+        return detection
+    else
+        return nothing
+    end
 end
 
 render_map = Gen.Map(gen_render)
@@ -153,7 +168,7 @@ end
     camera_paramses = fill(camera_params, n_observations)
     permanent_camera_paramses = fill(permanent_camera_paramses, n_observations)
     observations_2D = @trace(render_map(camera_paramses, permanent_camera_paramses, observations_3D), :observations_2D)
-    #object_location_in_photo(camera_params, observations_3D)
+    #observations_2D will be what we condition on
 
     return state #just keep sending the scene / initial state in.
 end
