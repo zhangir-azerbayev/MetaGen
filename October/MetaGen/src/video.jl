@@ -1,35 +1,3 @@
-Base.@kwdef struct Coordinate
-    x::Float64
-    y::Float64
-    z::Float64
-end
-
-Base.@kwdef struct Video_Params
-    lambda_objects::Float64 = 1
-    possible_objects::Vector{Int64} = [1, 2, 3, 4, 5]
-    v::Matrix{Float64} = zeros(5, 2)
-    x_max::Float64 = 100
-    y_max::Float64 = 100
-    z_max::Float64 = 100
-end
-
-#The camera params that change in a video
-Base.@kwdef struct Camera_Params
-    camera_location::Coordinate
-    camera_focus::Coordinate
-end
-
-#Unchanging camera param
-Base.@kwdef struct Permanent_Camera_Params
-    image_dim_x::Int64 = 320
-    image_dim_y::Int64 = 240
-
-    #horizontal field of view
-    horizontal_FoV::Float64 = 60
-    vertical_FoV::Float64 = 40
-end
-
-Frame = Vector{Detection}
 
 """
     This function takes a category and params and it returns the possible
@@ -80,14 +48,16 @@ possible_hallucination_map = Gen.Map(gen_possible_hallucination)
     #add noise to this x and y
     sd_x = 1.
     sd_y = 1.
-    sd_z = 1.
-    cov = [sd_x 0. 0.; 0. sd_y 0.; 0. 0. sd_z]
-    detection = @trace(object_distribution_image([x, y], cov, observation_3D[4]), :detection2d)
+    cov = [sd_x 0.; 0. sd_y]
+
     #might cause a control flow problem
     #want to "crop image." so only return the detection if it's within the image dim
-    if abs(detection[1])<(permanent_camera_params.image_dim_x/2) & abs(detection[2])<(permanent_camera_params.image_dim_y/2)
+    if abs(x)<(permanent_camera_params.image_dim_x/2) && abs(y)<(permanent_camera_params.image_dim_y/2)
+        println("here")
+        detection = @trace(object_distribution_image([x, y], cov, observation_3D[4]), :detection2d)
         return detection
     else
+        println("nothing")
         return nothing
     end
 end
@@ -122,7 +92,7 @@ end
     @trace(possible_detection_map(paramses, c), :init_scene)
 end
 
-@gen function frame_kernel(current_frame::Int64, state, params)
+@gen function frame_kernel(current_frame::Int64, state, params::Video_Params, permanent_camera_params::Permanent_Camera_Params)
     println("frame_kernel")
     ####Update imaginary objects
 
@@ -166,7 +136,7 @@ end
     #of observations_3D [(x,y,z,cat), (x,y,z,cat)] and get out the [(x_image,y_image,cat)]
     n_observations = length(observations_3D)
     camera_paramses = fill(camera_params, n_observations)
-    permanent_camera_paramses = fill(permanent_camera_paramses, n_observations)
+    permanent_camera_paramses = fill(permanent_camera_params, n_observations)
     observations_2D = @trace(render_map(camera_paramses, permanent_camera_paramses, observations_3D), :observations_2D)
     #observations_2D will be what we condition on
 
@@ -175,12 +145,12 @@ end
 
 frame_chain = Gen.Unfold(frame_kernel)
 
-@gen function video_kernel(num_frames::Int64, params::Video_Params)
+@gen function video_kernel(num_frames::Int64, params::Video_Params, permanent_camera_params::Permanent_Camera_Params)
 
     println("in video kernel")
 
     init_state = @trace(init_scene(params), :init_state)
-    states = @trace(frame_chain(num_frames, init_state, params), :frame_chain)
+    states = @trace(frame_chain(num_frames, init_state, params, permanent_camera_params), :frame_chain)
     return (init_state, states)
 end
 
