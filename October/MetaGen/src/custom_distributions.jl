@@ -1,6 +1,6 @@
 Detection2D = Tuple{Float64, Float64, Int64} #x on image, y on image, category
 
-Detection = Tuple{Float64, Float64, Float64, Int64} #x, y, z, category
+Detection3D = Tuple{Float64, Float64, Float64, Int64} #x, y, z, category
 
 ##############################################################################################
 
@@ -34,7 +34,7 @@ export multinomial
 ##############################################################################################
 
 # #Object distribution for 3D detection
-struct Object_Distribution_Present <: Gen.Distribution{Detection} end
+struct Object_Distribution_Present <: Gen.Distribution{Detection3D} end
 
 const object_distribution_present = Object_Distribution_Present()
 
@@ -45,7 +45,7 @@ function Gen.random(::Object_Distribution_Present, mu::AbstractVector{V},
     rand(Distributions.MvNormal(mu, cov))..., cat
 end
 
-function Gen.logpdf(::Object_Distribution_Present, x::Detection, mu::AbstractVector{V},
+function Gen.logpdf(::Object_Distribution_Present, x::Detection3D, mu::AbstractVector{V},
                 cov::AbstractMatrix{V}, cat::Int64) where {V <: Float64}
     n = length(x)
     #if category mismatch
@@ -81,7 +81,7 @@ function Gen.random(::Object_Distribution_Image, mu::AbstractVector{V},
     rand(Distributions.MvNormal(mu, cov))..., cat
 end
 
-function Gen.logpdf(::Object_Distribution_Image, x::Detection, mu::AbstractVector{V},
+function Gen.logpdf(::Object_Distribution_Image, x::Detection2D, mu::AbstractVector{V},
                 cov::AbstractMatrix{V}, cat::Int64) where {V <: Float64}
     n = length(x)
     #if category mismatch

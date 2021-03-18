@@ -1,11 +1,9 @@
 #This file contains functions for solving the geometry / optics problem
 #of figuring out where the images of objects will be on the camera's 2D photo
 
-#just for camera params struct
-include("video.jl")
-
 using LinearAlgebra
 
+include("declaring_structs.jl")
 
 function get_image_xy(camera_params, permanent_camera_params, object)
     if on_right_side(camera_params, object) > 0

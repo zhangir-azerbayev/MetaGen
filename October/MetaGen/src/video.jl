@@ -3,62 +3,50 @@
     This function takes a category and params and it returns the possible
     objects (as Detections) of that category that could be detected
 """
-@gen function gen_possible_detection(params::Video_Params, cat::Int64)
+@gen function gen_location(params::Video_Params, cat::Int64)
     x = @trace(uniform(0,params.x_max), :x)
     y = @trace(uniform(0,params.y_max), :y)
     z = @trace(uniform(0,params.z_max), :z)
 
-    println("params.v[:,2] ", params.v[:,2])
-    hit = params.v[cat,2]
-
-    sd_x = 1.
-    sd_y = 1.
-    sd_z = 1.
-    cov = [sd_x 0. 0.; 0. sd_y 0.; 0. 0. sd_z]
-
-    BernoulliElement{Detection}(hit, object_distribution_present,
-                              ([x,y,z], cov, cat))
+    return (x, y, z, cat) #want type Detection3D
 end
 
-@gen function gen_possible_hallucination(params::Video_Params, cat::Int64)
-    x = @trace(uniform(0,params.x_max), :x)
-    y = @trace(uniform(0,params.y_max), :y)
-    z = @trace(uniform(0,params.z_max), :z)
+#hallucinate objects in 2D image
+@gen function gen_possible_hallucination(params::Video_Params, permanent_camera_params::Permanent_Camera_Params, cat::Int64)
+    x = @trace(uniform(0,permanent_camera_params.image_dim_x), :x)
+    y = @trace(uniform(0,permanent_camera_params.image_dim_y), :y)
 
     println("params.v[:,1] ", params.v[:,1])
     fa = params.v[cat,1]
 
     sd_x = 1.
     sd_y = 1.
-    sd_z = 1.
-    cov = [sd_x 0. 0.; 0. sd_y 0.; 0. 0. sd_z]
+    cov = [sd_x 0.; 0. sd_y;]
 
-    BernoulliElement{Detection}(fa, object_distribution_present,
-                              ([x,y,z], cov, cat))
+    BernoulliElement{Detection2D}(fa, object_distribution_image,
+                              ([x, y], cov, cat))
 end
 
-possible_detection_map = Gen.Map(gen_possible_detection)
+location_map = Gen.Map(gen_location)
 
 possible_hallucination_map = Gen.Map(gen_possible_hallucination)
 
-#given a 3D detection, return either a 2D detctection or NAs/nothing
-@gen function gen_render(camera_params::Camera_Params, permanent_camera_params::Permanent_Camera_Params, observation_3D::Detection)
-    object = Coordinate(observation_3D[1], observation_3D[2], observation_3D[3])
+#given a 3D detection, return BernoulliElement over a 2D detection
+@gen function gen_render(params::Video_Params, camera_params::Camera_Params, permanent_camera_params::Permanent_Camera_Params, object_3D::Detection3D)
+    cat = object_3D[4]
+    object = Coordinate(object_3D[1], object_3D[2], object_3D[3])
     x, y = get_image_xy(camera_params, permanent_camera_params, object)
-    #add noise to this x and y
+
     sd_x = 1.
     sd_y = 1.
-    cov = [sd_x 0.; 0. sd_y]
+    cov = [sd_x 0.; 0. sd_y;]
 
-    #might cause a control flow problem
-    #want to "crop image." so only return the detection if it's within the image dim
-    if abs(x)<(permanent_camera_params.image_dim_x/2) && abs(y)<(permanent_camera_params.image_dim_y/2)
-        println("here")
-        detection = @trace(object_distribution_image([x, y], cov, observation_3D[4]), :detection2d)
-        return detection
+    if abs(x)>(permanent_camera_params.image_dim_x/2) || abs(y)>(permanent_camera_params.image_dim_y/2)
+        return BernoulliElement{Detection2D}(0, object_distribution_image, ([x, y], cov, cat)) #0 because chances of detecting it are 0
     else
-        println("nothing")
-        return nothing
+        println("params.v[:,2] ", params.v[:,2])
+        hit = params.v[cat,2]
+        return BernoulliElement{Detection2D}(1-hit, object_distribution_image, ([x, y], cov, cat)) #Detetion2D
     end
 end
 
@@ -87,14 +75,14 @@ end
     #objects = @trace(multinomial_objects(numObjects,[0.2,0.2,0.2,0.2,0.2], ), (:objects))
     c = @trace(multinomial(numObjects,[0.2,0.2,0.2,0.2,0.2], ), (:c))
 
-
     paramses = fill(params, numObjects)
-    @trace(possible_detection_map(paramses, c), :init_scene)
+    @trace(location_map(paramses, c), :locations) #add location
 end
 
 @gen function frame_kernel(current_frame::Int64, state, params::Video_Params, permanent_camera_params::Permanent_Camera_Params)
     println("frame_kernel")
-    ####Update imaginary objects
+
+    ####Update imaginary 2D objects
 
     println("params.v[:,1] ", params.v[:,1])
     sum_fas_imaginary_objects = sum(params.v[:,1])#get lambdas for absent
@@ -107,16 +95,30 @@ end
     c = @trace(multinomial(numObjects, fas_normalized), (:c))
 
     paramses = fill(params, numObjects)
-    imagined_objects = @trace(possible_hallucination_map(paramses, c), :imagined_objects)
+    permanent_camera_paramses = fill(permanent_camera_params, numObjects)
+    imagined_objects_2D = @trace(possible_hallucination_map(paramses, permanent_camera_paramses, c), :imagined_objects)
 
-    ####Actually render the 3D "observations" -- what might possibly be detected
+    ####Update 2D real objects
 
-    combined_obj = vcat(state, imagined_objects)
-    display(params.v)
-    println("length(state) ", length(state))
-    println("length(imagined_objects) ", length(imagined_objects))
+    ####Update camera location and pointing
+    camera_params = @trace(gen_camera(params), :camera)
+
+    #get locations of the objects in the image. basically want to input the list
+    #of observations_3D [(x,y,z,cat), (x,y,z,cat)] and get out the [(x_image,y_image,cat)]
+    n_real_objects = length(state)
+    paramses = fill(params, n_real_objects)
+    camera_paramses = fill(camera_params, n_real_objects)
+    permanent_camera_paramses = fill(permanent_camera_params, n_real_objects)
+    real_objects_2D = @trace(render_map(paramses, camera_paramses, permanent_camera_paramses, state), :render_map)
+    #observations_2D will be what we condition on
+
+
+    ####Actually use rfs to sample the 2D observations
+    combined_obj = vcat(real_objects_2D, imagined_objects_2D)
     #combined_obj = collect(PoissonElement{Detection}, combined_obj)
-    combined_obj = RFSElements{Detection}(combined_obj)
+    println("length(combined_obj) ", length(combined_obj))
+    println("combined_obj ", combined_obj)
+    combined_obj = RFSElements{Detection2D}(combined_obj)
     println("length(combined_obj) ", length(combined_obj))
 
     # n = length(combined_obj)
@@ -127,18 +129,8 @@ end
     #     many_element_rfs[i] = combined_obj[i]
     # end
     #observations = @trace(rfs(many_element_rfs), :observations)
-    observations_3D = @trace(rfs(combined_obj), :observations_3D)
+    observations_2D = @trace(rfs(combined_obj), :observations_2D)
 
-    ####Update camera location and pointing
-    camera_params = @trace(gen_camera(params), :camera)
-
-    #get locations of the objects in the image. basically want to input the list
-    #of observations_3D [(x,y,z,cat), (x,y,z,cat)] and get out the [(x_image,y_image,cat)]
-    n_observations = length(observations_3D)
-    camera_paramses = fill(camera_params, n_observations)
-    permanent_camera_paramses = fill(permanent_camera_params, n_observations)
-    observations_2D = @trace(render_map(camera_paramses, permanent_camera_paramses, observations_3D), :observations_2D)
-    #observations_2D will be what we condition on
 
     return state #just keep sending the scene / initial state in.
 end
@@ -150,6 +142,7 @@ frame_chain = Gen.Unfold(frame_kernel)
     println("in video kernel")
 
     init_state = @trace(init_scene(params), :init_state)
+    println("init_state ", init_state)
     states = @trace(frame_chain(num_frames, init_state, params, permanent_camera_params), :frame_chain)
     return (init_state, states)
 end

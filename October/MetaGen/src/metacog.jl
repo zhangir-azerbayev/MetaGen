@@ -16,13 +16,15 @@
 	end
 
     params = Video_Params(v = v, possible_objects = possible_objects)
+	permanent_camera_params = Permanent_Camera_Params()
 
     num_frames = 3
     num_videos = 2
     fs = fill(num_frames, num_videos) #nummber of frames per video
     ps = fill(params, num_videos)
+	qs = fill(permanent_camera_params, num_videos)
 
-    videos = @trace(video_map(fs, ps), :videos)
+    videos = @trace(video_map(fs, ps, qs), :videos)
 end
 
 export metacog
