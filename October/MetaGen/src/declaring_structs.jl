@@ -28,3 +28,8 @@ Base.@kwdef struct Permanent_Camera_Params
     horizontal_FoV::Float64 = 60
     vertical_FoV::Float64 = 40
 end
+
+Base.@kwdef struct Receptive_Field
+    p1::Tuple{Int64, Int64} #upper left
+    p2::Tuple{Int64, Int64} #lower right
+end

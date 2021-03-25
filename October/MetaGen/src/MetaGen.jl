@@ -11,6 +11,7 @@ end
 include("declaring_structs.jl")
 include("geometry_optics.jl")
 include("custom_distributions.jl")
+include("receptive_fields.jl")
 include("video.jl")
 include("metacog.jl")
 

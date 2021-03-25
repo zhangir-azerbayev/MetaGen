@@ -1,6 +1,8 @@
-Detection2D = Tuple{Float64, Float64, Int64} #x on image, y on image, category
+const Detection2D = Tuple{Float64, Float64, Int64} #x on image, y on image, category
+const Detection3D = Tuple{Float64, Float64, Float64, Int64} #x, y, z, category
 
-Detection3D = Tuple{Float64, Float64, Float64, Int64} #x, y, z, category
+export Detection2D
+export Detection3D
 
 ##############################################################################################
 
