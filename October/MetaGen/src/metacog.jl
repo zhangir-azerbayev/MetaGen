@@ -11,7 +11,7 @@
 	for j = 1:length(possible_objects)
         #set lambda when target absent
         #v[j,1] = @trace(Gen.beta(alpha, beta), (:fa, j)) #leads to fa rate of around 0.1
-		v[j,1] = @trace(trunc_normal(0.2, 3.0, 0.0, 10.0), (:lambda_fa, j))
+		v[j,1] = @trace(trunc_normal(0.2, 0.5, 0.0, 10.0), (:lambda_fa, j))
         #set lambda when target present
         v[j,2] = @trace(trunc_normal(1.2, 3.0, 0.0, 10.0), (:lambda_hit, j))
 	end
