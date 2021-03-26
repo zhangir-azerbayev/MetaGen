@@ -11,6 +11,7 @@ Base.@kwdef struct Video_Params
     x_max::Float64 = 100
     y_max::Float64 = 100
     z_max::Float64 = 100
+    num_receptive_fields::Int64 = 1
 end
 
 #The camera params that change in a video
