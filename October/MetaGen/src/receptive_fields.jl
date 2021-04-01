@@ -33,7 +33,7 @@ function get_rfs(rec_field::Receptive_Field, imaginary::Vector{Detection2D}, rea
         sd_y = 1.
         cov = [sd_x 0.; 0. sd_y;]
         rfs = Vector{BernoulliElement{Detection2D}}(undef, 1)
-        rfs[1] = BernoulliElement{Detection2D}(0.0, object_distribution_image, ([-1000, -1000], cov, 0))
+        rfs[1] = BernoulliElement{Detection2D}(0.0, object_distribution_image, ([-1000., -1000.], cov, 0))
     end
 
     rfs = RFSElements{Detection2D}(rfs)
@@ -80,3 +80,5 @@ function within(point::Detection2D, rf::Receptive_Field)
     y = point[2]
     x > rf.p1[1] && x < rf.p2[1] && y > rf.p1[2] && y < rf.p2[2]
 end
+
+export within

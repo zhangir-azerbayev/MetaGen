@@ -16,4 +16,4 @@ gt_choices = get_choices(gt_trace)
 
 #################################################################################
 num_particles = 100
-#tr = unfold_particle_filter(num_particles);
+tr = unfold_particle_filter(num_particles);

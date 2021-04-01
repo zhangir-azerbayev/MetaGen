@@ -88,7 +88,7 @@ end
     permanent_camera_paramses = fill(permanent_camera_params, n_real_objects)
     real_detections = map(render, paramses, camera_paramses, permanent_camera_paramses, state)
     real_detections = Array{Detection2D}(real_detections)
-    println("real_detections ", real_detections)
+    #println("real_detections ", real_detections)
     #observations_2D will be what we condition on
 
     rfs_vec = get_rfs_vec(receptive_fields, imaginary_detections, real_detections, params)

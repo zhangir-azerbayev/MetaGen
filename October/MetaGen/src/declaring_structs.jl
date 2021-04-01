@@ -34,3 +34,8 @@ Base.@kwdef struct Receptive_Field
     p1::Tuple{Int64, Int64} #upper left
     p2::Tuple{Int64, Int64} #lower right
 end
+
+export Coordinate
+export Camera_Params
+export Permanent_Camera_Params
+export Receptive_Field

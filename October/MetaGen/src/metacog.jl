@@ -18,20 +18,9 @@
 
     permanent_camera_params = Permanent_Camera_Params()
 
-	#square receptive fields
-	pixels = 80
-	n_horizontal = convert(Int64, permanent_camera_params.image_dim_x / pixels)
-	n_vertical = convert(Int64, permanent_camera_params.image_dim_y / pixels)
-	n = n_horizontal*n_vertical
+	receptive_fields = make_receptive_fields(permanent_camera_params)
 
-	receptive_fields = Vector{Receptive_Field}(undef, n) #of length n
-	for h = 1:n_horizontal
-		for v = 1:n_vertical
-			receptive_fields[n_vertical*(h-1)+v] = Receptive_Field(p1 = ((h-1)*pixels, (v-1)*pixels), p2 = (h*pixels, v*pixels))
-		end
-	end
-
-	params = Video_Params(v = v, possible_objects = possible_objects, num_receptive_fields = n)
+	params = Video_Params(v = v, possible_objects = possible_objects, num_receptive_fields = length(receptive_fields))
 
     fs = fill(num_frames, num_videos) #number of frames per video
     ps = fill(params, num_videos)
@@ -42,3 +31,26 @@
 end
 
 export metacog
+
+################################################################################
+#set up receptive_field. make sure this matches the one in MetaGen metacog
+function make_receptive_fields(permanent_camera_params::Permanent_Camera_Params)
+
+    permanent_camera_params = Permanent_Camera_Params()
+
+    #square receptive fields
+    pixels = 80
+    n_horizontal = convert(Int64, permanent_camera_params.image_dim_x / pixels)
+    n_vertical = convert(Int64, permanent_camera_params.image_dim_y / pixels)
+    n = n_horizontal*n_vertical
+
+    receptive_fields = Vector{Receptive_Field}(undef, n) #of length n
+    for h = 1:n_horizontal
+        for v = 1:n_vertical
+            receptive_fields[n_vertical*(h-1)+v] = Receptive_Field(p1 = ((h-1)*pixels, (v-1)*pixels), p2 = (h*pixels, v*pixels))
+        end
+    end
+    return receptive_fields
+end
+
+export make_receptive_fields
