@@ -5,14 +5,14 @@ using LinearAlgebra
 
 include("declaring_structs.jl")
 
-function get_image_xy(camera_params, permanent_camera_params, object)
+function get_image_xy(camera_params::Camera_Params, params::Video_Params, object::Coordinate)
     if on_right_side(camera_params, object) > 0
-        x, y = locate(camera_params, permanent_camera_params, object)
+        x, y = locate(camera_params, params, object)
     else #on wrong side of camera
         #pretend asin is 90. putting it on corner of giant image
-        pixels_per_degree_x = permanent_camera_params.image_dim_x/permanent_camera_params.horizontal_FoV
+        pixels_per_degree_x = params.image_dim_x/params.horizontal_FoV
         x = 90 * pixels_per_degree_x
-        pixels_per_degree_y = permanent_camera_params.image_dim_y/permanent_camera_params.vertical_FoV
+        pixels_per_degree_y = params.image_dim_y/params.vertical_FoV
         y = 90 * pixels_per_degree_y
     end
     return x, y
@@ -30,7 +30,7 @@ end
 
 #given camera info and object's location, find object's location on 2-D image
 function locate(camera_params::Camera_Params,
-    permanent_camera_params::Permanent_Camera_Params, object::Coordinate)
+    params::Video_Params, object::Coordinate)
 
     (a_vertical, b_vertical, c_vertical) = get_vertical_plane(camera_params)
     (a_horizontal, b_horizontal, c_horizontal) = get_horizontal_plane(camera_params, a_vertical, b_vertical, c_vertical)
@@ -42,9 +42,9 @@ function locate(camera_params::Camera_Params,
     angle_from_vertical = rad2deg(get_angle(a_vertical, b_vertical, c_vertical, s_x, s_y, s_z))
     angle_from_horizontal = rad2deg(get_angle(a_horizontal, b_horizontal, c_horizontal, s_x, s_y, s_z))
 
-    pixels_per_degree_x = permanent_camera_params.image_dim_x/permanent_camera_params.horizontal_FoV
+    pixels_per_degree_x = params.image_dim_x/params.horizontal_FoV
     x = pixels_per_degree_x * angle_from_vertical
-    pixels_per_degree_y = permanent_camera_params.image_dim_y/permanent_camera_params.vertical_FoV
+    pixels_per_degree_y = params.image_dim_y/params.vertical_FoV
     y = pixels_per_degree_y * angle_from_horizontal
 
     return (x, y)
@@ -59,7 +59,7 @@ function get_angle(a, b, c, x, y, z)
 end
 
 #returns a,b,c for the vertical plane. only need the camera parameters
-function get_vertical_plane(camera_params)
+function get_vertical_plane(camera_params::Camera_Params)
     p1 = camera_params.camera_location
     p2 = camera_params.camera_focus
     p3 = Coordinate(p1.x, p1.y, p1.z+1)
@@ -67,7 +67,7 @@ function get_vertical_plane(camera_params)
 end
 
 #need camera parameters and vertical plane (so horizontal will be perpendicular to it)
-function get_horizontal_plane(camera_params, a, b, c)
+function get_horizontal_plane(camera_params::Camera_Params, a, b, c)
     p1 = camera_params.camera_location
     p2 = camera_params.camera_focus
     p3 = Coordinate(p1.x+a, p1.y+b, p1.z+c) #adding normal vector (a, b, c) to the point to make a third point on the horizontal plane

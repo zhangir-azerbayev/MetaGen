@@ -1,8 +1,8 @@
 const Detection2D = Tuple{Float64, Float64, Int64} #x on image, y on image, category
-const Detection3D = Tuple{Float64, Float64, Float64, Int64} #x, y, z, category
+const Object3D = Tuple{Float64, Float64, Float64, Int64} #x, y, z, category
 
 export Detection2D
-export Detection3D
+export Object3D
 
 ##############################################################################################
 
@@ -36,7 +36,7 @@ export multinomial
 ##############################################################################################
 
 # #Object distribution for 3D detection
-struct Object_Distribution_Present <: Gen.Distribution{Detection3D} end
+struct Object_Distribution_Present <: Gen.Distribution{Object3D} end
 
 const object_distribution_present = Object_Distribution_Present()
 
@@ -47,7 +47,7 @@ function Gen.random(::Object_Distribution_Present, mu::AbstractVector{V},
     rand(Distributions.MvNormal(mu, cov))..., cat
 end
 
-function Gen.logpdf(::Object_Distribution_Present, x::Detection3D, mu::AbstractVector{V},
+function Gen.logpdf(::Object_Distribution_Present, x::Object3D, mu::AbstractVector{V},
                 cov::AbstractMatrix{V}, cat::Int64) where {V <: Float64}
     n = length(x)
     #if category mismatch
@@ -104,6 +104,111 @@ has_output_grad(::Object_Distribution_Image) = false
 has_argument_grads(::Object_Distribution_Image) = (false,)
 
 export object_distribution_image
+
+##############################################################################################
+#For a new 3-D object placed anywhere
+struct Object_Distribution <: Gen.Distribution{Object3D} end
+
+const object_distribution = Object_Distribution()
+
+function Gen.random(::Object_Distribution, params::Video_Params)
+
+    c = categorical(params.probs_possible_objects)
+    objects_3D = construct_3D(c, params)
+end
+
+function Gen.logpdf(::Object_Distribution, object_3D::Object3D, params::Video_Params)
+    #categorical
+    cat = object_3D[4] #grabbing the category type
+    p_categorical = Gen.logpdf(categorical, cat, params.probs_possible_objects)
+
+    #x-coordinate
+    #all the x_coordinates
+    x = object_3D[1]
+    p_x = Gen.logpdf(uniform, x, params.x_min, params.x_max)
+
+    #y-coordinate
+    y = object_3D[2]
+    p_y = Gen.logpdf(uniform, y, params.y_min, params.y_max)
+
+    #y-coordinate
+    z = object_3D[3]
+    p_z = Gen.logpdf(uniform, z, params.z_min, params.z_max)
+
+    p_categorical + p_x + p_y + p_z
+end
+
+function Gen.logpdf_grad(::Object_Distribution, objects_3D::Object3D, params::Video_Params)
+    gerror("Not implemented")
+    (nothing, nothing)
+end
+
+(::Object_Distribution)(params) = Gen.random(Object_Distribution(), params)
+
+has_output_grad(::Object_Distribution) = false
+has_argument_grads(::Object_Distribution) = (false,)
+
+export object_distribution
+
+#little helper function for constructing 3D objects
+function construct_3D(cat::Int64, params::Video_Params)
+    x = uniform(params.x_min, params.x_max)
+    y = uniform(params.y_min, params.y_max)
+    z = uniform(params.z_min, params.z_max)
+    return (x, y, z, cat)
+end
+
+##############################################################################################
+struct Hallucination_Distribution <: Gen.Distribution{Detection2D} end
+
+const hallucination_distribution = Hallucination_Distribution()
+
+function Gen.random(::Hallucination_Distribution, params::Video_Params, rec_field::Receptive_Field)
+
+    #saying there must be no fewer than 0 objects per scene, and at most 100
+    #numObjects = @trace(trunc_poisson(sum(params.v[:,1]), -1.0, 100.0), (:numObjects)) #may want to truncate so 0 objects isn't possible
+    #objects = @trace(multinomial_objects(numObjects,[0.2,0.2,0.2,0.2,0.2], ), (:objects))
+    c = categorical(params.v[:,1]./sum(params.v[:,1]))
+    detection_2D = construct_2D(c, params, rec_field)
+end
+
+function Gen.logpdf(::Hallucination_Distribution, detection_2D::Detection2D, params::Video_Params, rec_field::Receptive_Field)
+
+    #multinomial
+    cat = detection_2D[3] #grabbing the category type
+    p_categorical = Gen.logpdf(categorical, cat, params.v[:,1]./sum(params.v[:,1])) #prob_vec is the hallucination lambdas normalized
+
+    #x-coordinate
+    #all the x_coordinates
+    x = detection_2D[1]
+    p_x = Gen.logpdf(uniform, x, rec_field.p1[1], rec_field.p2[1])
+
+    #y-coordinate
+    y = detection_2D[2]
+    p_y = Gen.logpdf(uniform, y, rec_field.p1[2], rec_field.p2[2])
+
+    p_categorical + p_x + p_y
+end
+
+function Gen.logpdf_grad(::Hallucination_Distribution, detection_2D::Detection2D, params::Video_Params)
+    gerror("Not implemented")
+    (nothing, nothing)
+end
+
+(::Hallucination_Distribution)(params, rec_field) = Gen.random(Hallucination_Distribution(), params, rec_field)
+
+has_output_grad(::Hallucination_Distribution) = false
+has_argument_grads(::Hallucination_Distribution) = (false,)
+
+export hallucination_distribution
+
+
+#little helper function for constructing 2D objects
+function construct_2D(cat::Int64, params::Video_Params, rec_field::Receptive_Field)
+    x = uniform(rec_field.p1[1], rec_field.p2[1])
+    y = uniform(rec_field.p1[2], rec_field.p2[2])
+    return (x, y, cat)
+end
 
 ##############################################################################################
 

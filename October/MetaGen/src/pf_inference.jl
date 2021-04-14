@@ -36,7 +36,9 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
             #num_receptive_fields should be a constant but whatever
             num_receptive_fields = length(objects_observed[v, f])
             for rf = 1:num_receptive_fields
-                #obs[:videos => v => :frame_chain => f => rf => :observations_2D] = objects_observed[v, f][rf]
+                #println("objects_observed[v, f][rf] ", objects_observed[v, f][rf])
+                #println("type ", typeof(objects_observed[v, f][rf]))
+                obs[:videos => v => :frame_chain => f => rf => :observations_2D] = convert(Array{Any, 1}, objects_observed[v, f][rf])
             end
         end
         #def should be using map to replace for loops here
@@ -48,6 +50,18 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
         println("ess after pf step ", ess)
         for i = 1:num_particles
             println("weight ", state.log_weights[i])
+        #     println("frame 1")
+        #     println(state.traces[i][:videos => v => :frame_chain => 1 => :camera])
+        #     println("frame 2")
+        #     println(state.traces[i][:videos => v => :frame_chain => 2 => :camera])
+        #     println("frame 3")
+        #     println(state.traces[i][:videos => v => :frame_chain => 3 => :camera])
+        #     println("frame 4")
+        #     println(state.traces[i][:videos => v => :frame_chain => 4 => :camera])
+        #     println("frame 5")
+        #     println(state.traces[i][:videos => v => :frame_chain => 5 => :camera])
+        #     println("frame 6")
+        #     println(state.traces[i][:videos => v => :frame_chain => 6 => :camera])
         end
 
         #later add stuff to not change numbers so far back
@@ -57,6 +71,33 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
     return Gen.sample_unweighted_traces(state, num_particles)
 
 end
+
+# function init_scene_proposal(trace, v)
+#     choice_map = get_choices(trace)
+#     es = choice_map[:videos => v => :init_scene]
+#
+#     n = length(es)
+#     index = categorical(fill(1/n, n))
+#     others = setdiff(1:n, index)
+#     changed = helper(es[index], 0.5, 10.) #maybe remove
+#     same = map(e -> helper(e, 1.0, 0.), es[others])#keep others the same
+#
+#     #maybe add
+#     to_add = BernoulliElement{Detection2D}(0.5, object_distribution, (params,))
+#
+#     vec = cat(changed, same, to_add)
+#
+#     @trace(rfs(vec), (:videos => v => :init_scene))
+#
+#     #need to change downstream
+# end
+
+#
+function helper(to_change, bernoulli_p, variance)
+    cov = diagm([variance, variance, variance]) #might have to worry about going outside of the world's dimensions
+    BernoulliElement{Detection2D}(bernoulli_p, object_distribution_present, ([to_change[1], to_change[2], to_change[3]], cov, to_change[4]))
+end
+
 
 function effective_sample_size(log_normalized_weights::Vector{Float64})
     log_ess = -logsumexp(2. * log_normalized_weights)

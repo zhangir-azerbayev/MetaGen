@@ -11,37 +11,34 @@
 	for j = 1:length(possible_objects)
         #set lambda when target absent
         #v[j,1] = @trace(Gen.beta(alpha, beta), (:fa, j)) #leads to fa rate of around 0.1
-		v[j,1] = @trace(trunc_normal(0.2, 0.5, 0.0, 10.0), (:lambda_fa, j))
-        #set lambda when target present
-        v[j,2] = @trace(trunc_normal(1.2, 3.0, 0.0, 10.0), (:lambda_hit, j))
+		v[j,1] = @trace(trunc_normal(0.02, 0.05, 0.0, 1.0), (:lambda_fa, j)) #these are lambdas per receptive field
+        #set miss rate when target present
+        v[j,2] = @trace(trunc_normal(0.5, 0.5, 0.0, 1.0), (:miss_rate, j))
 	end
 
-    permanent_camera_params = Permanent_Camera_Params()
-
-	receptive_fields = make_receptive_fields(permanent_camera_params)
+	receptive_fields = make_receptive_fields()
 
 	params = Video_Params(v = v, possible_objects = possible_objects, num_receptive_fields = length(receptive_fields))
 
     fs = fill(num_frames, num_videos) #number of frames per video
     ps = fill(params, num_videos)
-	qs = fill(permanent_camera_params, num_videos)
 	receptive_fieldses = fill(receptive_fields, num_videos)
 
-    videos = @trace(video_map(fs, ps, qs, receptive_fieldses), :videos)
+    videos = @trace(video_map(fs, ps, receptive_fieldses), :videos)
 end
 
 export metacog
 
 ################################################################################
 #set up receptive_field. make sure this matches the one in MetaGen metacog
-function make_receptive_fields(permanent_camera_params::Permanent_Camera_Params)
+function make_receptive_fields()
 
-    permanent_camera_params = Permanent_Camera_Params()
+    params = Video_Params()
 
     #square receptive fields
     pixels = 80
-    n_horizontal = convert(Int64, permanent_camera_params.image_dim_x / pixels)
-    n_vertical = convert(Int64, permanent_camera_params.image_dim_y / pixels)
+    n_horizontal = convert(Int64, params.image_dim_x / pixels)
+    n_vertical = convert(Int64, params.image_dim_y / pixels)
     n = n_horizontal*n_vertical
 
     receptive_fields = Vector{Receptive_Field}(undef, n) #of length n

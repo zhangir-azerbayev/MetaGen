@@ -9,6 +9,21 @@ function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptiv
 
     camera_trajectories = Matrix{Camera_Params}(undef, num_videos, num_frames)
 
+    #temporary for getting min and max values of positions
+    x_min = 0
+    x_max = 0
+    y_min = 3
+    y_max = 0
+    z_min = 0
+    z_max = 0
+
+    f_x_min = 0
+    f_x_max = 0
+    f_y_min = 3
+    f_y_max = 0
+    f_z_min = 0
+    f_z_max = 0
+
     for v=1:num_videos
         for f=1:num_frames
             #indices is where confidence was > 0.5
@@ -36,8 +51,39 @@ function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptiv
             f_z = dict[v]["views"][f]["lookat"][3]
             c = Camera_Params(camera_location = Coordinate(x,y,z), camera_focus = Coordinate(f_x,f_y,f_z))
             camera_trajectories[v, f] = c
+
+            x > x_max ? x_max = x : x_max = x_max
+            x < x_min ? x_min = x : x_min = x_min
+            y > y_max ? y_max = y : y_max = y_max
+            y < y_min ? y_min = y : y_min = y_min
+            z > z_max ? z_max = z : z_max = z_max
+            z < z_min ? z_min = z : z_min = z_min
+
+            f_x > f_x_max ? f_x_max = f_x : f_x_max = f_x_max
+            f_x < f_x_min ? f_x_min = f_x : f_x_min = f_x_min
+            f_y > f_y_max ? f_y_max = f_y : f_y_max = f_y_max
+            f_y < f_y_min ? f_y_min = f_y : f_y_min = f_y_min
+            f_z > f_z_max ? f_z_max = f_z : f_z_max = f_z_max
+            f_z < f_z_min ? f_z_min = f_z : f_z_min = f_z_min
+
         end
     end
+
+    println("x_max ", x_max)
+    println("x_min ", x_min)
+    println("y_max ", y_max)
+    println("y_min ", y_min)
+    println("z_max ", z_max)
+    println("z_min ", z_min)
+
+    println("f_x_max ", f_x_max)
+    println("f_x_min ", f_x_min)
+    println("f_y_max ", f_y_max)
+    println("f_y_min ", f_y_min)
+    println("f_z_max ", f_z_max)
+    println("f_z_min ", f_z_min)
+
+
 
     return objects_observed, camera_trajectories
 end
