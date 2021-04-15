@@ -5,8 +5,7 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
     init_obs = Gen.choicemap()
 
     #no video, no frames
-    possible_objects = [1, 2, 3, 4, 5]
-    state = Gen.initialize_particle_filter(metacog, (possible_objects, 0, 0), init_obs, num_particles)
+    state = Gen.initialize_particle_filter(metacog, (0, 0), init_obs, num_particles)
 
     num_videos, num_frames = size(objects_observed)
 
@@ -44,7 +43,7 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
         #def should be using map to replace for loops here
         #point is, condition on the camera trajectory and on the observations
 
-        Gen.particle_filter_step!(state, (possible_objects, v, num_frames), (UnknownChange(),), obs)
+        Gen.particle_filter_step!(state, (v, num_frames), (UnknownChange(),), obs)
 
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after pf step ", ess)
@@ -52,19 +51,15 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
             println("weight ", state.log_weights[i])
         #     println("frame 1")
         #     println(state.traces[i][:videos => v => :frame_chain => 1 => :camera])
-        #     println("frame 2")
-        #     println(state.traces[i][:videos => v => :frame_chain => 2 => :camera])
-        #     println("frame 3")
-        #     println(state.traces[i][:videos => v => :frame_chain => 3 => :camera])
-        #     println("frame 4")
-        #     println(state.traces[i][:videos => v => :frame_chain => 4 => :camera])
-        #     println("frame 5")
-        #     println(state.traces[i][:videos => v => :frame_chain => 5 => :camera])
-        #     println("frame 6")
-        #     println(state.traces[i][:videos => v => :frame_chain => 6 => :camera])
         end
 
-        #later add stuff to not change numbers so far back
+        #optional rejuvination
+        for i = 1:num_particles
+            state.traces[i] = perturb_scene(state.traces[i])
+        end
+
+        ess = effective_sample_size(normalize_weights(state.log_weights)[2])
+        println("ess after rejuvination ", ess)
 
     end
 
@@ -72,30 +67,37 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 
 end
 
-# function init_scene_proposal(trace, v)
-#     choice_map = get_choices(trace)
-#     es = choice_map[:videos => v => :init_scene]
-#
-#     n = length(es)
-#     index = categorical(fill(1/n, n))
-#     others = setdiff(1:n, index)
-#     changed = helper(es[index], 0.5, 10.) #maybe remove
-#     same = map(e -> helper(e, 1.0, 0.), es[others])#keep others the same
-#
-#     #maybe add
-#     to_add = BernoulliElement{Detection2D}(0.5, object_distribution, (params,))
-#
-#     vec = cat(changed, same, to_add)
-#
-#     @trace(rfs(vec), (:videos => v => :init_scene))
-#
-#     #need to change downstream
-# end
+function perturb_scene(prev_trace, v::Int64)
+    trace,_ = Gen.metropolis_hastings(prev_trace, init_scene_proposal, (v,))
+    return trace
+end
 
-#
+#v is saying which video
+function init_scene_proposal(trace, v::Int64)
+    choice_map = get_choices(trace)
+    println("choice_map ", choice_map)
+    es = choice_map[(:videos => v => :init_state)]
+
+    n = length(es)
+    index = categorical(fill(1/n, n))
+    others = setdiff(1:n, index)
+    changed = helper(es[index], 0.5, 10.) #maybe remove
+    same = map(e -> helper(e, 1.0, 0.), es[others])#keep others the same
+
+    #maybe add
+    to_add = BernoulliElement{Object3D}(0.5, object_distribution, (params,))
+
+    vec = cat(changed, same, to_add)
+    vec = RFSElements{Object3D}([vec])
+
+    @trace(rfs(vec), (:videos => v => :init_state))
+
+    #may need to change downstream
+end
+
 function helper(to_change, bernoulli_p, variance)
     cov = diagm([variance, variance, variance]) #might have to worry about going outside of the world's dimensions
-    BernoulliElement{Detection2D}(bernoulli_p, object_distribution_present, ([to_change[1], to_change[2], to_change[3]], cov, to_change[4]))
+    BernoulliElement{Object3D}(bernoulli_p, object_distribution_present, ([to_change[1], to_change[2], to_change[3]], cov, to_change[4]))
 end
 
 

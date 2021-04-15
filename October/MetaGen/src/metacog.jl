@@ -1,30 +1,33 @@
-@gen function metacog(possible_objects::Vector{Int64}, num_videos::Int64, num_frames::Int64)
+@gen function metacog(num_videos::Int64, num_frames::Int64)
+
+	params = Video_Params()
 
     #sample parameters
     #set up visual system's parameters
     #Determining visual system V
-	v = Matrix{Float64}(undef, length(possible_objects), 2)
+	v = Matrix{Float64}(undef, length(params.possible_objects), 2)
 	#alpha = 2
 	#beta = 10
     #alpha_hit = 10
 	#beta_hit = 2
-	for j = 1:length(possible_objects)
+	for j = 1:length(params.possible_objects)
         #set lambda when target absent
         #v[j,1] = @trace(Gen.beta(alpha, beta), (:fa, j)) #leads to fa rate of around 0.1
-		v[j,1] = @trace(trunc_normal(0.02, 0.05, 0.0, 1.0), (:lambda_fa, j)) #these are lambdas per receptive field
+		v[j,1] = @trace(trunc_normal(0.002, 0.005, 0.0, 1.0), (:lambda_fa, j)) #these are lambdas per receptive field
         #set miss rate when target present
-        v[j,2] = @trace(trunc_normal(0.5, 0.5, 0.0, 1.0), (:miss_rate, j))
+        v[j,2] = @trace(trunc_normal(0.25, 0.5, 0.0, 1.0), (:miss_rate, j))
 	end
 
 	receptive_fields = make_receptive_fields()
 
-	params = Video_Params(v = v, possible_objects = possible_objects, num_receptive_fields = length(receptive_fields))
+	params = Video_Params(v = v, num_receptive_fields = length(receptive_fields))
 
     fs = fill(num_frames, num_videos) #number of frames per video
     ps = fill(params, num_videos)
 	receptive_fieldses = fill(receptive_fields, num_videos)
 
-    videos = @trace(video_map(fs, ps, receptive_fieldses), :videos)
+    @trace(video_map(fs, ps, receptive_fieldses), :videos)
+	
 end
 
 export metacog

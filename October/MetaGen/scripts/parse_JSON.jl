@@ -15,7 +15,27 @@ params = Video_Params()
 receptive_fields = make_receptive_fields()
 objects_observed, camera_trajectories = make_observations(dict, receptive_fields)
 
-num_particles = 5
-tr = unfold_particle_filter(num_particles, objects_observed, camera_trajectories)
+num_particles = 100
+traces = unfold_particle_filter(num_particles, objects_observed, camera_trajectories)
 
-println("done")
+
+
+outfile = string("test.csv")
+file = open(outfile, "w")
+#file header
+for v=1:9
+	print(file, "avg V ", v, " & ")
+    print(file, "dictionary realities PF for scene ", v, " & ")
+	print(file, "mode realities PF for scene ", v, " & ")
+end
+print(file, "avg V 10 &")
+print(file, "dictionary realities PF for scene 10 & ")
+print(file, "mode realities PF for scene  10")
+
+print(file, "\n")
+
+for v=1:9
+    print_Vs_and_Rs_to_file(file, traces, num_particles, params, v)
+end
+print_Vs_and_Rs_to_file(file, traces, num_particles, params, 10, true)
+close(file)

@@ -9,12 +9,12 @@ function get_image_xy(camera_params::Camera_Params, params::Video_Params, object
     if on_right_side(camera_params, object) > 0
         x, y = locate(camera_params, params, object)
     else #on wrong side of camera
-        #pretend asin is 90. putting it on corner of giant image
-        pixels_per_degree_x = params.image_dim_x/params.horizontal_FoV
-        x = 90 * pixels_per_degree_x
-        pixels_per_degree_y = params.image_dim_y/params.vertical_FoV
-        y = 90 * pixels_per_degree_y
+        x = Inf
+        y = Inf
     end
+    #adjust from (0,0 as midpoint in image to (160, 120) as midpoint)
+    x = x + params.image_dim_x/2
+    y = y + params.image_dim_y/2
     return x, y
 end
 

@@ -15,5 +15,6 @@ include("receptive_fields.jl")
 include("video.jl")
 include("pf_inference.jl")
 include("metacog.jl")
+include("printing.jl")
 
 end # module
