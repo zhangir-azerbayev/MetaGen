@@ -7,7 +7,12 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
     #no video, no frames
     state = Gen.initialize_particle_filter(metacog, (0, 0), init_obs, num_particles)
 
-    num_videos, num_frames = size(objects_observed)
+    #num_videos, num_frames = size(objects_observed)
+    num_videos = 10
+    num_frames = 75
+
+    #params set to default
+    params = Video_Params()
 
     for v=1:num_videos
 
@@ -55,7 +60,8 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 
         #optional rejuvination
         for i = 1:num_particles
-            state.traces[i] = perturb_scene(state.traces[i])
+            state.traces[i] = perturb_scene(state.traces[i], v, params)
+            println("done perturbing i ", i)
         end
 
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
@@ -67,39 +73,15 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 
 end
 
-function perturb_scene(prev_trace, v::Int64)
-    trace,_ = Gen.metropolis_hastings(prev_trace, init_scene_proposal, (v,))
+@gen function perturb_scene(trace, v::Int64, params::Video_Params)
+    for iter=1:100 #try 100 MH moves
+        #println("iter ", iter)
+        trace, accepted = add_remove_or_change_kernel(trace, v, params, 10.0)
+        #println("accepted? ", accepted)
+        #println("trace ", trace[:videos => v => :init_scene])
+    end
     return trace
 end
-
-#v is saying which video
-function init_scene_proposal(trace, v::Int64)
-    choice_map = get_choices(trace)
-    println("choice_map ", choice_map)
-    es = choice_map[(:videos => v => :init_state)]
-
-    n = length(es)
-    index = categorical(fill(1/n, n))
-    others = setdiff(1:n, index)
-    changed = helper(es[index], 0.5, 10.) #maybe remove
-    same = map(e -> helper(e, 1.0, 0.), es[others])#keep others the same
-
-    #maybe add
-    to_add = BernoulliElement{Object3D}(0.5, object_distribution, (params,))
-
-    vec = cat(changed, same, to_add)
-    vec = RFSElements{Object3D}([vec])
-
-    @trace(rfs(vec), (:videos => v => :init_state))
-
-    #may need to change downstream
-end
-
-function helper(to_change, bernoulli_p, variance)
-    cov = diagm([variance, variance, variance]) #might have to worry about going outside of the world's dimensions
-    BernoulliElement{Object3D}(bernoulli_p, object_distribution_present, ([to_change[1], to_change[2], to_change[3]], cov, to_change[4]))
-end
-
 
 function effective_sample_size(log_normalized_weights::Vector{Float64})
     log_ess = -logsumexp(2. * log_normalized_weights)

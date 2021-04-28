@@ -42,6 +42,9 @@ function locate(camera_params::Camera_Params,
     angle_from_vertical = rad2deg(get_angle(a_vertical, b_vertical, c_vertical, s_x, s_y, s_z))
     angle_from_horizontal = rad2deg(get_angle(a_horizontal, b_horizontal, c_horizontal, s_x, s_y, s_z))
 
+    # println("angle_from_vertical ", angle_from_vertical)
+    # println("angle_from_horizontal ", angle_from_horizontal)
+
     pixels_per_degree_x = params.image_dim_x/params.horizontal_FoV
     x = pixels_per_degree_x * angle_from_vertical
     pixels_per_degree_y = params.image_dim_y/params.vertical_FoV
