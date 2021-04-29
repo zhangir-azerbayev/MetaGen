@@ -52,17 +52,17 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after pf step ", ess)
-        for i = 1:num_particles
-            println("weight ", state.log_weights[i])
-        #     println("frame 1")
-        #     println(state.traces[i][:videos => v => :frame_chain => 1 => :camera])
-        end
+        # for i = 1:num_particles
+        #     println("weight ", state.log_weights[i])
+        # #     println("frame 1")
+        # #     println(state.traces[i][:videos => v => :frame_chain => 1 => :camera])
+        # end
 
-        #optional rejuvination
-        for i = 1:num_particles
-            state.traces[i] = perturb_scene(state.traces[i], v, params)
-            println("done perturbing i ", i)
-        end
+        # #optional rejuvination
+        # for i = 1:num_particles
+        #     state.traces[i] = perturb_scene(state.traces[i], v, params)
+        #     println("done perturbing i ", i)
+        # end
 
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after rejuvination ", ess)
