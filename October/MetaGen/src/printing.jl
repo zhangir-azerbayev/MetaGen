@@ -25,8 +25,8 @@ function print_Vs_and_Rs_to_file(file, tr, num_samples::Int64, params, r::Int64,
         choices = get_choices(tr[i])
         #extract v
         for j = 1:length(params.possible_objects)
-            avg_v[j,1] = avg_v[j,1] + choices[(:lambda_fa, j)]/num_samples
-            avg_v[j,2] = avg_v[j,2] + choices[(:miss_rate, j)]/num_samples
+            avg_v[j,1] = avg_v[j,1] + choices[:v_matrix => (:lambda_fa, j)]/num_samples
+            avg_v[j,2] = avg_v[j,2] + choices[:v_matrix => (:miss_rate, j)]/num_samples
         end
         #extract r
         realities[i] = choices[:videos => r => :init_scene]

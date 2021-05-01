@@ -57,6 +57,9 @@ end
 
     #for loop over receptive fields
     #@show maximum(map(length, rfs_vec))
+    #could re-write with map
+    #@trace(map(rfs)(rfs_vec), :observations_2D)
+
     for i = 1:length(rfs_vec)
         observations_2D = @trace(rfs(rfs_vec[i]), (i => :observations_2D))
     end

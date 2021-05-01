@@ -58,11 +58,11 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
         # #     println(state.traces[i][:videos => v => :frame_chain => 1 => :camera])
         # end
 
-        # #optional rejuvination
-        # for i = 1:num_particles
-        #     state.traces[i] = perturb_scene(state.traces[i], v, params)
-        #     println("done perturbing i ", i)
-        # end
+        #optional rejuvination
+        for i = 1:num_particles
+            state.traces[i] = perturb_scene(state.traces[i], v, params)
+            println("done perturbing i ", i)
+        end
 
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after rejuvination ", ess)
@@ -74,11 +74,11 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 end
 
 @gen function perturb_scene(trace, v::Int64, params::Video_Params)
-    for iter=1:100 #try 100 MH moves
+    for iter=1:10000 #try 100 MH moves
         #println("iter ", iter)
         trace, accepted = add_remove_or_change_kernel(trace, v, params, 10.0)
-        #println("accepted? ", accepted)
-        #println("trace ", trace[:videos => v => :init_scene])
+        println("accepted? ", accepted)
+        println("trace ", trace[:videos => v => :init_scene])
     end
     return trace
 end

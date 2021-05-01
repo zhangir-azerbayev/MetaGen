@@ -40,9 +40,9 @@ function to_elements_real(objects::Vector{Detection2D}, misses::Vector{Float64})
     n = length(objects)
     objects_2D = Vector{BernoulliElement{Detection2D}}(undef, n) #no idea if that will work
     for i = 1:n
-        x = objects[n][1]#trying to get x from Detection2D Tuple
-        y = objects[n][2]
-        cat = objects[n][3]
+        x = objects[i][1]#trying to get x from Detection2D Tuple
+        y = objects[i][2]
+        cat = objects[i][3]
         miss = misses[cat] #get the fa for this category
         objects_2D[i] = BernoulliElement{Detection2D}(1-miss, object_distribution_image, ([x, y], cov, cat))
     end

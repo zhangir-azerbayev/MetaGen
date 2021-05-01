@@ -35,6 +35,7 @@ Base.@kwdef struct Receptive_Field
 end
 
 export Coordinate
+export Video_Params
 export Camera_Params
 export Permanent_Camera_Params
 export Receptive_Field
