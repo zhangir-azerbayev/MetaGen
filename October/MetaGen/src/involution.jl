@@ -40,14 +40,17 @@
 #
 # end
 
+#perturb_params
+Base.@kwdef struct Perturb_Params
+    probs_possible_objects::Vector{Float64}
+end
+
+
 
 #proposal. like split_merge_proposal.
-@gen function add_remove_or_change_proposal(trace, v::Int64, params::Video_Params, variance::Float64)
+@gen function add_remove_or_change_proposal(trace, v::Int64, variance::Float64, perturb_params::Perturb_Params)
     scene = trace[:videos => v => :init_scene]
     n = length(scene)
-
-    #record v
-    #{:v} ~ uniform_discrete(v, v)
 
     #if the scene is already empty, can only add.
     if n<1
@@ -58,7 +61,8 @@
 
     #if add
     if edit_type==1
-        new = {:new} ~ object_distribution(params) #how do I add this to the rfs for init_scene
+        params2 = Video_Params(probs_possible_objects = perturb_params.probs_possible_objects)
+        new = {:new} ~ object_distribution(params2)
 
     #remove
     elseif edit_type==2
@@ -117,4 +121,38 @@ end
     #@write(u_prime[:v], v, :discrete)
 end
 
-add_remove_or_change_kernel(trace, v, params, variance) = mh(trace, add_remove_or_change_proposal, (v, params, variance), involution)
+function metropolis_hastings(
+        trace, proposal::GenerativeFunction,
+        proposal_args::Tuple, involution::Union{TraceTransformDSLProgram,Function};
+        check=false, observations=EmptyChoiceMap())
+    trace_translator = SymmetricTraceTranslator(proposal, proposal_args, involution)
+    (new_trace, log_weight) = trace_translator(trace; check=check, observations=observations)
+    println("proposal ", new_trace[:videos => 1 => :init_scene])
+    if log(rand()) < log_weight
+        # accept
+        (new_trace, true)
+    else
+        # reject
+        (trace, false)
+    end
+end
+
+function metropolis_hastings_here(
+        trace, proposal::GenerativeFunction,
+        proposal_args::Tuple, involution::Union{TraceTransformDSLProgram,Function};
+        check=false, observations=EmptyChoiceMap())
+    trace_translator = SymmetricTraceTranslator(proposal, proposal_args, involution)
+    (new_trace, log_weight) = trace_translator(trace; check=check, observations=observations)
+    println("proposal ", new_trace[:videos => 1 => :init_scene])
+    if log(rand()) < log_weight
+        # accept
+        (new_trace, true)
+    else
+        # reject
+        (trace, false)
+    end
+end
+
+const mh_here = metropolis_hastings_here
+
+add_remove_or_change_kernel(trace, v, variance, perturb_params) = mh_here(trace, add_remove_or_change_proposal, (v, variance, perturb_params), involution)

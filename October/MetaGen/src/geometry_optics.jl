@@ -1,10 +1,8 @@
-#This file contains functions for solving the geometry / optics problem
-#of figuring out where the images of objects will be on the camera's 2D photo
-
 using LinearAlgebra
 
-include("declaring_structs.jl")
+###################################################
 
+#returns the object's position on the 2D image in pixel space. (0,0) is the center of the image
 function get_image_xy(camera_params::Camera_Params, params::Video_Params, object::Coordinate)
     if on_right_side(camera_params, object) > 0
         x, y = locate(camera_params, params, object)
@@ -12,9 +10,6 @@ function get_image_xy(camera_params::Camera_Params, params::Video_Params, object
         x = Inf
         y = Inf
     end
-    #adjust from (0,0 as midpoint in image to (160, 120) as midpoint)
-    x = x + params.image_dim_x/2
-    y = y + params.image_dim_y/2
     return x, y
 end
 
@@ -35,20 +30,27 @@ function locate(camera_params::Camera_Params,
     (a_vertical, b_vertical, c_vertical) = get_vertical_plane(camera_params)
     (a_horizontal, b_horizontal, c_horizontal) = get_horizontal_plane(camera_params, a_vertical, b_vertical, c_vertical)
 
+    #verified working to here.
+
     s_x = object.x-camera_params.camera_location.x
     s_y = object.y-camera_params.camera_location.y
     s_z = object.z-camera_params.camera_location.z
 
-    angle_from_vertical = rad2deg(get_angle(a_vertical, b_vertical, c_vertical, s_x, s_y, s_z))
-    angle_from_horizontal = rad2deg(get_angle(a_horizontal, b_horizontal, c_horizontal, s_x, s_y, s_z))
+    (s_x_v, s_y_v, s_z_v) = proj_vec_to_plane(a_vertical, b_vertical, c_vertical, s_x, s_y, s_z)
+    (s_x_h, s_y_h, s_z_h) = proj_vec_to_plane(a_horizontal, b_horizontal, c_horizontal, s_x, s_y, s_z)
 
-    # println("angle_from_vertical ", angle_from_vertical)
-    # println("angle_from_horizontal ", angle_from_horizontal)
+    angle_from_vertical = get_angle(a_vertical, b_vertical, c_vertical, s_x_h, s_y_h, s_z_h)
+    angle_from_horizontal = get_angle(a_horizontal, b_horizontal, c_horizontal, s_x_v, s_y_v, s_z_v)
 
-    pixels_per_degree_x = params.image_dim_x/params.horizontal_FoV
-    x = pixels_per_degree_x * angle_from_vertical
-    pixels_per_degree_y = params.image_dim_y/params.vertical_FoV
-    y = pixels_per_degree_y * angle_from_horizontal
+    x_unscaled = sin(angle_from_vertical) / sin(deg2rad(params.horizontal_FoV))
+    y_unscaled = sin(angle_from_horizontal) / sin(deg2rad(params.vertical_FoV))
+
+    x = x_unscaled * params.image_dim_x / 2 #should it be + not *
+    y = y_unscaled * params.image_dim_y / 2
+
+    #adjust from (0,0 as midpoint in image to (160, 120) as midpoint)
+    x = x + params.image_dim_x/2
+    y = y + params.image_dim_y/2
 
     return (x, y)
 end
@@ -85,6 +87,7 @@ function get_abc_plane(p1::Coordinate, p2::Coordinate, p3::Coordinate)
 
     if D==0
         println("crap! determinant D=0")
+        println(p1, p2, p3)
     end
     #implicitly going to say d=-1 to obtain solution set
     a = det([1 1 1; p1.y p2.y p3.y; p1.z p2.z p3.z])/D
@@ -93,3 +96,15 @@ function get_abc_plane(p1::Coordinate, p2::Coordinate, p3::Coordinate)
 
     return (a, b, c)
 end
+
+function proj_vec_to_plane(a, b, c, x, y , z)
+    num = a * x + b * y + z * c
+    denom = a^2 + b^2 + c^2
+    constant = num/denom
+    u_1 = x - constant * a
+    u_2 = y - constant * b
+    u_3 = z - constant * c
+    return (u_1, u_2, u_3)
+end
+
+export get_image_xy

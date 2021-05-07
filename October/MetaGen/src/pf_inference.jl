@@ -8,8 +8,10 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
     state = Gen.initialize_particle_filter(metacog, (0, 0), init_obs, num_particles)
 
     #num_videos, num_frames = size(objects_observed)
-    num_videos = 10
+    num_videos = 1 #10
     num_frames = 75
+
+    num_particles = 1
 
     #params set to default
     params = Video_Params()
@@ -59,8 +61,10 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
         # end
 
         #optional rejuvination
+        perturb_params = get_probs_categories(objects_observed, v, num_frames, num_receptive_fields)
+        println(perturb_params.probs_possible_objects)
         for i = 1:num_particles
-            state.traces[i] = perturb_scene(state.traces[i], v, params)
+            state.traces[i] = perturb_scene(state.traces[i], v, perturb_params)
             println("done perturbing i ", i)
         end
 
@@ -73,14 +77,27 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 
 end
 
-@gen function perturb_scene(trace, v::Int64, params::Video_Params)
-    for iter=1:10000 #try 100 MH moves
+@gen function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params)
+    for iter=1:100 #try 100 MH moves
         #println("iter ", iter)
-        trace, accepted = add_remove_or_change_kernel(trace, v, params, 10.0)
+        trace, accepted = add_remove_or_change_kernel(trace, v, 10.0, perturb_params)
         println("accepted? ", accepted)
         println("trace ", trace[:videos => v => :init_scene])
     end
     return trace
+end
+
+function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}}, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+    track_categories = zeros(length(params.possible_objects)) #each element will be the number of times that category was detected. adding 1
+    for f = 1:num_frames
+        for rf = 1:num_receptive_fields
+            for (index, value) in enumerate(objects_observed[v, f][rf])
+                track_categories[value[3]] = track_categories[value[3]]+1#category
+            end
+        end
+    end
+    track_categories = track_categories.+0.01
+    return Perturb_Params(probs_possible_objects = track_categories./sum(track_categories))
 end
 
 function effective_sample_size(log_normalized_weights::Vector{Float64})
