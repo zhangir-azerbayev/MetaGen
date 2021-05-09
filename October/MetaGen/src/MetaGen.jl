@@ -9,8 +9,9 @@ function __init__()
 end
 
 include("declaring_structs.jl")
-include("geometry_optics.jl")
 include("custom_distributions.jl")
+include("geometry_optics.jl")
+include("inverse_optics.jl")
 include("receptive_fields.jl")
 include("video.jl")
 include("involution.jl")

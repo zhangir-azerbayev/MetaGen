@@ -42,6 +42,9 @@ function locate(camera_params::Camera_Params,
     angle_from_vertical = get_angle(a_vertical, b_vertical, c_vertical, s_x_h, s_y_h, s_z_h)
     angle_from_horizontal = get_angle(a_horizontal, b_horizontal, c_horizontal, s_x_v, s_y_v, s_z_v)
 
+    #angle_from_vertical = get_angle(a_vertical, b_vertical, c_vertical, s_x, s_y, s_z)
+    #angle_from_horizontal = get_angle(a_horizontal, b_horizontal, c_horizontal, s_x, s_y, s_z)
+
     x_unscaled = sin(angle_from_vertical) / sin(deg2rad(params.horizontal_FoV))
     y_unscaled = sin(angle_from_horizontal) / sin(deg2rad(params.vertical_FoV))
 

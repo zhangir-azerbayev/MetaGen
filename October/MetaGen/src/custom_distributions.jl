@@ -159,6 +159,64 @@ function construct_3D(cat::Int64, params::Video_Params)
 end
 
 ##############################################################################################
+#For a new 3-D object placed along certain line segments
+struct New_Object_Distribution <: Gen.Distribution{Object3D} end
+
+const new_object_distribution = New_Object_Distribution()
+
+function Gen.random(::New_Object_Distribution, params::Video_Params, line_segments::Array{Line_Segment})
+
+    cat = categorical(params.probs_possible_objects)
+
+    n = length(line_segments)
+    i = categorical(fill(1/n, n)) #which line segment
+    line_segment = line_segments[i]
+    #length of the line segment
+    length = sqrt((line_segment.start.x-line_segment.endpoint.x)^2 + (line_segment.start.y-line_segment.endpoint.y)^2 + (line_segment.start.z-line_segment.endpoint.z)^2)
+    d = uniform(0, length) #sample a distance
+    #plug in d/length as t
+    x = line_segment.start.x + line_segment.a*d
+    y = line_segment.start.y + line_segment.b*d
+    z = line_segment.start.z + line_segment.c*d
+
+    return (x, y, z, cat)
+end
+
+function Gen.logpdf(::New_Object_Distribution, object_3D::Object3D, params::Video_Params, line_segments::Array{Line_Segment})
+    #categorical
+    cat = object_3D[4] #grabbing the category type
+    p_categorical = Gen.logpdf(categorical, cat, params.probs_possible_objects)
+
+    #check how many line segments have this point on it
+    n = length(line_segments)
+    point = Coordinate(object_3D[1], object_3D[2], object_3D[3])
+    contained = map(line_segment_contains_point, fill(point, n), line_segments)
+    p_point = log(sum(contained)/n) #could do something with categorical distibution, but don't know how
+
+    p_categorical + p_point
+end
+
+function Gen.logpdf_grad(::New_Object_Distribution, objects_3D::Object3D, params::Video_Params)
+    gerror("Not implemented")
+    (nothing, nothing)
+end
+
+(::New_Object_Distribution)(params) = Gen.random(New_Object_Distribution(), params)
+
+has_output_grad(::New_Object_Distribution) = false
+has_argument_grads(::New_Object_Distribution) = (false,)
+
+function line_segment_contains_point(point::Coordinate, line_segment::Line_Segment)
+    x = point.x
+    t = (x - line_segment.start.x)/line_segment.a
+    y = line_segment.start.y + line_segment.b*t
+    z = line_segment.start.z + line_segment.c*t
+    return (y == point.y && z == point.z && t > 0)
+end
+
+export new_object_distribution
+
+##############################################################################################
 struct Hallucination_Distribution <: Gen.Distribution{Detection2D} end
 
 const hallucination_distribution = Hallucination_Distribution()

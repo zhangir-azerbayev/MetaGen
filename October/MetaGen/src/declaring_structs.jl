@@ -34,8 +34,23 @@ Base.@kwdef struct Receptive_Field
     p2::Tuple{Int64, Int64} #lower right
 end
 
+Base.@kwdef struct Line_Segment
+    start::Coordinate
+    endpoint::Coordinate
+    #a,b,c are the parametrized coefficients for the line. when t=1, gives us ending point
+    a::Float64 #equal to endpoint.x-start.x
+    b::Float64
+    c::Float64
+end
+
+#perturb_params
+Base.@kwdef struct Perturb_Params
+    probs_possible_objects::Vector{Float64}
+end
+
 export Coordinate
 export Video_Params
 export Camera_Params
 export Permanent_Camera_Params
 export Receptive_Field
+export Line_Segement
