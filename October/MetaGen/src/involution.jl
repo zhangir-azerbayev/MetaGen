@@ -11,14 +11,17 @@
         edit_type = {:edit_type} ~ categorical(fill(1/2, 2))
     end
 
+    println("edit type ", edit_type)
+
     #if add
     if edit_type==1
         params2 = Video_Params(probs_possible_objects = perturb_params.probs_possible_objects)
-        new = {:new} ~ new_object_distribution(params2, line_segments)
-
+        new = {:new} ~ new_object_distribution_noisy(params2, line_segments)
+        println("new ", new)
         #remove
     elseif edit_type==2
         id = {:id} ~ categorical(fill(1/n, n)) #select element to remove
+        println("remove ", scene[id])
     end
 end
 
@@ -71,31 +74,48 @@ end
     n = length(scene)
 
     id = {:id} ~ categorical(fill(1/n, n)) #select element to change
-    new = {:new} ~ object_distribution_category(scene[id], perturb_params)
-    #TODO write object_distribution_category
+    new = {:new} ~ object_distribution_category(scene[id][1], scene[id][2], scene[id][3], perturb_params)
 end
 
-@transform change_involution (t, u) to (t_prime, u_prime) begin
+@transform change_location_involution (t, u) to (t_prime, u_prime) begin
 
-#v = @read(u[:v], :discrete)
-_,v,_,_ = get_args(u)
+    #v = @read(u[:v], :discrete)
+    _,v,_,_ = get_args(u)
 
-scene = @read(t[:videos => v => :init_scene], :discrete)
-n = length(scene)
+    scene = @read(t[:videos => v => :init_scene], :discrete)
+    n = length(scene)
 
-id = @read(u[:id], :discrete)
-e = @read(u[:new], :discrete)
-new_scene = deepcopy(scene)
-e_old = scene[id]
-new_scene[id] = e
-@write(t_prime[:videos => v => :init_scene], new_scene, :discrete)
-@write(u_prime[:id], id, :discrete)
-@write(u_prime[:new], e_old, :discrete)
+    id = @read(u[:id], :discrete)
+    e = @read(u[:new], :discrete)
+    new_scene = deepcopy(scene)
+    e_old = scene[id]
+    new_scene[id] = e
+    @write(t_prime[:videos => v => :init_scene], new_scene, :discrete)
+    @write(u_prime[:id], id, :discrete)
+    @write(u_prime[:new], e_old, :discrete)
 end
 
-add_remove_kernel(trace, v, variance, perturb_params) = mh_here(trace, add_remove_proposal, (v, line_segments, perturb_params), add_remove_involution)
-change_location_kernel(trace, v, variance, perturb_params) = mh_here(trace, change_location_proposal, (v, variance, perturb_params), change_involution)
-change_category_kernel(trace, v, variance, perturb_params) = mh_here(trace, change_category_proposal, (v, perturb_params), change_involution)
+@transform change_category_involution (t, u) to (t_prime, u_prime) begin
+
+    #v = @read(u[:v], :discrete)
+    _,v,_, = get_args(u)
+
+    scene = @read(t[:videos => v => :init_scene], :discrete)
+    n = length(scene)
+
+    id = @read(u[:id], :discrete)
+    e = @read(u[:new], :discrete)
+    new_scene = deepcopy(scene)
+    e_old = scene[id]
+    new_scene[id] = e
+    @write(t_prime[:videos => v => :init_scene], new_scene, :discrete)
+    @write(u_prime[:id], id, :discrete)
+    @write(u_prime[:new], e_old, :discrete)
+end
+
+add_remove_kernel(trace, v, line_segments, perturb_params) = mh_here(trace, add_remove_proposal, (v, line_segments, perturb_params), add_remove_involution)
+change_location_kernel(trace, v, variance, perturb_params) = mh_here(trace, change_location_proposal, (v, variance, perturb_params), change_location_involution)
+change_category_kernel(trace, v, perturb_params) = mh_here(trace, change_category_proposal, (v, perturb_params), change_category_involution)
 
 
 function metropolis_hastings(

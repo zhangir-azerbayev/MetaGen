@@ -1,7 +1,6 @@
 
 #array for each frame and array for each receptive field and array for those detections
 function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, num_receptive_fields::Int64)
-
     init_obs = Gen.choicemap()
 
     #no video, no frames
@@ -10,8 +9,6 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
     #num_videos, num_frames = size(objects_observed)
     num_videos = 1 #10
     num_frames = 75
-
-    num_particles = 1
 
     #params set to default
     params = Video_Params()
@@ -76,7 +73,8 @@ end
 
 @gen function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments::Array{Line_Segment})
     for iter=1:100 #try 100 MH moves
-        #println("iter ", iter)
+        println("iter ", iter)
+
         trace, accepted = add_remove_kernel(trace, v, line_segments, perturb_params)
         println("accepted? ", accepted)
         println("trace ", trace[:videos => v => :init_scene])

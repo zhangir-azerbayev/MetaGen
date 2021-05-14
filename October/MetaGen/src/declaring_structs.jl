@@ -20,7 +20,7 @@ Base.@kwdef struct Video_Params
     image_dim_x::Int64 = 320
     image_dim_y::Int64 = 240
     horizontal_FoV::Float64 = 60
-    vertical_FoV::Float64 = 40
+    vertical_FoV::Float64 = 45
 end
 
 #The camera params that change in a video
@@ -54,3 +54,5 @@ export Camera_Params
 export Permanent_Camera_Params
 export Receptive_Field
 export Line_Segement
+export Vector
+export Perturb_Params

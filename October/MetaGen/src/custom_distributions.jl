@@ -168,16 +168,16 @@ function Gen.random(::New_Object_Distribution, params::Video_Params, line_segmen
 
     cat = categorical(params.probs_possible_objects)
 
-    n = length(line_segments)
+    n = size(line_segments)[1]
     i = categorical(fill(1/n, n)) #which line segment
     line_segment = line_segments[i]
     #length of the line segment
     length = sqrt((line_segment.start.x-line_segment.endpoint.x)^2 + (line_segment.start.y-line_segment.endpoint.y)^2 + (line_segment.start.z-line_segment.endpoint.z)^2)
     d = uniform(0, length) #sample a distance
     #plug in d/length as t
-    x = line_segment.start.x + line_segment.a*d
-    y = line_segment.start.y + line_segment.b*d
-    z = line_segment.start.z + line_segment.c*d
+    x = line_segment.start.x + line_segment.a*(d/length)
+    y = line_segment.start.y + line_segment.b*(d/length)
+    z = line_segment.start.z + line_segment.c*(d/length)
 
     return (x, y, z, cat)
 end
@@ -215,6 +215,141 @@ function line_segment_contains_point(point::Coordinate, line_segment::Line_Segme
 end
 
 export new_object_distribution
+
+##############################################################################################
+#For a new 3-D object placed along certain line segments with Gaussian noise
+struct New_Object_Distribution_Noisy <: Gen.Distribution{Object3D} end
+
+const new_object_distribution_noisy = New_Object_Distribution_Noisy()
+
+function Gen.random(::New_Object_Distribution_Noisy, params::Video_Params, line_segments::Array{Line_Segment})
+
+    cat = categorical(params.probs_possible_objects)
+
+    n = size(line_segments)[1]
+    i = categorical(fill(1/n, n)) #which line segment
+    line_segment = line_segments[i]
+    #length of the line segment
+    length = sqrt((line_segment.start.x-line_segment.endpoint.x)^2 + (line_segment.start.y-line_segment.endpoint.y)^2 + (line_segment.start.z-line_segment.endpoint.z)^2)
+    d = uniform(0, length) #sample a distance along the line segment
+    #plug in d/length as t
+    x = line_segment.start.x + line_segment.a*(d/length)
+    y = line_segment.start.y + line_segment.b*(d/length)
+    z = line_segment.start.z + line_segment.c*(d/length)
+
+    #add noise
+    dist = trunc_normal(0., 3., 0., 10.) #mean noise is 0, minimum is 0, high is 10???
+    angle = uniform(0, 2*pi)
+
+    (x_noisy, y_noisy, z_noisy) = sample_point(line_segment, Coordinate(x,y,z), dist, angle)
+
+    return (x_noisy, y_noisy, z_noisy, cat)
+end
+
+function Gen.logpdf(::New_Object_Distribution_Noisy, object_3D::Object3D, params::Video_Params, line_segments::Array{Line_Segment})
+    #categorical
+    cat = object_3D[4] #grabbing the category type
+    p_categorical = Gen.logpdf(categorical, cat, params.probs_possible_objects)
+
+    #check how many line segments have this point on it
+    n = length(line_segments)
+    point = Coordinate(object_3D[1], object_3D[2], object_3D[3])
+    ps = map(prob_given_line_segment, fill(point, n), line_segments)
+    p_point = log(1/n) + log(sum(ps)) #could do something with categorical distibution, but don't know how
+
+    p_categorical + p_point
+end
+
+function Gen.logpdf_grad(::New_Object_Distribution_Noisy, objects_3D::Object3D, params::Video_Params)
+    gerror("Not implemented")
+    (nothing, nothing)
+end
+
+(::New_Object_Distribution_Noisy)(params) = Gen.random(New_Object_Distribution_Noisy(), params)
+
+has_output_grad(::New_Object_Distribution_Noisy) = false
+has_argument_grads(::New_Object_Distribution_Noisy) = (false,)
+
+function sample_point(line_segment::Line_Segment, point_on_line::Coordinate, dist::Float64, angle::Float64)
+
+    #first, sample a vector on the plane. the plane is defined by being normal to the line segment and including the point
+    #point_on_line. describe this plane in point normal form. pick any two values of x and y and then solve for z to get
+    #another point on this plane. then a vector on this plane is given by (x-point_on_line_x, y-point_on_line_y, z-point_on_line_z)
+    x = 1
+    y = 1
+    z = (-line_segment.a*(x-point_on_line.x) - line_segment.b*(y-point_on_line.x))/line_segment.c + point_on_line.y
+    v1 = [x-point_on_line.x, y-point_on_line.y, z-point_on_line.z]
+
+    #get v2, which is perpendicular to the line segement and to v1, bu taking the cross product.
+    v2 = cross(v1, [line_segment.a, line_segment.b, line_segment.c])
+
+    #make unit vectors
+    v1 = v1./sqrt(sum(v1.^2))
+    v2 = v2./sqrt(sum(v2.^2))
+
+    point = [point_on_line.x, point_on_line.y, point_on_line.z] + dist * sin(angle) .*v1 + dist * cos(angle) .*v2
+    return (point[1], point[2], point[3])
+end
+
+#gives the probability of a point given a segment
+function prob_given_line_segment(point::Coordinate, line_segment::Line_Segment)
+
+    #point is on a plane normal to line segment. that's given by point normal form. finding intersection between
+    #this plane and the line segment by solving for t
+    t = (line_segment.a*(point.x - line_segment.start.x) + line_segment.b*(point.y - line_segment.start.y) + line_segment.c*(point.z - line_segment.start.z))/(line_segment.a^2 + line_segment.b^2 + line_segment.c^2)
+    if t < 0 || t > 1 #would mean that this is off the line segment
+        return 0
+    end
+
+    line_seg_coef = [line_segment.a, line_segment.b, line_segment.c]
+    line_seg_start = [line_segment.start.x, line_segment.start.y, line_segment.start.z]
+    point_on_line = t.*line_seg_coef .+ line_seg_start
+
+    #get distance between point_on_line and point
+    point = [point.x, point.y, point.z]
+    dist = sqrt(sum((point - point_on_line).^2)) #norm might do the same
+
+    #actually calculate probabilities
+    len = sqrt((line_segment.start.x-line_segment.endpoint.x)^2 + (line_segment.start.y-line_segment.endpoint.y)^2 + (line_segment.start.z-line_segment.endpoint.z)^2)
+    p1 = Gen.logpdf(uniform, 0, 0, len)#doesn't matter what the actual value is because it's uniform, so plug in 0
+    p2 = Gen.logpdf(trunc_normal, dist, 0., 3., 0., 10.)
+    p3 = Gen.logpdf(uniform, 0, 0, 2*pi)
+
+    return MathConstants.e^(p1 + p2 + p3) #transform it back to probability space
+end
+
+export new_object_distribution_noisy
+
+##############################################################################################
+#For a new 3-D object with the same location but new category
+struct Object_Distribution_Category <: Gen.Distribution{Object3D} end
+
+const object_distribution_category = Object_Distribution_Category()
+
+function Gen.random(::Object_Distribution_Category, x::Float64, y::Float64, z::Float64, perturb_params::Perturb_Params)
+
+    cat = categorical(perturb_params.probs_possible_objects)
+
+    return (x, y, z, cat)
+end
+
+function Gen.logpdf(::Object_Distribution_Category, object_3D::Object3D, x::Float64, y::Float64, z::Float64, perturb_params::Perturb_Params)
+    #categorical
+    cat = object_3D[4] #grabbing the category type
+    Gen.logpdf(categorical, cat, perturb_params.probs_possible_objects)
+end
+
+function Gen.logpdf_grad(::Object_Distribution_Category, objects_3D::Object3D, perturb_params::Perturb_Params)
+    gerror("Not implemented")
+    (nothing, nothing)
+end
+
+(::Object_Distribution_Category)(x, y, z, perturb_params) = Gen.random(Object_Distribution_Category(), x, y, z, perturb_params)
+
+has_output_grad(::Object_Distribution_Category) = false
+has_argument_grads(::Object_Distribution_Category) = (false,)
+
+export new_object_distribution_category
 
 ##############################################################################################
 struct Hallucination_Distribution <: Gen.Distribution{Detection2D} end
@@ -311,6 +446,11 @@ struct TruncatedNormal <: Gen.Distribution{Float64} end
 
 const trunc_normal = TruncatedNormal()
 
+function Gen.random(::TruncatedNormal, mu::U, std::U, low::U, high::U)  where {U <: Real}
+	n = Distributions.Normal(mu, std)
+	rand(Distributions.Truncated(n, low, high))
+end
+
 function Gen.logpdf(::TruncatedNormal, x::U, mu::U, std::U, low::U, high::U) where {U <: Real}
 	n = Distributions.Normal(mu, std)
 	tn = Distributions.Truncated(n, low, high)
@@ -320,11 +460,6 @@ end
 function Gen.logpdf_grad(::TruncatedNormal, x::U, mu::U, std::U, low::U, high::U)  where {U <: Real}
 	gerror("Not implemented")
 	(nothing, nothing)
-end
-
-function Gen.random(::TruncatedNormal, mu::U, std::U, low::U, high::U)  where {U <: Real}
-	n = Distributions.Normal(mu, std)
-	rand(Distributions.Truncated(n, low, high))
 end
 
 (::TruncatedNormal)(mu, std, low, high) = random(TruncatedNormal(), mu, std, low, high)

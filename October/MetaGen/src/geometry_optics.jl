@@ -31,6 +31,8 @@ function locate(camera_params::Camera_Params,
     (a_horizontal, b_horizontal, c_horizontal) = get_horizontal_plane(camera_params, a_vertical, b_vertical, c_vertical)
 
     #verified working to here.
+    #println("here")
+    println("a,b,c vertical ", (a_vertical, b_vertical, c_vertical))
 
     s_x = object.x-camera_params.camera_location.x
     s_y = object.y-camera_params.camera_location.y
@@ -39,17 +41,26 @@ function locate(camera_params::Camera_Params,
     (s_x_v, s_y_v, s_z_v) = proj_vec_to_plane(a_vertical, b_vertical, c_vertical, s_x, s_y, s_z)
     (s_x_h, s_y_h, s_z_h) = proj_vec_to_plane(a_horizontal, b_horizontal, c_horizontal, s_x, s_y, s_z)
 
+    #println("s_x_v, s_y_v, s_z_v horizontal ", (s_x_v, s_y_v, s_z_v))
+    #println("s_x_h, s_y_h, s_z_h horizontal ", (s_x_h, s_y_h, s_z_h))
+
     angle_from_vertical = get_angle(a_vertical, b_vertical, c_vertical, s_x_h, s_y_h, s_z_h)
     angle_from_horizontal = get_angle(a_horizontal, b_horizontal, c_horizontal, s_x_v, s_y_v, s_z_v)
 
     #angle_from_vertical = get_angle(a_vertical, b_vertical, c_vertical, s_x, s_y, s_z)
     #angle_from_horizontal = get_angle(a_horizontal, b_horizontal, c_horizontal, s_x, s_y, s_z)
 
+    println("angle_from_vertical ", rad2deg(angle_from_vertical))
+    println("angle_from_horizontal ", rad2deg(angle_from_horizontal))
+
+    #sin won't differentiate between angles above and below 90 degrees. So 60 degrees and 120 will look the same, but should be okay since can
+    #only be between +90 and -90 since on right side of the camera.
+
     x_unscaled = sin(angle_from_vertical) / sin(deg2rad(params.horizontal_FoV))
     y_unscaled = sin(angle_from_horizontal) / sin(deg2rad(params.vertical_FoV))
 
-    x = x_unscaled * params.image_dim_x / 2 #should it be + not *
-    y = y_unscaled * params.image_dim_y / 2
+    x = x_unscaled * params.image_dim_x / 2
+    y = y_unscaled * -params.image_dim_y / 2 #negative because want positive angles to results in lower values for y in pixel-space
 
     #adjust from (0,0 as midpoint in image to (160, 120) as midpoint)
     x = x + params.image_dim_x/2
@@ -60,6 +71,7 @@ end
 
 #returns the angle between the vector and the plane
 #a,b,c is coefficients of plane. x, y, z is the vector.
+#whether the sin is positive or negative depends on the normal.
 function get_angle(a, b, c, x, y, z)
     numerator = a*x + b*y + c*z #took out abs
     denominator = sqrt(a^2+b^2+c^2) * sqrt(x^2+y^2+z^2)
@@ -71,7 +83,51 @@ function get_vertical_plane(camera_params::Camera_Params)
     p1 = camera_params.camera_location
     p2 = camera_params.camera_focus
     p3 = Coordinate(p1.x, p1.y, p1.z+1)
-    return get_abc_plane(p1, p2, p3)
+    (a, b, c) = get_abc_plane(p1, p2, p3)
+    #want normal to be be on the "righthand" side of camera
+    #x and y component of vec for the direction camera is pointing
+    camera_pointing_x = camera_params.camera_focus.x-camera_params.camera_location.x
+    camera_pointing_y = camera_params.camera_focus.y-camera_params.camera_location.y
+    if camera_pointing_y > 0 #then a must be positive
+        if a > 0
+            return (a, b, c)
+        elseif a < 0
+            return (-a, -b, -c)
+        else
+            println("problem. should be impossible")
+        end
+
+    elseif camera_pointing_y < 0 #then a must be negative
+        if a < 0
+            return (a, b, c)
+        elseif a > 0
+            return (-a, -b, -c)
+        else
+            println("problem. should be impossible")
+        end
+    else #camera_pointing_y==0
+        if camera_pointing_x > 0 #up x axis, then want y component of normal to be negative
+            if b < 0
+                return(a, b, c)
+            elseif b > 0
+                return(-a, -b, -c)
+            end
+        elseif camera_pointing_x < 0 #looking down x-axis, want y component of normal to be positive
+            if b > 0
+                return(a, b, c)
+            elseif b < 0
+                return(-a, -b, -c)
+            end
+        else #if both x and y components are 0, then camera is looking straight up or down. in both cases, let's have the normal have postive a and b
+            if a > 0 && b > 0
+                return(a, b, c)
+            elseif a < 0 && b < 0
+                return(-a, -b, -c)
+            else
+                println("problem. should be impossible")
+            end
+        end
+    end
 end
 
 #need camera parameters and vertical plane (so horizontal will be perpendicular to it)
@@ -79,7 +135,16 @@ function get_horizontal_plane(camera_params::Camera_Params, a, b, c)
     p1 = camera_params.camera_location
     p2 = camera_params.camera_focus
     p3 = Coordinate(p1.x+a, p1.y+b, p1.z+c) #adding normal vector (a, b, c) to the point to make a third point on the horizontal plane
-    return get_abc_plane(p1, p2, p3)
+    (a, b, c) = get_abc_plane(p1, p2, p3)
+    #make sure that this normal is upright, so c > 0
+    if c < 0
+        return(-a, -b, -c)
+    elseif c > 0
+        return(a, b, c)
+    else #when c==0, camera is looking straight up or straight down.
+        println("uh oh. camera looking straight up or straight down")
+        return(a, b, c)
+    end
 end
 
 #given 3 points on a plane (p1, p2, p3), get a, b, and c coefficients in the general form.
