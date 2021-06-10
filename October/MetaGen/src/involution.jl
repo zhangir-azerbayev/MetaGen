@@ -10,18 +10,15 @@
     else
         edit_type = {:edit_type} ~ categorical(fill(1/2, 2))
     end
-
-    println("edit type ", edit_type)
-
     #if add
     if edit_type==1
         params2 = Video_Params(probs_possible_objects = perturb_params.probs_possible_objects)
         new = {:new} ~ new_object_distribution_noisy(params2, line_segments)
-        println("new ", new)
+        #println("new ", new)
         #remove
     elseif edit_type==2
         id = {:id} ~ categorical(fill(1/n, n)) #select element to remove
-        println("remove ", scene[id])
+        #println("remove ", scene[id])
     end
 end
 
@@ -74,7 +71,13 @@ end
     n = length(scene)
 
     id = {:id} ~ categorical(fill(1/n, n)) #select element to change
-    new = {:new} ~ object_distribution_category(scene[id][1], scene[id][2], scene[id][3], perturb_params)
+    #make it so doesn't propose current category
+    probs_possible_objects = deepcopy(perturb_params.probs_possible_objects)
+    probs_possible_objects[id] = 0
+    probs_possible_objects = probs_possible_objects./sum(probs_possible_objects)
+    perturb_params_new = Perturb_Params(probs_possible_objects)
+
+    new = {:new} ~ object_distribution_category(scene[id][1], scene[id][2], scene[id][3], perturb_params_new)
 end
 
 @transform change_location_involution (t, u) to (t_prime, u_prime) begin
@@ -141,6 +144,7 @@ function metropolis_hastings_here(
     trace_translator = SymmetricTraceTranslator(proposal, proposal_args, involution)
     (new_trace, log_weight) = trace_translator(trace; check=check, observations=observations)
     println("proposal ", new_trace[:videos => 1 => :init_scene])
+    println("ratio ", exp(log_weight))
     if log(rand()) < log_weight
         # accept
         (new_trace, true)

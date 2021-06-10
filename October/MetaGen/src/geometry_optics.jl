@@ -32,26 +32,34 @@ function locate(camera_params::Camera_Params,
 
     #verified working to here.
     #println("here")
-    println("a,b,c vertical ", (a_vertical, b_vertical, c_vertical))
+    #println("a,b,c vertical ", (a_vertical, b_vertical, c_vertical))
 
     s_x = object.x-camera_params.camera_location.x
     s_y = object.y-camera_params.camera_location.y
     s_z = object.z-camera_params.camera_location.z
 
-    #(s_x_v, s_y_v, s_z_v) = proj_vec_to_plane(a_vertical, b_vertical, c_vertical, s_x, s_y, s_z)
-    #(s_x_h, s_y_h, s_z_h) = proj_vec_to_plane(a_horizontal, b_horizontal, c_horizontal, s_x, s_y, s_z)
+
+
+    # object = [object.x, object.y, object.z]
+    # camera_focus = [camera_params.camera_focus.x, camera_params.camera_focus.y, camera_params.camera_focus.z]
+    # camera_loc = [camera_params.camera_location.x, camera_params.camera_location.y, camera_params.camera_location.z]
+    #
+    # println("dot ", dot((camera_focus - camera_loc), (object - camera_focus)))
+
+    (s_x_v, s_y_v, s_z_v) = proj_vec_to_plane(a_vertical, b_vertical, c_vertical, s_x, s_y, s_z)
+    (s_x_h, s_y_h, s_z_h) = proj_vec_to_plane(a_horizontal, b_horizontal, c_horizontal, s_x, s_y, s_z)
 
     #println("s_x_v, s_y_v, s_z_v horizontal ", (s_x_v, s_y_v, s_z_v))
     #println("s_x_h, s_y_h, s_z_h horizontal ", (s_x_h, s_y_h, s_z_h))
 
-    #angle_from_vertical = get_angle(a_vertical, b_vertical, c_vertical, s_x_h, s_y_h, s_z_h)
-    #angle_from_horizontal = get_angle(a_horizontal, b_horizontal, c_horizontal, s_x_v, s_y_v, s_z_v)
+    angle_from_vertical = get_angle(a_vertical, b_vertical, c_vertical, s_x_h, s_y_h, s_z_h)
+    angle_from_horizontal = get_angle(a_horizontal, b_horizontal, c_horizontal, s_x_v, s_y_v, s_z_v)
 
-    angle_from_vertical = get_angle(a_vertical, b_vertical, c_vertical, s_x, s_y, s_z)
-    angle_from_horizontal = get_angle(a_horizontal, b_horizontal, c_horizontal, s_x, s_y, s_z)
+    #angle_from_vertical = get_angle(a_vertical, b_vertical, c_vertical, s_x, s_y, s_z)
+    #angle_from_horizontal = get_angle(a_horizontal, b_horizontal, c_horizontal, s_x, s_y, s_z)
 
-    println("angle_from_vertical ", rad2deg(angle_from_vertical))
-    println("angle_from_horizontal ", rad2deg(angle_from_horizontal))
+    #println("angle_from_vertical ", rad2deg(angle_from_vertical))
+    #println("angle_from_horizontal ", rad2deg(angle_from_horizontal))
 
     #sin won't differentiate between angles above and below 90 degrees. So 60 degrees and 120 will look the same, but should be okay since can
     #only be between +90 and -90 since on right side of the camera.

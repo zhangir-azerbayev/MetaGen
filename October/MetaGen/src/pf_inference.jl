@@ -1,17 +1,25 @@
-
 #array for each frame and array for each receptive field and array for those detections
 function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, num_receptive_fields::Int64)
     init_obs = Gen.choicemap()
 
+    #params set to default
+    params = Video_Params()
+
+    #for degugging purposes, condition on V
+    for j = 1:length(params.possible_objects)
+		#set lambda when target absent
+		#v[j,1] = @trace(Gen.beta(alpha, beta), (:fa, j)) #leads to fa rate of around 0.1
+		init_obs[:v_matrix => (:lambda_fa, j)] = 0.002 #these are lambdas per receptive field
+		#set miss rate when target present
+		init_obs[:v_matrix => (:miss_rate, j)] = 0.25
+	end
+
+
+
     #no video, no frames
     state = Gen.initialize_particle_filter(metacog, (0, 0), init_obs, num_particles)
 
-    #num_videos, num_frames = size(objects_observed)
-    num_videos = 1 #10
-    num_frames = 75
-
-    #params set to default
-    params = Video_Params()
+    num_videos, num_frames = size(objects_observed)
 
     for v=1:num_videos
 
@@ -60,7 +68,16 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
         for i = 1:num_particles
             state.traces[i] = perturb_scene(state.traces[i], v, perturb_params, line_segments)
             println("done perturbing i ", i)
+            println("trace ", state.traces[i][:videos => v => :init_scene])
+            println("log score of this trace ", get_score(state.traces[i]))
+            visualize_trace(state.traces, i, camera_trajectories, v, 1, params)
         end
+
+        min_particle_weight = minimum(map(i -> get_score(state.traces[i]), collect(1:num_particles)))
+        println("min log score ", min_particle_weight)
+
+        max_particle_weight = maximum(map(i -> get_score(state.traces[i]), collect(1:num_particles)))
+        println("max log score ", max_particle_weight)
 
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after rejuvination ", ess)
@@ -72,22 +89,33 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 end
 
 @gen function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments::Array{Line_Segment})
-    for iter=1:100 #try 100 MH moves
+    acceptance_counter = 0
+
+    for iter=1:500 #try 100 MH moves
         println("iter ", iter)
+        println("trace ", trace[:videos => v => :init_scene])
 
         trace, accepted = add_remove_kernel(trace, v, line_segments, perturb_params)
         println("accepted? ", accepted)
         println("trace ", trace[:videos => v => :init_scene])
 
-        trace, accepted = change_location_kernel(trace, v, 10.0, perturb_params)
-        println("accepted? ", accepted)
-        println("trace ", trace[:videos => v => :init_scene])
+        acceptance_counter += accepted
 
-        trace, accepted = change_category_kernel(trace, v, perturb_params)
-        println("accepted? ", accepted)
-        println("trace ", trace[:videos => v => :init_scene])
+        #only try changing location or category if there's at least one object in the scene
+        if length(trace[:videos => v => :init_scene]) > 0
+            trace, accepted = change_location_kernel(trace, v, 10.0, perturb_params)
+            println("accepted? ", accepted)
+            println("trace ", trace[:videos => v => :init_scene])
+            acceptance_counter += accepted
 
+            trace, accepted = change_category_kernel(trace, v, perturb_params)
+            println("accepted? ", accepted)
+            println("trace ", trace[:videos => v => :init_scene])
+            acceptance_counter += accepted
+        end
     end
+    #println("acceptance_counter $(acceptance_counter/1500)")
+
     return trace
 end
 
@@ -101,7 +129,7 @@ function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}
         end
     end
     total_objects = convert(Int64, sum(track_categories))
-    track_categories = track_categories.+0.01
+    track_categories = track_categories.+1
     return (Perturb_Params(probs_possible_objects = track_categories./sum(track_categories)), total_objects)
 end
 

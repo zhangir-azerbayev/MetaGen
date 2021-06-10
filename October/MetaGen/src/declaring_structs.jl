@@ -5,11 +5,11 @@ Base.@kwdef struct Coordinate
 end
 
 Base.@kwdef struct Video_Params
-    lambda_objects::Float64 = 10.0
+    lambda_objects::Float64 = 3.0
     possible_objects::Vector{Int64} = collect(1:91)
     probs_possible_objects = collect(ones(91)./91)
     v::Matrix{Float64} = zeros(91, 2)
-    x_min::Float64 = -10
+    x_min::Float64 = -16
     y_min::Float64 = -10
     z_min::Float64 = -10
     x_max::Float64 = 10

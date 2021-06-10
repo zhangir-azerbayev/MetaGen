@@ -9,24 +9,50 @@ function get_line_segment(camera_params::Camera_Params, params::Video_Params, de
     x = x - params.image_dim_x/2
     y = y - params.image_dim_y/2
 
-    x = x / (params.image_dim_x / 2)
-    y = y / (-params.image_dim_y / 2)
+    angle_from_vertical = x / (params.image_dim_x/2) * deg2rad(params.horizontal_FoV/2)
+    angle_from_horizontal = -1 * y / (params.image_dim_y/2) * deg2rad(params.vertical_FoV/2)
 
-    angle_from_vertical = asin(x * sin(deg2rad(params.horizontal_FoV)))
-    angle_from_horizontal = asin(y * sin(deg2rad(params.vertical_FoV))) #in radians
+    #println("angle_from_vertical ", rad2deg(angle_from_vertical))
+    #println("angle_from_horizontal ", rad2deg(angle_from_horizontal))
+
+    #something wrong
 
     (a_vertical, b_vertical, c_vertical) = get_vertical_plane(camera_params)
+    # println((a_vertical, b_vertical, c_vertical))
     (a_horizontal, b_horizontal, c_horizontal) = get_horizontal_plane(camera_params, a_vertical, b_vertical, c_vertical)
+    # println((a_horizontal, b_horizontal, c_horizontal))
+    # normal_to_image = (camera_params.camera_focus.x - camera_params.camera_location.x,
+    # camera_params.camera_focus.y - camera_params.camera_location.y,
+    # camera_params.camera_focus.z - camera_params.camera_location.z)
+    # #get one more point on the ray. don't care which point, but could be on same plane as camera's focus
+    # l = get_distance(camera_params.camera_location, camera_params.camera_focus)
+    # println("l ", l)
+    # w = 2*l*tan(deg2rad(params.horizontal_FoV/2)) #total image width in meters (non-pixel space)
+    # #x = angle_from_vertical / (deg2rad(params.horizontal_FoV/2)) * w / 2
+    # x = x * (w / 2) / (params.image_dim_x/2)
+    # h = 2*l*tan(deg2rad(params.vertical_FoV/2)) #total image heigth in meters (non-pixel space)
+    # #y = angle_from_horizontal / (deg2rad(params.vertical_FoV/2)) * h / 2
+    # y = -1 * y * (h / 2) / (params.image_dim_y/2)
 
-    #get one more point on the ray. don't care which point, but could be on same plane as camera's focus
     l = get_distance(camera_params.camera_location, camera_params.camera_focus)
     x = l*tan(angle_from_vertical)
     y = l*tan(angle_from_horizontal)
+
+    #println("x ", x)
+    #println("y ", y)
+
+
     normalized_v = [a_vertical, b_vertical, c_vertical]./norm([a_vertical, b_vertical, c_vertical])
     normalized_h = [a_horizontal, b_horizontal, c_horizontal]./norm([a_horizontal, b_horizontal, c_horizontal])
+    #println("normalized_v ", normalized_v)
+    #println("normalized_h ", normalized_h)
     focus = [camera_params.camera_focus.x, camera_params.camera_focus.y, camera_params.camera_focus.z]
+    #println("focus ", focus)
+    #println("dot that should be 0 ", dot(x .* normalized_v + y .* normalized_h, normal_to_image))
     point = focus + x .* normalized_v + y .* normalized_h
     point = Coordinate(point[1], point[2], point[3])
+
+    #println("point ", point)
 
     #check each wall for an intersection within limits
     (endpoint_x, endpoint_y, endpoint_z, a, b, c) = check_walls(point, camera_params.camera_location, params)

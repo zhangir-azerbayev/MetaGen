@@ -29,6 +29,7 @@ function print_Vs_and_Rs_to_file(file, tr, num_samples::Int64, params, r::Int64,
             avg_v[j,2] = avg_v[j,2] + choices[:v_matrix => (:miss_rate, j)]/num_samples
         end
         #extract r
+        #println("r ", r)
         realities[i] = choices[:videos => r => :init_scene]
     end
     # println("avg_V is ", avg_V)
@@ -64,3 +65,4 @@ function print_Vs_and_Rs_to_file(file, tr, num_samples::Int64, params, r::Int64,
 end
 
 export print_Vs_and_Rs_to_file
+export countmemb

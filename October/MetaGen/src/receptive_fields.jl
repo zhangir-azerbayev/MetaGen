@@ -33,8 +33,8 @@ end
 #objects is a list of Detection2Ds. ps is a vector of probabilities indexed by object category
 function to_elements_real(objects::Vector{Detection2D}, misses::Vector{Float64})
     #will probably need to redo this stuff
-    sd_x = 10. #might work????
-    sd_y = 10.
+    sd_x = 20. #might work????
+    sd_y = 20.
     cov = [sd_x 0.; 0. sd_y;]
 
     n = length(objects)
@@ -53,7 +53,7 @@ end
 function within(point::Detection2D, rf::Receptive_Field)
     x = point[1]
     y = point[2]
-    x > rf.p1[1] && x < rf.p2[1] && y > rf.p1[2] && y < rf.p2[2]
+    x >= rf.p1[1] && x < rf.p2[1] && y >= rf.p1[2] && y < rf.p2[2] #top and right size will not be represented in rfs
 end
 
 export within

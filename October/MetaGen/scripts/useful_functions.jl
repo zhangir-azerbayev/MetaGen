@@ -1,8 +1,8 @@
 
 function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field})
 
-    num_videos = 10
-    num_frames = 6
+    num_videos = 100
+    num_frames = 75
 
     objects_observed = Matrix{Array{Array{Detection2D}}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
@@ -87,3 +87,23 @@ function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptiv
 
     return objects_observed, camera_trajectories
 end
+
+# function count_observations(objects_observed::Matrix{Array{Array{Detection2D}}})
+#     num_videos = 100
+#     num_frames = 75
+#
+#     zeros(91)
+#
+#     arr = []
+#
+#     for v=1:num_videos
+#         arr_per_vid = []
+#         for f=1:num_frames
+#             n_obj = length(objects_observed[v, f])
+#             for i = 1:n
+#                 push!(arr_per_vid, objects_observed[v, f][])
+#             end
+#         end
+#     end
+#
+# end

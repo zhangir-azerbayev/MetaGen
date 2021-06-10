@@ -14,11 +14,8 @@ dict = @pipe "../Data/data_first_10_detections.json" |> open |> read |> String |
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
 
 ################################################################################
-permanent_camera_params = Permanent_Camera_Params()
-
-receptive_fields = make_receptive_fields(permanent_camera_params)
+receptive_fields = make_receptive_fields()
 objects_observed, camera_trajectories = make_observations(dict, receptive_fields)
-
 
 #constrain
 obs = Gen.choicemap()
