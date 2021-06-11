@@ -17,8 +17,12 @@ function visualize_observations(objects_observed::Matrix{Array{Array{Detection2D
         end
     end
 
+    println("xs", xs)
+    println("ys", ys)
+    pyplot()
     p = scatter(xs, ys, color = cs, series_annotations = text.(cs, :bottom), title = "Observations/Detections", xlims = (0, 360), ylims = (0, 240))
     display(p)
+    savefig(p, "observations.pdf")
 end
 
 #j is which trace
@@ -38,11 +42,16 @@ function visualize_trace(traces, j::Int64, camera_trajectories::Matrix{Camera_Pa
             push!(ys, y)
             push!(cs, obj[4])
         end
+    else
+        push!(xs, Inf)
+        push!(ys, Inf)
+        push!(cs, Inf)
     end
 
+    pyplot()
     p = scatter(xs, ys, color = cs, series_annotations = text.(cs, :bottom), title = "particle $(j)'s inferences. weight: $(get_score(traces[j]))", xlims = (0, 360), ylims = (0, 240))
     display(p)
-    #savefig(p, "v $(v) particle $(j) .pdf")
+    savefig(p, "v $(v) particle $(j) .pdf")
 end
 
 
