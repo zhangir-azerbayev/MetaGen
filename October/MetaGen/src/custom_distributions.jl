@@ -159,74 +159,65 @@ function construct_3D(cat::Int64, params::Video_Params)
 end
 
 ##############################################################################################
-#For a new 3-D object placed along certain line segments
-struct New_Object_Distribution <: Gen.Distribution{Object3D} end
+#For a new 3-D object placed anywhere. category already determined
+struct Location_Distribution_Uniform <: Gen.Distribution{Object3D} end
 
-const new_object_distribution = New_Object_Distribution()
+const location_distribution_uniform = Location_Distribution_Uniform()
 
-function Gen.random(::New_Object_Distribution, params::Video_Params, line_segments::Array{Line_Segment})
-
-    cat = categorical(params.probs_possible_objects)
-
-    n = size(line_segments)[1]
-    i = categorical(fill(1/n, n)) #which line segment
-    line_segment = line_segments[i]
-    #length of the line segment
-    length = sqrt((line_segment.start.x-line_segment.endpoint.x)^2 + (line_segment.start.y-line_segment.endpoint.y)^2 + (line_segment.start.z-line_segment.endpoint.z)^2)
-    d = uniform(0, length) #sample a distance
-    #plug in d/length as t
-    x = line_segment.start.x + line_segment.a*(d/length)
-    y = line_segment.start.y + line_segment.b*(d/length)
-    z = line_segment.start.z + line_segment.c*(d/length)
-
-    return (x, y, z, cat)
+function Gen.random(::Location_Distribution_Uniform, cat::Int64, params::Video_Params)
+    objects_3D = construct_3D(cat, params)
 end
 
-function Gen.logpdf(::New_Object_Distribution, object_3D::Object3D, params::Video_Params, line_segments::Array{Line_Segment})
-    #categorical
-    cat = object_3D[4] #grabbing the category type
-    p_categorical = Gen.logpdf(categorical, cat, params.probs_possible_objects)
+function Gen.logpdf(::Location_Distribution_Uniform, object_3D::Object3D, cat::Int64, params::Video_Params)
+    #could add something making sure category is right.
 
-    #check how many line segments have this point on it
-    n = length(line_segments)
-    point = Coordinate(object_3D[1], object_3D[2], object_3D[3])
-    contained = map(line_segment_contains_point, fill(point, n), line_segments)
-    p_point = log(sum(contained)/n) #could do something with categorical distibution, but don't know how
+    #x-coordinate
+    #all the x_coordinates
+    x = object_3D[1]
+    p_x = Gen.logpdf(uniform, x, params.x_min, params.x_max)
 
-    p_categorical + p_point
+    #y-coordinate
+    y = object_3D[2]
+    p_y = Gen.logpdf(uniform, y, params.y_min, params.y_max)
+
+    #y-coordinate
+    z = object_3D[3]
+    p_z = Gen.logpdf(uniform, z, params.z_min, params.z_max)
+
+    p_x + p_y + p_z
 end
 
-function Gen.logpdf_grad(::New_Object_Distribution, objects_3D::Object3D, params::Video_Params)
+function Gen.logpdf_grad(::Location_Distribution_Uniform, objects_3D::Object3D, cat::Int64, params::Video_Params)
     gerror("Not implemented")
     (nothing, nothing)
 end
 
-(::New_Object_Distribution)(params) = Gen.random(New_Object_Distribution(), params)
+(::Location_Distribution_Uniform)(cat, params) = Gen.random(Location_Distribution_Uniform(), cat, params)
 
-has_output_grad(::New_Object_Distribution) = false
-has_argument_grads(::New_Object_Distribution) = (false,)
+has_output_grad(::Location_Distribution_Uniform) = false
+has_argument_grads(::Location_Distribution_Uniform) = (false,)
 
-function line_segment_contains_point(point::Coordinate, line_segment::Line_Segment)
-    x = point.x
-    t = (x - line_segment.start.x)/line_segment.a
-    y = line_segment.start.y + line_segment.b*t
-    z = line_segment.start.z + line_segment.c*t
-    return (y == point.y && z == point.z && t > 0)
+export location_distribution_uniform
+
+#little helper function for constructing 3D objects
+function construct_3D(cat::Int64, params::Video_Params)
+    x = uniform(params.x_min, params.x_max)
+    y = uniform(params.y_min, params.y_max)
+    z = uniform(params.z_min, params.z_max)
+    return (x, y, z, cat)
 end
 
-export new_object_distribution
-
 ##############################################################################################
-#For a new 3-D object placed along certain line segments with Gaussian noise
-struct New_Object_Distribution_Noisy <: Gen.Distribution{Object3D} end
+#For a new 3-D object placed along certain line segments with Gaussian noise, category has already been chosen
+struct New_Location_Distribution_Noisy <: Gen.Distribution{Object3D} end
 
-const new_object_distribution_noisy = New_Object_Distribution_Noisy()
+const new_location_distribution_noisy = New_Location_Distribution_Noisy()
 
-function Gen.random(::New_Object_Distribution_Noisy, params::Video_Params, line_segments::Array{Line_Segment})
-
-    cat = categorical(params.probs_possible_objects)
-
+function Gen.random(::New_Location_Distribution_Noisy, cat::Int64, params::Video_Params, line_segments::Array{Line_Segment})
     n = size(line_segments)[1]
+    if n < 0
+        println("problem. sampling location from new_location_distribution_noisy when we shouldn't be")
+    end
     i = categorical(fill(1/n, n)) #which line segment
     line_segment = line_segments[i]
     #length of the line segment
@@ -238,7 +229,8 @@ function Gen.random(::New_Object_Distribution_Noisy, params::Video_Params, line_
     z = line_segment.start.z + line_segment.c*(d/length)
 
     #add noise
-    dist = trunc_normal(0., 3., 0., 10.) #mean noise is 0, minimum is 0, high is 10???
+    dist = trunc_normal(0., 0.1, 0., 10.) #mean noise is 0, sd is 0.1?
+    println("dist ", dist)
     angle = uniform(0, 2*pi)
 
     (x_noisy, y_noisy, z_noisy) = sample_point(line_segment, Coordinate(x,y,z), dist, angle)
@@ -246,29 +238,24 @@ function Gen.random(::New_Object_Distribution_Noisy, params::Video_Params, line_
     return (x_noisy, y_noisy, z_noisy, cat)
 end
 
-function Gen.logpdf(::New_Object_Distribution_Noisy, object_3D::Object3D, params::Video_Params, line_segments::Array{Line_Segment})
-    #categorical
-    cat = object_3D[4] #grabbing the category type
-    p_categorical = Gen.logpdf(categorical, cat, params.probs_possible_objects)
-
+function Gen.logpdf(::New_Location_Distribution_Noisy, object_3D::Object3D, cat::Int64, params::Video_Params, line_segments::Array{Line_Segment})
     #check how many line segments have this point on it
     n = length(line_segments)
     point = Coordinate(object_3D[1], object_3D[2], object_3D[3])
     ps = map(prob_given_line_segment, fill(point, n), line_segments)
     p_point = log(1/n) + log(sum(ps)) #could do something with categorical distibution, but don't know how
-
-    p_categorical + p_point
+    return p_point
 end
 
-function Gen.logpdf_grad(::New_Object_Distribution_Noisy, objects_3D::Object3D, params::Video_Params)
+function Gen.logpdf_grad(::New_Location_Distribution_Noisy, objects_3D::Object3D, cat::Int64, params::Video_Params, line_segments::Array{Line_Segment})
     gerror("Not implemented")
     (nothing, nothing)
 end
 
-(::New_Object_Distribution_Noisy)(params) = Gen.random(New_Object_Distribution_Noisy(), params)
+(::New_Location_Distribution_Noisy)(cat, params, line_segments) = Gen.random(New_Location_Distribution_Noisy(), cat, params, line_segments)
 
-has_output_grad(::New_Object_Distribution_Noisy) = false
-has_argument_grads(::New_Object_Distribution_Noisy) = (false,)
+has_output_grad(::New_Location_Distribution_Noisy) = false
+has_argument_grads(::New_Location_Distribution_Noisy) = (false,)
 
 function sample_point(line_segment::Line_Segment, point_on_line::Coordinate, dist::Float64, angle::Float64)
 
@@ -318,7 +305,61 @@ function prob_given_line_segment(point::Coordinate, line_segment::Line_Segment)
     return MathConstants.e^(p1 + p2 + p3) #transform it back to probability space
 end
 
-export new_object_distribution_noisy
+export new_location_distribution_noisy
+
+##############################################################################################
+#Sample the category. If the object category has never been observed, sample location from a uniform distribution
+#If it has been observed, sample location with 50% chance from a uniform or from new_object_distribution_noisy
+struct New_Object_Distribution_Noisy_Or_Uniform <: Gen.Distribution{Object3D} end
+
+const new_object_distribution_noisy_or_uniform = New_Object_Distribution_Noisy_Or_Uniform()
+
+function Gen.random(::New_Object_Distribution_Noisy_Or_Uniform, params::Video_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
+    cat = categorical(params.probs_possible_objects)
+    line_segments = line_segments_per_category[cat]
+
+    if length(line_segments) > 0
+        coin_flip = bernoulli(0.5)
+        if coin_flip
+            println("from data-driven distribution")
+            to_return = new_location_distribution_noisy(cat, params, line_segments)
+        else
+            println("from uniform distribution")
+            to_return = location_distribution_uniform(cat, params)
+        end
+    else
+        println("from uniform distribution")
+        to_return = location_distribution_uniform(cat, params)
+    end
+    return to_return
+end
+
+function Gen.logpdf(::New_Object_Distribution_Noisy_Or_Uniform, object_3D::Object3D, params::Video_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
+    cat = object_3D[4]
+    line_segments = line_segments_per_category[cat]
+    p_cat = Gen.logpdf(categorical, cat, params.probs_possible_objects)
+
+    if length(line_segments) > 0
+        p_from_noisy = Gen.logpdf(new_location_distribution_noisy, object_3D, cat, params, line_segments)
+        p_from_uniform = Gen.logpdf(location_distribution_uniform, object_3D, cat, params)
+        return p_cat + log(0.5*(MathConstants.e^p_from_noisy + MathConstants.e^p_from_uniform)) #0.5 based on p in coin_flip bernoulli
+    else #no chance from new_location_distribution_noisy
+        p_from_uniform = Gen.logpdf(location_distribution_uniform, object_3D, cat, params)
+        return p_cat + p_from_uniform
+    end
+end
+
+function Gen.logpdf_grad(::New_Object_Distribution_Noisy_Or_Uniform, objects_3D::Object3D, params::Video_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
+    gerror("Not implemented")
+    (nothing, nothing)
+end
+
+(::New_Object_Distribution_Noisy_Or_Uniform)(params, line_segments_per_category) = Gen.random(New_Object_Distribution_Noisy_Or_Uniform(), params, line_segments_per_category)
+
+has_output_grad(::New_Object_Distribution_Noisy_Or_Uniform) = false
+has_argument_grads(::New_Object_Distribution_Noisy_Or_Uniform) = (false,)
+
+export new_object_distribution_noisy_or_uniform
 
 ##############################################################################################
 #For a new 3-D object with the same location but new category

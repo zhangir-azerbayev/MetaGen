@@ -45,7 +45,7 @@ function visualize_trace(traces, j::Int64, camera_trajectories::Matrix{Camera_Pa
     else
         push!(xs, Inf)
         push!(ys, Inf)
-        push!(cs, Inf)
+        push!(cs, 1000000)
     end
 
     pyplot()

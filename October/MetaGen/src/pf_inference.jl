@@ -14,8 +14,6 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 		init_obs[:v_matrix => (:miss_rate, j)] = 0.25
 	end
 
-
-
     #no video, no frames
     state = Gen.initialize_particle_filter(metacog, (0, 0), init_obs, num_particles)
 
@@ -63,10 +61,12 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
         # end
 
         #optional rejuvination
-        (perturb_params, total_n_objects) = get_probs_categories(objects_observed, params, v, num_frames, num_receptive_fields)
-        line_segments = get_line_segments(objects_observed, camera_trajectories, params, v, num_frames, num_receptive_fields, total_n_objects)
+        (perturb_params, n_objects_per_category) = get_probs_categories(objects_observed, params, v, num_frames, num_receptive_fields)
+        line_segments_per_category = get_line_segments_per_category(params, objects_observed, camera_trajectories, v, num_frames, num_receptive_fields)
+        #line_segments = get_line_segments(objects_observed, camera_trajectories, params, v, num_frames, num_receptive_fields, total_n_objects)
+        println(line_segments_per_category)
         for i = 1:num_particles
-            state.traces[i] = perturb_scene(state.traces[i], v, perturb_params, line_segments)
+            state.traces[i] = perturb_scene(state.traces[i], v, perturb_params, line_segments_per_category)
             println("done perturbing i ", i)
             println("trace ", state.traces[i][:videos => v => :init_scene])
             println("log score of this trace ", get_score(state.traces[i]))
@@ -88,14 +88,14 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 
 end
 
-@gen function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments::Array{Line_Segment})
+@gen function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
     acceptance_counter = 0
 
     for iter=1:500 #try 100 MH moves
         println("iter ", iter)
         println("trace ", trace[:videos => v => :init_scene])
 
-        trace, accepted = add_remove_kernel(trace, v, line_segments, perturb_params)
+        trace, accepted = add_remove_kernel(trace, v, line_segments_per_category, perturb_params)
         println("accepted? ", accepted)
         println("trace ", trace[:videos => v => :init_scene])
 
@@ -128,21 +128,20 @@ function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}
             end
         end
     end
-    total_objects = convert(Int64, sum(track_categories))
-    track_categories = track_categories.+1
-    return (Perturb_Params(probs_possible_objects = track_categories./sum(track_categories)), total_objects)
+    return (Perturb_Params(probs_possible_objects = (track_categories.+1)./sum(track_categories.+1)), track_categories)
 end
 
-function get_line_segments(objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64, total_n_objects::Int64)
-    line_segments = Array{Line_Segment, 1}(undef, total_n_objects) #each element will be the number of times that category was detected. adding 1
-    i = 1
+function get_line_segments_per_category(params::Video_Params, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+    line_segments = Array{Array{Line_Segment, 1}}(undef, length(params.possible_objects))
+    for j = 1:length(params.possible_objects)
+        line_segments[j] = []
+    end
     for f = 1:num_frames
         camera_params = camera_trajectories[v, f]
         for rf = 1:num_receptive_fields
             for (index, value) in enumerate(objects_observed[v, f][rf])
                 line_segment = get_line_segment(camera_params, params, value)
-                line_segments[i] = line_segment
-                i = i+1
+                push!(line_segments[value[3]], line_segment)
             end
         end
     end
