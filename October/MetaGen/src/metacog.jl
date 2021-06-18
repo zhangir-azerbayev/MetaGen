@@ -54,20 +54,55 @@ export metacog
 #set up receptive_field. make sure this matches the one in MetaGen metacog
 function make_receptive_fields()
 
-    params = Video_Params()
-
-    #square receptive fields
+    #square receptive fields. hardcoded for the 240 x 320 image
     pixels = 80
-    n_horizontal = convert(Int64, params.image_dim_x / pixels)
-    n_vertical = convert(Int64, params.image_dim_y / pixels)
-    n = n_horizontal*n_vertical
 
-    receptive_fields = Vector{Receptive_Field}(undef, n) #of length n
+	#layer 1 of receptive fields. 3x4, inside the image
+    n_horizontal = 4
+    n_vertical = 3
+    n = n_horizontal*n_vertical
+    receptive_fields_layer_1 = Vector{Receptive_Field}(undef, n) #of length n
     for h = 1:n_horizontal
         for v = 1:n_vertical
-            receptive_fields[n_vertical*(h-1)+v] = Receptive_Field(p1 = ((h-1)*pixels, (v-1)*pixels), p2 = (h*pixels, v*pixels))
+            receptive_fields_layer_1[n_vertical*(h-1)+v] = Receptive_Field(p1 = ((h-1)*pixels, (v-1)*pixels), p2 = (h*pixels, v*pixels))
         end
     end
+
+	#layer 2 of receptive fields. 4x5 overlay
+	n_horizontal = 5
+    n_vertical = 4
+    n = n_horizontal*n_vertical
+    receptive_fields_layer_2 = Vector{Receptive_Field}(undef, n) #of length n
+    for h = 1:n_horizontal
+        for v = 1:n_vertical
+            receptive_fields_layer_2[n_vertical*(h-1)+v] = Receptive_Field(p1 = ((h-1.5)*pixels, (v-1.5)*pixels), p2 = ((h-0.5)*pixels, (v-0.5)*pixels))
+        end
+    end
+
+	#layer 3 of receptive fields. 3x5 overlay, tiled horizontally
+	n_horizontal = 5
+    n_vertical = 3
+    n = n_horizontal*n_vertical
+    receptive_fields_layer_3 = Vector{Receptive_Field}(undef, n) #of length n
+    for h = 1:n_horizontal
+        for v = 1:n_vertical
+            receptive_fields_layer_3[n_vertical*(h-1)+v] = Receptive_Field(p1 = ((h-1.5)*pixels, (v-1)*pixels), p2 = ((h-0.5)*pixels, v*pixels))
+        end
+    end
+
+	#layer 4 of receptive fields. 4x4 overlay, tiled vertically
+	n_horizontal = 4
+    n_vertical = 4
+    n = n_horizontal*n_vertical
+    receptive_fields_layer_4 = Vector{Receptive_Field}(undef, n) #of length n
+    for h = 1:n_horizontal
+        for v = 1:n_vertical
+            receptive_fields_layer_4[n_vertical*(h-1)+v] = Receptive_Field(p1 = ((h-1)*pixels, (v-1.5)*pixels), p2 = (h*pixels, (v-0.5)*pixels))
+        end
+    end
+	
+	receptive_fields = vcat(receptive_fields_layer_1, receptive_fields_layer_2, receptive_fields_layer_3, receptive_fields_layer_4)
+
     return receptive_fields
 end
 

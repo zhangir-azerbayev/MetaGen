@@ -85,11 +85,10 @@ end
 
 function Gen.logpdf(::Object_Distribution_Image, x::Detection2D, mu::AbstractVector{V},
                 cov::AbstractMatrix{V}, cat::Int64) where {V <: Float64}
-    n = length(x)
     #if category mismatch
-    cat!=x[n] && return -Inf
+    cat!=x[3] && return -Inf
     dist = Distributions.MvNormal(mu, cov)
-    Distributions.logpdf(dist, collect(x[1:n-1]))
+    Distributions.logpdf(dist, collect(x[1:2]))
 end
 
 function Gen.logpdf_grad(::Object_Distribution_Image, x::AbstractVector{V}, mu::AbstractVector{V},
