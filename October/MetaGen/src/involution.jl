@@ -1,5 +1,5 @@
 
-#proposal. like split_merge_proposal.
+"""proposal. like split_merge_proposal."""
 @gen function add_remove_proposal(trace, v::Int64, line_segments_per_category::Array{Array{Line_Segment,1},1}, perturb_params::Perturb_Params)
     scene = trace[:videos => v => :init_scene]
     n = length(scene)

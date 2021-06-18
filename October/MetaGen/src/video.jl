@@ -1,7 +1,6 @@
-
 """
-    This function takes a category and params and it returns the possible
-    objects (as Detections) of that category that could be detected
+This function takes a category and params and it returns the possible
+objects (as Detections) of that category that could be detected
 """
 #hallucinate objects in 2D image
 @gen function gen_possible_hallucination(params::Video_Params, cat::Int64)
@@ -12,7 +11,7 @@
 end
 possible_hallucination_map = Gen.Map(gen_possible_hallucination)
 
-#given a 3D detection, return BernoulliElement over a 2D detection
+"""given a 3D detection, return BernoulliElement over a 2D detection"""
 function render(params::Video_Params, camera_params::Camera_Params, object_3D::Object3D)
     cat = object_3D[4]
     object = Coordinate(object_3D[1], object_3D[2], object_3D[3])
@@ -21,7 +20,10 @@ function render(params::Video_Params, camera_params::Camera_Params, object_3D::O
     return (x, y, cat)
 end
 
-
+"""
+Independently samples a camera location and camera focus from a
+uniform distribution
+"""
 @gen function gen_camera(params::Video_Params)
     #camera location
     camera_location_x = @trace(uniform(params.x_min,params.x_max), :camera_location_x)
@@ -36,7 +38,11 @@ end
     camera_params = Camera_Params(Coordinate(camera_location_x,camera_location_y,camera_location_z), Coordinate(camera_focus_x,camera_focus_y,camera_focus_z))
 end
 
-#state is Array{Any,1}
+"""
+Generates the next frame given the current frame.
+
+state is Array{Any,1}
+"""
 @gen function frame_kernel(current_frame::Int64, state, params::Video_Params, receptive_fields::Vector{Receptive_Field})
 
     ####Update 2D real objects
@@ -69,6 +75,9 @@ end
 
 frame_chain = Gen.Unfold(frame_kernel)
 
+"""
+Samples a new scene.
+"""
 @gen function video_kernel(num_frames::Int64, params::Video_Params, receptive_fields::Array{Receptive_Field, 1})
     rfs_element = PoissonElement{Object3D}(params.lambda_objects, object_distribution, (params,))
     rfs_element = RFSElements{Object3D}([rfs_element]) #need brackets because rfs has to take an array
@@ -78,8 +87,10 @@ frame_chain = Gen.Unfold(frame_kernel)
 end
 
 #video_chain = Gen.Unfold(video_kernel)
+"""Creates scene chain"""
 video_map = Gen.Map(video_kernel)
 
+"""Creates frame chain"""
 frame_chain = Gen.Unfold(frame_kernel)
 
 export video_map

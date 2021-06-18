@@ -1,4 +1,4 @@
-#array for each frame and array for each receptive field and array for those detections
+"""array for each frame and array for each receptive field and array for those detections"""
 function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, num_receptive_fields::Int64)
     init_obs = Gen.choicemap()
 

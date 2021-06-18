@@ -1,4 +1,6 @@
-#make the matrix v
+"""
+make the matrix v
+"""
 @gen function make_visual_system(params::Video_Params)
 	v = Matrix{Float64}(undef, length(params.possible_objects), 2)
 	#alpha = 2
@@ -51,7 +53,7 @@ end
 export metacog
 
 ################################################################################
-#set up receptive_field. make sure this matches the one in MetaGen metacog
+"""set up receptive_field. make sure this matches the one in MetaGen metacog"""
 function make_receptive_fields()
 
     #square receptive fields. hardcoded for the 240 x 320 image
@@ -100,7 +102,7 @@ function make_receptive_fields()
             receptive_fields_layer_4[n_vertical*(h-1)+v] = Receptive_Field(p1 = ((h-1)*pixels, (v-1.5)*pixels), p2 = (h*pixels, (v-0.5)*pixels))
         end
     end
-	
+
 	receptive_fields = vcat(receptive_fields_layer_1, receptive_fields_layer_2, receptive_fields_layer_3, receptive_fields_layer_4)
 
     return receptive_fields
