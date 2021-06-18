@@ -198,14 +198,6 @@ has_argument_grads(::Location_Distribution_Uniform) = (false,)
 
 export location_distribution_uniform
 
-#little helper function for constructing 3D objects
-function construct_3D(cat::Int64, params::Video_Params)
-    x = uniform(params.x_min, params.x_max)
-    y = uniform(params.y_min, params.y_max)
-    z = uniform(params.z_min, params.z_max)
-    return (x, y, z, cat)
-end
-
 ##############################################################################################
 #For a new 3-D object placed along certain line segments with Gaussian noise, category has already been chosen
 struct New_Location_Distribution_Noisy <: Gen.Distribution{Object3D} end
@@ -504,5 +496,5 @@ end
 
 (::TruncatedNormal)(mu, std, low, high) = random(TruncatedNormal(), mu, std, low, high)
 is_discrete(::TruncatedNormal) = false
-has_output_grad(::TruncatedPoisson) = false
-has_argument_grads(::TruncatedPoisson) = (false,)
+has_output_grad(::TruncatedNormal) = false
+has_argument_grads(::TruncatedNormal) = (false,)
