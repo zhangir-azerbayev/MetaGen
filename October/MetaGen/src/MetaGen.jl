@@ -4,6 +4,7 @@ using Gen
 using GenRFS
 using Distributions
 using Plots
+#import PyPlot; const plt = PyPlot
 
 function __init__()
     @load_generated_functions

@@ -48,12 +48,29 @@ function visualize_trace(traces, j::Int64, camera_trajectories::Matrix{Camera_Pa
         push!(cs, 1000000)
     end
 
+    #how many objects are out-of-view? total - number objects in-view
+    in_x = (xs .<= 360) .& (xs .>= 0)
+    in_y = (ys .<= 240) .& (ys .>= 0)
+    num_obj_out_of_view = length(inferred_scene) - sum(in_x .& in_y)
+
+
+
     pyplot()
-    p = scatter(xs, ys, color = cs, series_annotations = text.(cs, :bottom), title = "particle $(j)'s inferences. weight: $(get_score(traces[j]))", xlims = (0, 360), ylims = (0, 240))
+    p = scatter(xs, ys, color = cs, series_annotations = text.(cs, :bottom), title = "particle $(j)'s inferences. weight: $(get_score(traces[j])). num obj out of view: $num_obj_out_of_view", xlims = (0, 360), ylims = (0, 240))
+
+    #add observations. hard-coded.
+    # circle1 = plt.Circle((160, 120), 30, color='r')
+    # circle2 = plt.Circle((165, 125), 30, color='b')
+    # fig = plt.gcf()
+    # ax = fig.gca()
+    # ax.add_patch(circle1)
+    # ax.add_patch(circle2)
+    # println("here")
+
+
     display(p)
     savefig(p, "v $(v) particle $(j) .pdf")
 end
-
 
 export visualize_observations
 export visualize_trace

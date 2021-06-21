@@ -89,7 +89,8 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 end
 
 @gen function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
-    acceptance_counter = 0
+    #acceptance_counter = 0
+    #proposal_counter = 0
 
     for iter=1:500 #try 100 MH moves
         println("iter ", iter)
@@ -99,28 +100,28 @@ end
         println("accepted? ", accepted)
         println("trace ", trace[:videos => v => :init_scene])
 
-        acceptance_counter += accepted
+
 
         #only try changing location or category if there's at least one object in the scene
         if length(trace[:videos => v => :init_scene]) > 0
-            trace, accepted = change_location_kernel(trace, v, 10.0, perturb_params)
+            trace, accepted = change_location_kernel(trace, v, 0.1, perturb_params)
             println("accepted? ", accepted)
             println("trace ", trace[:videos => v => :init_scene])
-            acceptance_counter += accepted
 
             trace, accepted = change_category_kernel(trace, v, perturb_params)
             println("accepted? ", accepted)
             println("trace ", trace[:videos => v => :init_scene])
-            acceptance_counter += accepted
+
         end
     end
-    #println("acceptance_counter $(acceptance_counter/1500)")
+    #println("acceptance_counter $(acceptance_counter/proposal_counter)")
 
     return trace
 end
 
 function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
     track_categories = zeros(length(params.possible_objects)) #each element will be the number of times that category was detected. adding 1
+    probabilities = zeros(length(params.possible_objects))
     for f = 1:num_frames
         for rf = 1:num_receptive_fields
             for (index, value) in enumerate(objects_observed[v, f][rf])
@@ -128,7 +129,12 @@ function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}
             end
         end
     end
-    return (Perturb_Params(probs_possible_objects = (track_categories.+1)./sum(track_categories.+1)), track_categories)
+    #make it so that categories that were never observed collectively have 10% of the weight
+    other_ten_percent = sum(track_categories)/9
+    each = other_ten_percent/sum(track_categories.==0)
+    probabilities = copy(track_categories)
+    probabilities[track_categories.==0] .= each
+    return (Perturb_Params(probs_possible_objects = (probabilities)./sum(probabilities)), track_categories)
 end
 
 function get_line_segments_per_category(params::Video_Params, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, v::Int64, num_frames::Int64, num_receptive_fields::Int64)

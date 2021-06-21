@@ -24,6 +24,8 @@ function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptiv
     f_z_min = 0
     f_z_max = 0
 
+    labels_max = 0
+
     for v=1:num_videos
         for f=1:num_frames
             #indices is where confidence was > 0.5
@@ -52,6 +54,8 @@ function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptiv
             c = Camera_Params(camera_location = Coordinate(x,y,z), camera_focus = Coordinate(f_x,f_y,f_z))
             camera_trajectories[v, f] = c
 
+            length(labels) > labels_max ? labels_max = length(labels) : labels_max = labels_max
+
             x > x_max ? x_max = x : x_max = x_max
             x < x_min ? x_min = x : x_min = x_min
             y > y_max ? y_max = y : y_max = y_max
@@ -68,6 +72,8 @@ function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptiv
 
         end
     end
+
+    println("labels_max ", labels_max)
 
     println("x_max ", x_max)
     println("x_min ", x_min)

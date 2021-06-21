@@ -290,7 +290,7 @@ function prob_given_line_segment(point::Coordinate, line_segment::Line_Segment)
     #actually calculate probabilities
     len = sqrt((line_segment.start.x-line_segment.endpoint.x)^2 + (line_segment.start.y-line_segment.endpoint.y)^2 + (line_segment.start.z-line_segment.endpoint.z)^2)
     p1 = Gen.logpdf(uniform, 0, 0, len)#doesn't matter what the actual value is because it's uniform, so plug in 0
-    p2 = Gen.logpdf(trunc_normal, dist, 0., 3., 0., 10.)
+    p2 = Gen.logpdf(trunc_normal, dist, 0., 0.1, 0., 10.)#make sure it matches above
     p3 = Gen.logpdf(uniform, 0, 0, 2*pi)
 
     return MathConstants.e^(p1 + p2 + p3) #transform it back to probability space
