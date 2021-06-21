@@ -120,6 +120,9 @@ add_remove_kernel(trace, v, line_segments, perturb_params) = mh_here(trace, add_
 change_location_kernel(trace, v, variance, perturb_params) = mh(trace, change_location_proposal, (v, variance, perturb_params), change_location_involution)
 change_category_kernel(trace, v, perturb_params) = mh(trace, change_category_proposal, (v, perturb_params), change_category_involution)
 
+"""
+Duplicated from the Gen library
+"""
 function metropolis_hastings_here(
     trace, proposal::GenerativeFunction,
     proposal_args::Tuple, involution::Union{TraceTransformDSLProgram,Function};

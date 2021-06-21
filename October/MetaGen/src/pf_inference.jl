@@ -148,11 +148,13 @@ function get_line_segments_per_category(params::Video_Params, objects_observed::
     return line_segments
 end
 
+"""Duplicated from Gen library"""
 function effective_sample_size(log_normalized_weights::Vector{Float64})
     log_ess = -logsumexp(2. * log_normalized_weights)
     return exp(log_ess)
 end
 
+"""Duplicated from Gen Library"""
 function normalize_weights(log_weights::Vector{Float64})
     log_total_weight = logsumexp(log_weights)
     log_normalized_weights = log_weights .- log_total_weight
