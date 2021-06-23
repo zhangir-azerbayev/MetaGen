@@ -24,6 +24,9 @@ function get_rfs(rec_field::Receptive_Field, real::Vector{Detection2D}, params::
     #hitses = fill(hits, length(real))
     real_objects_2D = to_elements_real(real, misses)
 
+
+    #println("imagined_objects_2D ", imagined_objects_2D)
+    #println("real_objects_2D ", real_objects_2D)
     rfs = vcat(imagined_objects_2D, real_objects_2D)
 
     rfs = RFSElements{Detection2D}(rfs)

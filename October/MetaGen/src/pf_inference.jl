@@ -5,16 +5,17 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
     #params set to default
     params = Video_Params()
 
-    #for degugging purposes, condition on V
-    for j = 1:length(params.possible_objects)
-		#set lambda when target absent
-		#v[j,1] = @trace(Gen.beta(alpha, beta), (:fa, j)) #leads to fa rate of around 0.1
-		init_obs[:v_matrix => (:lambda_fa, j)] = 0.002 #these are lambdas per receptive field
-		#set miss rate when target present
-		init_obs[:v_matrix => (:miss_rate, j)] = 0.25
-	end
+    # #for degugging purposes, condition on V
+    # for j = 1:length(params.possible_objects)
+	# 	#set lambda when target absent
+	# 	#v[j,1] = @trace(Gen.beta(alpha, beta), (:fa, j)) #leads to fa rate of around 0.1
+	# 	init_obs[:v_matrix => (:lambda_fa, j)] = 0.00000002 #these are lambdas per receptive field
+	# 	#set miss rate when target present
+	# 	init_obs[:v_matrix => (:miss_rate, j)] = 0.45
+	# end
 
     #no video, no frames
+    println("initialize pf")
     state = Gen.initialize_particle_filter(metacog, (0, 0), init_obs, num_particles)
 
     num_videos, num_frames = size(objects_observed)
@@ -64,13 +65,13 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
         (perturb_params, n_objects_per_category) = get_probs_categories(objects_observed, params, v, num_frames, num_receptive_fields)
         line_segments_per_category = get_line_segments_per_category(params, objects_observed, camera_trajectories, v, num_frames, num_receptive_fields)
         #line_segments = get_line_segments(objects_observed, camera_trajectories, params, v, num_frames, num_receptive_fields, total_n_objects)
-        println(line_segments_per_category)
         for i = 1:num_particles
-            state.traces[i] = perturb_scene(state.traces[i], v, perturb_params, line_segments_per_category)
+            state.traces[i] = perturb(state.traces[i], v, perturb_params, line_segments_per_category)
             println("done perturbing i ", i)
             println("trace ", state.traces[i][:videos => v => :init_scene])
             println("log score of this trace ", get_score(state.traces[i]))
             visualize_trace(state.traces, i, camera_trajectories, v, 1, params)
+            #visualize_trace(state.traces, i, camera_trajectories, v, 2, params)
         end
 
         min_particle_weight = minimum(map(i -> get_score(state.traces[i]), collect(1:num_particles)))
@@ -88,7 +89,7 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 
 end
 
-@gen function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
+@gen function perturb(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
     #acceptance_counter = 0
     #proposal_counter = 0
 
@@ -96,27 +97,62 @@ end
         println("iter ", iter)
         println("trace ", trace[:videos => v => :init_scene])
 
-        trace, accepted = add_remove_kernel(trace, v, line_segments_per_category, perturb_params)
-        println("accepted? ", accepted)
-        println("trace ", trace[:videos => v => :init_scene])
-
-
-
-        #only try changing location or category if there's at least one object in the scene
-        if length(trace[:videos => v => :init_scene]) > 0
-            trace, accepted = change_location_kernel(trace, v, 0.1, perturb_params)
-            println("accepted? ", accepted)
-            println("trace ", trace[:videos => v => :init_scene])
-
-            trace, accepted = change_category_kernel(trace, v, perturb_params)
-            println("accepted? ", accepted)
-            println("trace ", trace[:videos => v => :init_scene])
-
-        end
+        trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
+        trace = perturb_v_matrix(trace, perturb_params)
     end
     #println("acceptance_counter $(acceptance_counter/proposal_counter)")
 
     return trace
+end
+
+function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
+    trace, accepted = add_remove_kernel(trace, v, line_segments_per_category, perturb_params)
+    println("accepted? ", accepted)
+    println("trace ", trace[:videos => v => :init_scene])
+
+    #only try changing location or category if there's at least one object in the scene
+    if length(trace[:videos => v => :init_scene]) > 0
+        trace, accepted = change_location_kernel(trace, v, 0.1, perturb_params)
+        println("accepted? ", accepted)
+        println("trace ", trace[:videos => v => :init_scene])
+
+        trace, accepted = change_category_kernel(trace, v, perturb_params)
+        println("accepted? ", accepted)
+        println("trace ", trace[:videos => v => :init_scene])
+    end
+    return trace
+end
+
+#just pick an element of the matrix to perturb
+function perturb_v_matrix(trace, perturb_params::Perturb_Params)
+    n = length(perturb_params.probs_possible_objects)
+    i = categorical([0.5, 0.5])
+    j = categorical(fill(1/n, n))
+
+    if i == 1 #if perturbing fa
+        trace, accepted = metropolis_hastings(trace, proposal_for_v_matrix_fa, (j,))
+    else
+        trace, accepted = metropolis_hastings(trace, proposal_for_v_matrix_miss, (j,))
+    end
+
+    println("accepted? ", accepted)
+    println("trace ", trace[:v_matrix])
+
+    return trace
+end
+
+@gen function proposal_for_v_matrix_fa(trace, j)
+    std = 0.0005 #10% of sd in prior
+    choices = get_choices(trace)
+    #centered on previous value
+    @trace(trunc_normal(choices[:v_matrix => (:lambda_fa, j)], std, 0.0, 1.0), :v_matrix => (:lambda_fa, j))
+end
+
+@gen function proposal_for_v_matrix_miss(trace, j)
+    std = 0.05 #10% of sd in prior
+    choices = get_choices(trace)
+    #centered on previous value
+    @trace(trunc_normal(choices[:v_matrix => (:miss_rate, j)], std, 0.0, 1.0), :v_matrix => (:miss_rate, j))
 end
 
 function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
@@ -134,6 +170,12 @@ function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}
     each = other_ten_percent/sum(track_categories.==0)
     probabilities = copy(track_categories)
     probabilities[track_categories.==0] .= each
+
+    #in case of no observations, make uniform
+    if sum(probabilities) == 0
+        probabilities .= 1
+    end
+
     return (Perturb_Params(probs_possible_objects = (probabilities)./sum(probabilities)), track_categories)
 end
 

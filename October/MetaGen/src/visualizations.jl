@@ -16,6 +16,12 @@ function visualize_observations(objects_observed::Matrix{Array{Array{Detection2D
             end
         end
     end
+    
+    if length(xs) < 1
+        push!(xs, Inf)
+        push!(ys, Inf)
+        push!(cs, 1000000)
+    end
 
     println("xs", xs)
     println("ys", ys)
@@ -66,7 +72,6 @@ function visualize_trace(traces, j::Int64, camera_trajectories::Matrix{Camera_Pa
     # ax.add_patch(circle1)
     # ax.add_patch(circle2)
     # println("here")
-
 
     display(p)
     savefig(p, "v $(v) particle $(j) .pdf")
