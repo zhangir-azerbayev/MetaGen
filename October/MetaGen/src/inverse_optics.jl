@@ -1,10 +1,9 @@
-"""
-(x coordinate in pixel space,  y coordinate in pixel space, object category)
-"""
 const Detection2D = Tuple{Float64, Float64, Int64}
 
 """
-returns a line segment of possible 3D positions of the object that oculd have caused this 2D detection
+    get_line_segment(camera_params::Camera_Params, params::Video_Params, detection::Detection2D)
+
+Returns a line segment of the possible 3D positions of the object that could have caused a 2D detection
 """
 function get_line_segment(camera_params::Camera_Params, params::Video_Params, detection::Detection2D)
 
@@ -71,20 +70,21 @@ function get_distance(p1::Coordinate, p2::Coordinate)
 end
 
 """
-Calculates parameters for the line along which the object could appear and
+    check_walls(point::Coordinate, camera::Coordinate, params::Video_Params)
+
+Calculates parameters for the line along which the object could appear, alongside
 the coordinates corresponding to the farthest the object could be from the
 camera while still being within the boundary of the scene.
 
-parameters:
-point: possible 3d location of the object
-camera: location of the camera
-params:: Video_Params
+Arguments:
+- point: possible 3d location of the object
+- camera: location of the camera
+- params:: Video_Params
 
-returns:
-(x, y, z): farthest the location from the camera the object could be
-while still being within the boundary of the scene.
-(a, b, c): parametrization of the line along which the object could appear.
-
+Returns:
+- (x, y, z): farthest the location from the camera the object could be
+- while still being within the boundary of the scene.
+- (a, b, c): parametrization of the line along which the object could appear.
 """
 function check_walls(point::Coordinate, camera::Coordinate, params::Video_Params)
     a = point.x - camera.x

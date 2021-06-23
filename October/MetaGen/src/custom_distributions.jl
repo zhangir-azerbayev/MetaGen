@@ -1,4 +1,12 @@
-const Detection2D = Tuple{Float64, Float64, Int64} #x on image, y on image, category
+"""
+Represents an object detection as ``(x_{\mathrm{midpoint}},
+y_{\mathrm{midpoint}}, \mathrm{category}``
+"""
+const Detection2D = Tuple{Float64, Float64, Int64}
+
+"""
+Represents an object in the scene as ``(\mathrm{location}, category)``
+"""
 const Object3D = Tuple{Float64, Float64, Float64, Int64} #x, y, z, category
 
 export Detection2D
@@ -35,7 +43,7 @@ export multinomial
 
 ##############################################################################################
 
-# #Object distribution for 3D detection
+"Object distribution for 3D detection"
 struct Object_Distribution_Present <: Gen.Distribution{Object3D} end
 
 const object_distribution_present = Object_Distribution_Present()
@@ -71,7 +79,7 @@ export object_distribution_present
 
 ##############################################################################################
 
-# #Object distribution for 2D detection
+"Object distribution for 2D detection"
 struct Object_Distribution_Image <: Gen.Distribution{Detection2D} end
 
 const object_distribution_image = Object_Distribution_Image()
@@ -105,7 +113,7 @@ has_argument_grads(::Object_Distribution_Image) = (false,)
 export object_distribution_image
 
 ##############################################################################################
-#For a new 3-D object placed anywhere
+"For a new 3-D object placed anywhere"
 struct Object_Distribution <: Gen.Distribution{Object3D} end
 
 const object_distribution = Object_Distribution()
@@ -149,7 +157,7 @@ has_argument_grads(::Object_Distribution) = (false,)
 
 export object_distribution
 
-#little helper function for constructing 3D objects
+"Little helper function for constructing 3D objects"
 function construct_3D(cat::Int64, params::Video_Params)
     x = uniform(params.x_min, params.x_max)
     y = uniform(params.y_min, params.y_max)
@@ -158,7 +166,7 @@ function construct_3D(cat::Int64, params::Video_Params)
 end
 
 ##############################################################################################
-#For a new 3-D object placed anywhere. category already determined
+"For a new 3-D object placed anywhere. category already determined"
 struct Location_Distribution_Uniform <: Gen.Distribution{Object3D} end
 
 const location_distribution_uniform = Location_Distribution_Uniform()
@@ -207,7 +215,7 @@ function construct_3D(cat::Int64, params::Video_Params)
 end
 
 ##############################################################################################
-#For a new 3-D object placed along certain line segments with Gaussian noise, category has already been chosen
+"For a new 3-D object placed along certain line segments with Gaussian noise, category has already been chosen"
 struct New_Location_Distribution_Noisy <: Gen.Distribution{Object3D} end
 
 const new_location_distribution_noisy = New_Location_Distribution_Noisy()

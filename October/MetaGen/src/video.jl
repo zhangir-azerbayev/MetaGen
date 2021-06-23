@@ -1,6 +1,8 @@
 """
+    gen_possible_hallucination(params::Video_Params, cat::Int64)
+
 This function takes a category and params and it returns the possible
-objects (as Detections) of that category that could be detected
+objects (as 2D Detections) of that category that could be detected
 """
 #hallucinate objects in 2D image
 @gen function gen_possible_hallucination(params::Video_Params, cat::Int64)
@@ -21,6 +23,8 @@ function render(params::Video_Params, camera_params::Camera_Params, object_3D::O
 end
 
 """
+    gen_camera(params::Video_Params)
+
 Independently samples a camera location and camera focus from a
 uniform distribution
 """

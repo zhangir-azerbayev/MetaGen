@@ -88,6 +88,11 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 
 end
 
+"""
+    perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
+
+Does HMC steps.
+"""
 @gen function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
     acceptance_counter = 0
 
@@ -119,6 +124,14 @@ end
     return trace
 end
 
+"""
+    get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+
+Returns a probability distribution over the object categories to be used
+in the proposal functions.
+
+Derived from the objects that the visual system observes.
+"""
 function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
     track_categories = zeros(length(params.possible_objects)) #each element will be the number of times that category was detected. adding 1
     for f = 1:num_frames
@@ -131,6 +144,12 @@ function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}
     return (Perturb_Params(probs_possible_objects = (track_categories.+1)./sum(track_categories.+1)), track_categories)
 end
 
+"""
+    get_line_segments_per_category(params::Video_Params, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+
+Gets all line segments in 3d space that correspond to each 2D detection
+in every frame of a scene.
+"""
 function get_line_segments_per_category(params::Video_Params, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
     line_segments = Array{Array{Line_Segment, 1}}(undef, length(params.possible_objects))
     for j = 1:length(params.possible_objects)
