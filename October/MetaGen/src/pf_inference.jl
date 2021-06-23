@@ -1,4 +1,21 @@
-"""array for each frame and array for each receptive field and array for those detections"""
+"""
+    unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, num_receptive_fields::Int64)
+
+Performs inference procedure.
+
+# Arguments
+- num_particles::Int
+- objects_observed: *how are these indexed?*
+- camera_trajectories: *how are these indexed?*
+- num_receptive_fields::Int64
+
+array for each frame and array for each receptive field and array for those detections
+
+# Returns
+- A trace containing the inferred visual system and world state. 
+
+
+"""
 function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, num_receptive_fields::Int64)
     init_obs = Gen.choicemap()
 

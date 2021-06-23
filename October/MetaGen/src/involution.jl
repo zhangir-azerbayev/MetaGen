@@ -122,7 +122,7 @@ end
 """
     change_category_involution (t, u) to (t_prime, u_prime)
 
-Involution corresponding to change_category_proposal
+Involution corresponding to `change_category_proposal`
 """
 @transform change_category_involution (t, u) to (t_prime, u_prime) begin
 
