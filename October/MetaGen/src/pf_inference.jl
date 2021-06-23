@@ -1,4 +1,21 @@
-#array for each frame and array for each receptive field and array for those detections
+"""
+    unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, num_receptive_fields::Int64)
+
+Performs inference procedure.
+
+# Arguments
+- num_particles::Int
+- objects_observed: indexed by ``(\mathrm{scene, frame, receptive field, detection})``
+- camera_trajectories: Indexed by ``(\mathrm{scene, frame})``
+- num_receptive_fields::Int64
+
+array for each frame and array for each receptive field and array for those detections
+
+# Returns
+- A trace containing the inferred visual system and world state.
+
+
+"""
 function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, num_receptive_fields::Int64)
     init_obs = Gen.choicemap()
 
@@ -155,6 +172,15 @@ end
     @trace(trunc_normal(choices[:v_matrix => (:miss_rate, j)], std, 0.0, 1.0), :v_matrix => (:miss_rate, j))
 end
 
+"""
+    get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+
+Returns a probability distribution over the object categories to be used
+in the proposal functions.
+
+Derived from the objects that the visual system observes.
+"""
+
 function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
     track_categories = zeros(length(params.possible_objects)) #each element will be the number of times that category was detected. adding 1
     probabilities = zeros(length(params.possible_objects))
@@ -179,6 +205,12 @@ function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}
     return (Perturb_Params(probs_possible_objects = (probabilities)./sum(probabilities)), track_categories)
 end
 
+"""
+    get_line_segments_per_category(params::Video_Params, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+
+Gets all line segments in 3d space that correspond to each 2D detection
+in every frame of a scene.
+"""
 function get_line_segments_per_category(params::Video_Params, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
     line_segments = Array{Array{Line_Segment, 1}}(undef, length(params.possible_objects))
     for j = 1:length(params.possible_objects)
@@ -196,11 +228,13 @@ function get_line_segments_per_category(params::Video_Params, objects_observed::
     return line_segments
 end
 
+"""Duplicated from Gen library"""
 function effective_sample_size(log_normalized_weights::Vector{Float64})
     log_ess = -logsumexp(2. * log_normalized_weights)
     return exp(log_ess)
 end
 
+"""Duplicated from Gen Library"""
 function normalize_weights(log_weights::Vector{Float64})
     log_total_weight = logsumexp(log_weights)
     log_normalized_weights = log_weights .- log_total_weight

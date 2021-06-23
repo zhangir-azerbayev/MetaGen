@@ -2,7 +2,13 @@ using LinearAlgebra
 
 ###################################################
 
-#returns the object's position on the 2D image in pixel space. (0,0) is the center of the image
+"""
+    get_image_xy(camera_params::Camera_Params, params::Video_Params, object::Coordinate)
+
+Returns the object's position on the 2D image in pixel space.
+
+(0,0) is the center of the image
+"""
 function get_image_xy(camera_params::Camera_Params, params::Video_Params, object::Coordinate)
     if on_right_side(camera_params, object) > 0
         x, y = locate(camera_params, params, object)
@@ -13,17 +19,25 @@ function get_image_xy(camera_params::Camera_Params, params::Video_Params, object
     return x, y
 end
 
-#check if on the right side of camera. compare to plane going through camera's
-#location with a normal vector going from camera to focus
-#calculating a(x-x_0)+b(y-y_0)+c(z-z_0).
-#if it turns out positive, it's on the focus' side of the camera
+"""
+    on_right_side(camera_params::Camera_Params, object::Coordinate)
+
+Checks if the object is on the right side of camera.
+
+The object is on the right side of the camera if
+``\vec{(\mathrm{focus} - \mathrm{camera})} \cdot \vec{(\mathrm{object}- \mathrm{camera})} > 0``
+"""
 function on_right_side(camera_params::Camera_Params, object::Coordinate)
     c = camera_params.camera_location
     f = camera_params.camera_focus
     (f.x - c.x)*(object.x - c.x) + (f.y - c.y)*(object.y - c.y) + (f.z - c.z)*(object.z - c.z)
 end
 
-#given camera info and object's location, find object's location on 2-D image
+"""
+    locate(camera_params::Camera_Params, params::Video_Params, object::Coordinate)
+
+Given camera info and object's location, finds object's location on 2-D image
+"""
 function locate(camera_params::Camera_Params,
     params::Video_Params, object::Coordinate)
 
@@ -73,17 +87,27 @@ function locate(camera_params::Camera_Params,
     return (x, y)
 end
 
-#returns the angle between the vector and the plane
-#a,b,c is coefficients of plane. x, y, z is the vector.
-#whether the sin is positive or negative depends on the normal.
+"""
+    get_angle(a, b, c, x, y, z)
+
+Returns the angle between the vector ``(x, y, z)`` and the plane ``(a, b, c)``
+
+Whether the sin is positive or negative depends on the normal.
+"""
 function get_angle(a, b, c, x, y, z)
     numerator = a*x + b*y + c*z #took out abs
     denominator = sqrt(a^2+b^2+c^2) * sqrt(x^2+y^2+z^2)
     return asin(numerator/denominator) #angle in radians
 end
 
-#returns a,b,c for the vertical plane. only need the camera parameters
-#y-axis is the upward one
+"""
+    get_vertical_plane(camera_params::Camera_Params)
+
+Returns coefficients a,b,c for the vertically-oriented plane which includes
+the vector between the camera focus and position.
+
+Note that the y-axis is the upward one.
+"""
 function get_vertical_plane(camera_params::Camera_Params)
     p1 = camera_params.camera_location
     p2 = camera_params.camera_focus
@@ -101,7 +125,16 @@ function get_vertical_plane(camera_params::Camera_Params)
     return(to_return)
 end
 
-#need camera parameters and vertical plane (so horizontal will be perpendicular to it)
+"""
+    get_horizontal_plane(camera_params::Camera_Params, a_vertical, b_vertical, c_vertical)
+
+Returns coefficients a, b, c for the horizontally oriented plane that includes
+the vector between the camera focus and position
+
+This implementation depends on already having determined the vertically-oriented plane.
+Note that our implementation returns a placeholder value when the camera is
+pointing upwards.
+"""
 function get_horizontal_plane(camera_params::Camera_Params, a_vertical, b_vertical, c_vertical)
     p1 = camera_params.camera_location
     p2 = camera_params.camera_focus
@@ -118,8 +151,12 @@ function get_horizontal_plane(camera_params::Camera_Params, a_vertical, b_vertic
     end
 end
 
-#given 3 points on a plane (p1, p2, p3), get a, b, and c coefficients in the general form.
-#abc also gives a normal vector
+"""
+    get_abc_plane(p1::Coordinate, p2::Coordinate, p3::Coordinate)
+
+Given 3 points on a plane (p1, p2, p3), get coefficients for the plane
+determined by the 3 points.
+"""
 function get_abc_plane(p1::Coordinate, p2::Coordinate, p3::Coordinate)
     #using Method 2 from wikipedia: https://en.wikipedia.org/wiki/Plane_(geometry)#:~:text=In%20mathematics%2C%20a%20plane%20is,)%20and%20three%2Ddimensional%20space.
     D = det([p1.x p2.x p3.x; p1.y p2.y p3.y; p1.z p2.z p3.z])
@@ -140,6 +177,11 @@ function get_abc_plane(p1::Coordinate, p2::Coordinate, p3::Coordinate)
     return (a, b, c)
 end
 
+"""
+    proj_vec_to_plane(a, b, c, x, y , z)
+
+Projects a vector onto a plane. 
+"""
 function proj_vec_to_plane(a, b, c, x, y , z)
     num = a * x + b * y + z * c
     denom = a^2 + b^2 + c^2
