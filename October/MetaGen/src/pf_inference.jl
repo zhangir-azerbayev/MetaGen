@@ -5,14 +5,14 @@ Performs inference procedure.
 
 # Arguments
 - num_particles::Int
-- objects_observed: *how are these indexed?*
-- camera_trajectories: *how are these indexed?*
+- objects_observed: indexed by ``(\mathrm{scene, frame, receptive field, detection})``
+- camera_trajectories: Indexed by ``(\mathrm{scene, frame})``
 - num_receptive_fields::Int64
 
 array for each frame and array for each receptive field and array for those detections
 
 # Returns
-- A trace containing the inferred visual system and world state. 
+- A trace containing the inferred visual system and world state.
 
 
 """
