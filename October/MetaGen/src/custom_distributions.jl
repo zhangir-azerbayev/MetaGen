@@ -1,11 +1,11 @@
 """
-Represents an object detection as ``(x_{\mathrm{midpoint}},
-y_{\mathrm{midpoint}}, \mathrm{category}``
+Represents an object detection as ``(x_{\\mathrm{midpoint}},
+y_{\\mathrm{midpoint}}, \\mathrm{category}``
 """
 const Detection2D = Tuple{Float64, Float64, Int64}
 
 """
-Represents an object in the scene as ``(\mathrm{location}, category)``
+Represents an object in the scene as ``(\\mathrm{location}, category)``
 """
 const Object3D = Tuple{Float64, Float64, Float64, Int64} #x, y, z, category
 

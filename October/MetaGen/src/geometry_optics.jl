@@ -1,5 +1,4 @@
 using LinearAlgebra
-
 ###################################################
 
 """
@@ -25,7 +24,7 @@ end
 Checks if the object is on the right side of camera.
 
 The object is on the right side of the camera if
-``\vec{(\mathrm{focus} - \mathrm{camera})} \cdot \vec{(\mathrm{object}- \mathrm{camera})} > 0``
+``\\vec{(\\mathrm{focus} - \\mathrm{camera})} \\cdot \\vec{(\\mathrm{object} - \\mathrm{camera})} > 0``
 """
 function on_right_side(camera_params::Camera_Params, object::Coordinate)
     c = camera_params.camera_location
@@ -180,7 +179,7 @@ end
 """
     proj_vec_to_plane(a, b, c, x, y , z)
 
-Projects a vector onto a plane. 
+Projects a vector onto a plane.
 """
 function proj_vec_to_plane(a, b, c, x, y , z)
     num = a * x + b * y + z * c

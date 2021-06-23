@@ -96,11 +96,11 @@ in `perturb_params`.
     new = {:new} ~ object_distribution_category(scene[id][1], scene[id][2], scene[id][3], perturb_params_new)
 end
 
-```
+"""
     change_location_involution (t, u) to (t_prime, u_prime) begin
 
 Involution corresponding to `change_location_proposal`
-```
+"""
 @transform change_location_involution (t, u) to (t_prime, u_prime) begin
 
     #v = @read(u[:v], :discrete)

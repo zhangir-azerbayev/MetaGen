@@ -41,8 +41,8 @@ end
 """
 Parametrizes a line segment in 3d space.
 
-``L = \mathrm{startpoint} + (a, b, c)t``, where ``t\in [0, 1]``.
-``\mathrm{endpoint} = \mathrm{startpoint} + (a, b, c)``.
+``L = \\mathrm{startpoint} + (a, b, c)t``, where ``t\\in [0, 1]``.
+``\\mathrm{endpoint} = \\mathrm{startpoint} + (a, b, c)``.
 """
 Base.@kwdef struct Line_Segment
     start::Coordinate
@@ -55,7 +55,7 @@ end
 """
 Stores a probability distribution over the object categories.
 
-Used for defining the proposal function. 
+Used for defining the proposal function.
 """
 Base.@kwdef struct Perturb_Params
     probs_possible_objects::Vector{Float64}

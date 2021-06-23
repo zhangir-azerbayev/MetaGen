@@ -5,8 +5,8 @@ Performs inference procedure.
 
 # Arguments
 - num_particles::Int
-- objects_observed: indexed by ``(\mathrm{scene, frame, receptive field, detection})``
-- camera_trajectories: Indexed by ``(\mathrm{scene, frame})``
+- objects_observed: indexed by ``(\\mathrm{scene, frame, receptive field, detection})``
+- camera_trajectories: Indexed by ``(\\mathrm{scene, frame})``
 - num_receptive_fields::Int64
 
 array for each frame and array for each receptive field and array for those detections
@@ -121,7 +121,7 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
         println("trace ", trace[:videos => v => :init_scene])
 
         trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
-        trace = perturb_v_matrix(trace, perturb_params)
+        trace = perturb_v_matrix_hmc(trace, perturb_params)
     end
     #println("acceptance_counter $(acceptance_counter/proposal_counter)")
 
@@ -168,6 +168,30 @@ function perturb_v_matrix(trace, perturb_params::Perturb_Params)
         trace, accepted = metropolis_hastings(trace, proposal_for_v_matrix_fa, (j,))
     else
         trace, accepted = metropolis_hastings(trace, proposal_for_v_matrix_miss, (j,))
+    end
+
+    println("accepted? ", accepted)
+    println("trace ", trace[:v_matrix])
+
+    return trace
+end
+
+"""
+    perturb_v_matrix_hmc(trace, perturb_params::Perturb_Params)
+Perturbs an element of the v_matrix using Hamiltonian MC
+
+"""
+
+#just pick an element of the matrix to perturb
+function perturb_v_matrix_hmc(trace, perturb_params::Perturb_Params)
+    n = length(perturb_params.probs_possible_objects)
+    i = categorical([0.5, 0.5])
+    j = categorical(fill(1/n, n))
+
+    if i == 1 #if perturbing fa
+        trace, accepted = hmc(trace, select(:v_matrix => (:miss_rate, j)))
+    else
+        trace, accepted = hmc(trace, select(:v_matrix => (:lambda_fa, j)))
     end
 
     println("accepted? ", accepted)
