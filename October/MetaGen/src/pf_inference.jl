@@ -106,6 +106,12 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 
 end
 
+"""
+    perturb(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
+Does 500 MCMC steps (with different proposal functions) on the scene and on the v matrix.
+
+"""
+
 @gen function perturb(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
     #acceptance_counter = 0
     #proposal_counter = 0
@@ -121,6 +127,12 @@ end
 
     return trace
 end
+
+"""
+    perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
+Does 3 MCMC steps (with different proposal functions) on the scene.
+
+"""
 
 function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
     trace, accepted = add_remove_kernel(trace, v, line_segments_per_category, perturb_params)
@@ -140,6 +152,12 @@ function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_seg
     return trace
 end
 
+"""
+    perturb_v_matrix(trace, perturb_params::Perturb_Params)
+Picks one element of the v matrix to perturb.
+
+"""
+
 #just pick an element of the matrix to perturb
 function perturb_v_matrix(trace, perturb_params::Perturb_Params)
     n = length(perturb_params.probs_possible_objects)
@@ -158,14 +176,27 @@ function perturb_v_matrix(trace, perturb_params::Perturb_Params)
     return trace
 end
 
-@gen function proposal_for_v_matrix_fa(trace, j)
+
+"""
+    proposal_for_v_matrix_fa(trace, j::Int64)
+Performs on MH step on the false alarm rate for object of category j.
+
+"""
+
+@gen function proposal_for_v_matrix_fa(trace, j::Int64)
     std = 0.0005 #10% of sd in prior
     choices = get_choices(trace)
     #centered on previous value
     @trace(trunc_normal(choices[:v_matrix => (:lambda_fa, j)], std, 0.0, 1.0), :v_matrix => (:lambda_fa, j))
 end
 
-@gen function proposal_for_v_matrix_miss(trace, j)
+"""
+    proposal_for_v_matrix_miss(trace, j::Int64)
+Performs on MH step on the miss rate for object of category j.
+
+"""
+
+@gen function proposal_for_v_matrix_miss(trace, j::Int64)
     std = 0.05 #10% of sd in prior
     choices = get_choices(trace)
     #centered on previous value
