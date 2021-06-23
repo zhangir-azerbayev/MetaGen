@@ -1,4 +1,6 @@
-#return rfs_vec, where the vector is the rfs indexed by receptive field
+"""
+return rfs_vec, where the vector is the rfs indexed by receptive field
+"""
 function get_rfs_vec(rec_fields::Vector{Receptive_Field},
                             real_objects::Vector{Detection2D},
                             params::Video_Params)
@@ -8,7 +10,9 @@ function get_rfs_vec(rec_fields::Vector{Receptive_Field},
     rfs_vec = map(get_rfs, rec_fields, real_rf, paramses)
 end
 
-#rerutns rfs elements for a particular receptive field
+"""
+returns rfs elements for a particular receptive field
+"""
 function get_rfs(rec_field::Receptive_Field, real::Vector{Detection2D}, params::Video_Params)
 
     #########################################################################
@@ -30,7 +34,9 @@ function get_rfs(rec_field::Receptive_Field, real::Vector{Detection2D}, params::
     return rfs
 end
 
-#objects is a list of Detection2Ds. ps is a vector of probabilities indexed by object category
+"""
+objects is a list of Detection2Ds. ps is a vector of probabilities indexed by object category
+"""
 function to_elements_real(objects::Vector{Detection2D}, misses::Vector{Float64})
     #will probably need to redo this stuff
     sd_x = 40. #might work????
@@ -49,7 +55,9 @@ function to_elements_real(objects::Vector{Detection2D}, misses::Vector{Float64})
     return objects_2D
 end
 
-# returns true if the object position is within rf
+"""
+returns true if the object position is within rf
+"""
 function within(point::Detection2D, rf::Receptive_Field)
     x = point[1]
     y = point[2]
@@ -59,7 +67,9 @@ end
 export within
 
 ################################################################################
-#set up receptive_fields
+"""
+set up receptive_fields
+"""
 function make_receptive_fields()
 
     # #square receptive fields. hardcoded for the 240 x 320 image

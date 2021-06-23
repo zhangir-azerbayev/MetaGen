@@ -1,5 +1,11 @@
 
-#proposal. like split_merge_proposal.
+"""
+    add_remove_proposal(trace, v::Int64, line_segments_per_category::Array{Array{Line_Segment,1},1}, perturb_params::Perturb_Params)
+
+Proposes adding or removing an object.
+
+Proposal function used for HMC. like split_merge_proposal.
+"""
 @gen function add_remove_proposal(trace, v::Int64, line_segments_per_category::Array{Array{Line_Segment,1},1}, perturb_params::Perturb_Params)
     scene = trace[:videos => v => :init_scene]
     n = length(scene)
@@ -21,7 +27,11 @@
         #println("remove ", scene[id])
     end
 end
+"""
+    add_remove_involution (t, u) to (t_prime, u_prime)
 
+Involution corresponding to `add_remove_proposal`
+"""
 @transform add_remove_involution (t, u) to (t_prime, u_prime) begin
 
     #v = @read(u[:v], :discrete)
@@ -66,6 +76,12 @@ end
     new = {:new} ~ object_distribution_present([scene[id][1], scene[id][2], scene[id][3]], diagm([variance, variance, variance]), scene[id][4])
 end
 
+"""
+    change_category_proposal(trace, v::Int64, perturb_params::Perturb_Params)
+
+Proposes changing an object category according to the distribution provided
+in `perturb_params`.
+"""
 @gen function change_category_proposal(trace, v::Int64, perturb_params::Perturb_Params)
     scene = trace[:videos => v => :init_scene]
     n = length(scene)
@@ -80,6 +96,11 @@ end
     new = {:new} ~ object_distribution_category(scene[id][1], scene[id][2], scene[id][3], perturb_params_new)
 end
 
+```
+    change_location_involution (t, u) to (t_prime, u_prime) begin
+
+Involution corresponding to `change_location_proposal`
+```
 @transform change_location_involution (t, u) to (t_prime, u_prime) begin
 
     #v = @read(u[:v], :discrete)
@@ -98,6 +119,11 @@ end
     @write(u_prime[:new], e_old, :discrete)
 end
 
+"""
+    change_category_involution (t, u) to (t_prime, u_prime)
+
+Involution corresponding to `change_category_proposal`
+"""
 @transform change_category_involution (t, u) to (t_prime, u_prime) begin
 
     #v = @read(u[:v], :discrete)
@@ -120,6 +146,9 @@ add_remove_kernel(trace, v, line_segments, perturb_params) = mh_here(trace, add_
 change_location_kernel(trace, v, variance, perturb_params) = mh_here(trace, change_location_proposal, (v, variance, perturb_params), change_location_involution)
 change_category_kernel(trace, v, perturb_params) = mh(trace, change_category_proposal, (v, perturb_params), change_category_involution)
 
+"""
+Duplicated from the Gen library
+"""
 function metropolis_hastings_here(
     trace, proposal::GenerativeFunction,
     proposal_args::Tuple, involution::Union{TraceTransformDSLProgram,Function};
