@@ -498,11 +498,22 @@ function Gen.logpdf(::TruncatedNormal, x::U, mu::U, std::U, low::U, high::U) whe
 end
 
 function Gen.logpdf_grad(::TruncatedNormal, x::U, mu::U, std::U, low::U, high::U)  where {U <: Real}
-	gerror("Not implemented")
-	(nothing, nothing)
+    precision = 1. / (std * std)
+    diff = mu - x
+    deriv_x = diff * precision
+    deriv_mu = -deriv_x
+    deriv_std = -1. / std + (diff * diff) / (std * std * std)
+
+    if x<=low
+        deriv_x = log(0.001) #trying to have a very small positive gradient
+    elseif x>=high
+        deriv_x = log(-0.001) #trying to have a very small negative gradient
+    end
+
+    (deriv_x, deriv_mu, deriv_std)
 end
 
 (::TruncatedNormal)(mu, std, low, high) = random(TruncatedNormal(), mu, std, low, high)
 is_discrete(::TruncatedNormal) = false
-has_output_grad(::TruncatedNormal) = false
-has_argument_grads(::TruncatedNormal) = (false,)
+has_output_grad(::TruncatedNormal) = true
+has_argument_grads(::TruncatedNormal) = (true, true, false, false) #just has output gradients for mu and std
