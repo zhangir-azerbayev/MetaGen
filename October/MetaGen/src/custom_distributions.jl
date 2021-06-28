@@ -219,9 +219,12 @@ function Gen.random(::New_Location_Distribution_Noisy, cat::Int64, params::Video
     end
     i = categorical(fill(1/n, n)) #which line segment
     line_segment = line_segments[i]
+    println("line_segment ", line_segment)
     #length of the line segment
     length = sqrt((line_segment.start.x-line_segment.endpoint.x)^2 + (line_segment.start.y-line_segment.endpoint.y)^2 + (line_segment.start.z-line_segment.endpoint.z)^2)
+    println("length ", length)
     d = uniform(0, length) #sample a distance along the line segment
+    println("d ", d)
     #plug in d/length as t
     x = line_segment.start.x + line_segment.a*(d/length)
     y = line_segment.start.y + line_segment.b*(d/length)

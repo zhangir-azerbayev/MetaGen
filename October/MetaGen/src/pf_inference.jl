@@ -121,7 +121,7 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
         println("trace ", trace[:videos => v => :init_scene])
 
         trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
-        trace = perturb_v_matrix_hmc(trace, perturb_params)
+        #trace = perturb_v_matrix_hmc(trace, perturb_params)
     end
     #println("acceptance_counter $(acceptance_counter/proposal_counter)")
 
@@ -275,7 +275,9 @@ function get_line_segments_per_category(params::Video_Params, objects_observed::
         camera_params = camera_trajectories[v, f]
         for rf = 1:num_receptive_fields
             for (index, value) in enumerate(objects_observed[v, f][rf])
+                println("value ", value)
                 line_segment = get_line_segment(camera_params, params, value)
+                println("line_segment in pf_inference ", line_segment)
                 push!(line_segments[value[3]], line_segment)
             end
         end

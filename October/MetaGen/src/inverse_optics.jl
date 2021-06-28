@@ -82,9 +82,10 @@ Arguments:
 - params:: Video_Params
 
 Returns:
-- (x, y, z): farthest the location from the camera the object could be
-- while still being within the boundary of the scene.
+- (x, y, z): farthest the location from the camera the object could be while
+still being within the boundary of the scene.
 - (a, b, c): parametrization of the line along which the object could appear.
+when t = 1, it gives the farthest point (x, y, z)
 """
 function check_walls(point::Coordinate, camera::Coordinate, params::Video_Params)
     a = point.x - camera.x
@@ -99,6 +100,10 @@ function check_walls(point::Coordinate, camera::Coordinate, params::Video_Params
     y = camera.y + b*t
     z = camera.z + c*t
     if y < params.y_max && y > params.y_min && z < params.z_max && z > params.z_min && t > 0 #t>0 checks right side
+        #redoing a,b,c so when t=1, at this fartest point
+        a = x - camera.x
+        b = y - camera.y
+        c = z - camera.z
         return (x, y, z, a, b, c)
     end
 
@@ -108,6 +113,9 @@ function check_walls(point::Coordinate, camera::Coordinate, params::Video_Params
     y = camera.y + b*t
     z = camera.z + c*t
     if y < params.y_max && y > params.y_min && z < params.z_max && z > params.z_min && t > 0
+        a = x - camera.x
+        b = y - camera.y
+        c = z - camera.z
         return (x, y, z, a, b, c)
     end
 
@@ -117,6 +125,9 @@ function check_walls(point::Coordinate, camera::Coordinate, params::Video_Params
     x = camera.x + a*t
     z = camera.z + c*t
     if x < params.x_max && x > params.x_min && z < params.z_max && z > params.z_min && t > 0
+        a = x - camera.x
+        b = y - camera.y
+        c = z - camera.z
         return (x, y, z, a, b, c)
     end
 
@@ -126,6 +137,9 @@ function check_walls(point::Coordinate, camera::Coordinate, params::Video_Params
     x = camera.x + a*t
     z = camera.z + c*t
     if x < params.x_max && x > params.x_min && z < params.z_max && z > params.z_min && t > 0
+        a = x - camera.x
+        b = y - camera.y
+        c = z - camera.z
         return (x, y, z, a, b, c)
     end
 
@@ -135,6 +149,9 @@ function check_walls(point::Coordinate, camera::Coordinate, params::Video_Params
     x = camera.x + a*t
     y = camera.y + b*t
     if x < params.x_max && x > params.x_min && y < params.y_max && y > params.y_min && t > 0
+        a = x - camera.x
+        b = y - camera.y
+        c = z - camera.z
         return (x, y, z, a, b, c)
     end
 
@@ -144,6 +161,9 @@ function check_walls(point::Coordinate, camera::Coordinate, params::Video_Params
     x = camera.x + a*t
     y = camera.y + b*t
     if x < params.x_max && x > params.x_min && y < params.y_max && y > params.y_min && t > 0
+        a = x - camera.x
+        b = y - camera.y
+        c = z - camera.z
         return (x, y, z, a, b, c)
     end
 end
