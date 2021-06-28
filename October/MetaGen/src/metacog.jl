@@ -4,7 +4,7 @@
 Samples the matrix describing the visual system.
 """
 @gen function make_visual_system(params::Video_Params)
-	v = Matrix{Float64}(undef, length(params.possible_objects), 2)
+	v = Matrix{Real}(undef, length(params.possible_objects), 2)
 	#alpha = 2
 	#beta = 10
 	#alpha_hit = 10

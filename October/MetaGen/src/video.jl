@@ -83,7 +83,7 @@ frame_chain = Gen.Unfold(frame_kernel)
 Samples a new scene.
 """
 @gen function video_kernel(num_frames::Int64, params::Video_Params, receptive_fields::Array{Receptive_Field, 1})
-    rfs_element = PoissonElement{Object3D}(params.lambda_objects, object_distribution, (params,))
+    rfs_element = GeometricElement{Object3D}(params.p_objects, object_distribution, (params,))
     rfs_element = RFSElements{Object3D}([rfs_element]) #need brackets because rfs has to take an array
     init_state = @trace(rfs(rfs_element), :init_scene)
     states = @trace(frame_chain(num_frames, init_state, params, receptive_fields), :frame_chain)

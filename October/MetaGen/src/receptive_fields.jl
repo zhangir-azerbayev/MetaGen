@@ -40,7 +40,7 @@ end
 """
 objects is a list of Detection2Ds. ps is a vector of probabilities indexed by object category
 """
-function to_elements_real(objects::Vector{Detection2D}, misses::Vector{Float64})
+function to_elements_real(objects::Vector{Detection2D}, misses::Vector{Real})
     #will probably need to redo this stuff
     sd_x = 40. #might work????
     sd_y = 40.

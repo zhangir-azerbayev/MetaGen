@@ -42,8 +42,8 @@ for v=1:num_videos
 	f = 2
 
 	labels = [5]
-	xs = [163.5]
-	ys = [117.4]
+	xs = [225.5]
+	ys = [173.1]
 	temp = Array{Detection2D}(undef, length(labels))
 	for i = 1:length(labels)
 		label = labels[i]
@@ -55,7 +55,7 @@ for v=1:num_videos
 	temp_sorted_into_rfs = map(rf -> filter(p -> within(p, rf), temp), receptive_fields)
 	objects_observed[v, f] = temp_sorted_into_rfs
 
-	c = Camera_Params(camera_location = Coordinate(0.5,0.6,0), camera_focus = Coordinate(6,0.5,-1))
+	c = Camera_Params(camera_location = Coordinate(0.01,0.02,0.001), camera_focus = Coordinate(1.0,1.0,1.0))
 	camera_trajectories[v, f] = c
 end
 

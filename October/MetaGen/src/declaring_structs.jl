@@ -7,10 +7,10 @@ end
 
 "Parametrizes a scene"
 Base.@kwdef struct Video_Params
-    lambda_objects::Float64 = 3.0
+    p_objects::Float64 = 0.9
     possible_objects::Vector{Int64} = collect(1:91)
     probs_possible_objects = collect(ones(91)./91)
-    v::Matrix{Float64} = zeros(91, 2)
+    v::Matrix{Real} = zeros(91, 2)
     x_min::Float64 = -16
     y_min::Float64 = -10
     z_min::Float64 = -10
