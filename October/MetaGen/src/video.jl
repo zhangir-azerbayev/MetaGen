@@ -47,7 +47,7 @@ Generates the next frame given the current frame.
 
 state is Array{Any,1}
 """
-@gen function frame_kernel(current_frame::Int64, state, params::Video_Params, receptive_fields::Vector{Receptive_Field})
+@gen function frame_kernel(current_frame::Int64, state, params::Video_Params, v::Matrix{Real}, receptive_fields::Vector{Receptive_Field})
 
     ####Update 2D real objects
 
@@ -58,12 +58,13 @@ state is Array{Any,1}
     #of observations_3D [(x,y,z,cat), (x,y,z,cat)] and get out the [(x_image,y_image,cat)]
     n_real_objects = length(state)
     paramses = fill(params, n_real_objects)
+    vs = fill(v, n_real_objects)
     camera_paramses = fill(camera_params, n_real_objects)
     real_detections = map(render, paramses, camera_paramses, state)
     real_detections = Array{Detection2D}(real_detections)
     #observations_2D will be what we condition on
 
-    rfs_vec = get_rfs_vec(receptive_fields, real_detections, params)
+    rfs_vec = get_rfs_vec(receptive_fields, real_detections, params, v)
 
     #for loop over receptive fields
     #@show maximum(map(length, rfs_vec))
@@ -82,11 +83,11 @@ frame_chain = Gen.Unfold(frame_kernel)
 """
 Samples a new scene.
 """
-@gen function video_kernel(num_frames::Int64, params::Video_Params, receptive_fields::Array{Receptive_Field, 1})
+@gen function video_kernel(num_frames::Int64, params::Video_Params, v::Matrix{Real}, receptive_fields::Array{Receptive_Field, 1})
     rfs_element = GeometricElement{Object3D}(params.p_objects, object_distribution, (params,))
     rfs_element = RFSElements{Object3D}([rfs_element]) #need brackets because rfs has to take an array
     init_state = @trace(rfs(rfs_element), :init_scene)
-    states = @trace(frame_chain(num_frames, init_state, params, receptive_fields), :frame_chain)
+    states = @trace(frame_chain(num_frames, init_state, params, v, receptive_fields), :frame_chain)
     return (init_state, states)
 end
 

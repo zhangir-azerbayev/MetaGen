@@ -47,13 +47,14 @@ Simulates the visual system, `num_videos` scenes each with
 
 	receptive_fields = make_receptive_fields()
 
-	params = Video_Params(v = v, num_receptive_fields = length(receptive_fields))
+	params = Video_Params(num_receptive_fields = length(receptive_fields))
 
     fs = fill(num_frames, num_videos) #number of frames per video
     ps = fill(params, num_videos)
+	vs = fill(v, num_videos)
 	receptive_fieldses = fill(receptive_fields, num_videos)
 
-    @trace(video_map(fs, ps, receptive_fieldses), :videos)
+    @trace(video_map(fs, ps, vs, receptive_fieldses), :videos)
 
 end
 

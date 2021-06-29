@@ -399,20 +399,20 @@ struct Hallucination_Distribution <: Gen.Distribution{Detection2D} end
 
 const hallucination_distribution = Hallucination_Distribution()
 
-function Gen.random(::Hallucination_Distribution, params::Video_Params, rec_field::Receptive_Field)
+function Gen.random(::Hallucination_Distribution, params::Video_Params, v::Matrix{Real}, rec_field::Receptive_Field)
 
     #saying there must be no fewer than 0 objects per scene, and at most 100
     #numObjects = @trace(trunc_poisson(sum(params.v[:,1]), -1.0, 100.0), (:numObjects)) #may want to truncate so 0 objects isn't possible
     #objects = @trace(multinomial_objects(numObjects,[0.2,0.2,0.2,0.2,0.2], ), (:objects))
-    c = categorical(params.v[:,1]./sum(params.v[:,1]))
+    c = categorical(v[:,1]./sum(v[:,1]))
     detection_2D = construct_2D(c, params, rec_field)
 end
 
-function Gen.logpdf(::Hallucination_Distribution, detection_2D::Detection2D, params::Video_Params, rec_field::Receptive_Field)
+function Gen.logpdf(::Hallucination_Distribution, detection_2D::Detection2D, params::Video_Params, v::Matrix{Real}, rec_field::Receptive_Field)
 
     #multinomial
     cat = detection_2D[3] #grabbing the category type
-    p_categorical = Gen.logpdf(categorical, cat, params.v[:,1]./sum(params.v[:,1])) #prob_vec is the hallucination lambdas normalized
+    p_categorical = Gen.logpdf(categorical, cat, v[:,1]./sum(v[:,1])) #prob_vec is the hallucination lambdas normalized
 
     #x-coordinate
     #all the x_coordinates
@@ -426,12 +426,12 @@ function Gen.logpdf(::Hallucination_Distribution, detection_2D::Detection2D, par
     p_categorical + p_x + p_y
 end
 
-function Gen.logpdf_grad(::Hallucination_Distribution, detection_2D::Detection2D, params::Video_Params)
+function Gen.logpdf_grad(::Hallucination_Distribution, detection_2D::Detection2D, params::Video_Params, v::Matrix{Real}, rec_field::Receptive_Field)
     gerror("Not implemented")
     (nothing, nothing)
 end
 
-(::Hallucination_Distribution)(params, rec_field) = Gen.random(Hallucination_Distribution(), params, rec_field)
+(::Hallucination_Distribution)(params, v, rec_field) = Gen.random(Hallucination_Distribution(), params, v, rec_field)
 
 has_output_grad(::Hallucination_Distribution) = false
 has_argument_grads(::Hallucination_Distribution) = (false,)

@@ -3,28 +3,29 @@ return rfs_vec, where the vector is the rfs indexed by receptive field
 """
 function get_rfs_vec(rec_fields::Vector{Receptive_Field},
                             real_objects::Vector{Detection2D},
-                            params::Video_Params)
+                            params::Video_Params, v::Matrix{Real})
 
     real_rf = map(rf -> filter(p -> within(p, rf), real_objects), rec_fields)
     paramses = fill(params, length(rec_fields))
-    rfs_vec = map(get_rfs, rec_fields, real_rf, paramses)
+    vs = fill(v, length(rec_fields))
+    rfs_vec = map(get_rfs, rec_fields, real_rf, paramses, vs)
 end
 
 """
 returns rfs elements for a particular receptive field
 """
-function get_rfs(rec_field::Receptive_Field, real::Vector{Detection2D}, params::Video_Params)
+function get_rfs(rec_field::Receptive_Field, real::Vector{Detection2D}, params::Video_Params, v::Matrix{Real})
 
     #########################################################################
     #for imaginary objects
-    lambda_fas = params.v[:,1]
+    lambda_fas = v[:,1]
     #fases = fill(fas, length(imaginary))
     #imagined_objects_2D = map(to_element, imaginary, fases)
     #imaginary = hallucination_distribution(params) #do I want to trace this? probably
-    imagined_objects_2D = PoissonElement{Detection2D}(sum(params.v[:,1]), hallucination_distribution, (params, rec_field))
+    imagined_objects_2D = PoissonElement{Detection2D}(sum(v[:,1]), hallucination_distribution, (params, v, rec_field))
 
     #for real objects
-    misses = params.v[:,2]
+    misses = v[:,2]
     #hitses = fill(hits, length(real))
     real_objects_2D = to_elements_real(real, misses)
 
