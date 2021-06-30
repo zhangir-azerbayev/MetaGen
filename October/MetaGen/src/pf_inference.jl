@@ -212,7 +212,7 @@ Performs on MH step on the false alarm rate for object of category j.
     std = 0.0005 #10% of sd in prior
     choices = get_choices(trace)
     #centered on previous value
-    @trace(trunc_normal(choices[:v_matrix => (:lambda_fa, j)], std, 0.0, 1.0), :v_matrix => (:lambda_fa, j))
+    @trace(normal(choices[:v_matrix => (:lambda_fa, j)], std), :v_matrix => (:lambda_fa, j))
 end
 
 """
