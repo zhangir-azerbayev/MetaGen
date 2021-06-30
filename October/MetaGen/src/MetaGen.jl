@@ -3,7 +3,9 @@ module MetaGen
 using Gen
 using GenRFS
 using Distributions
-using Plots
+#using Plots
+using PyPlot
+const plt = PyPlot
 #import PyPlot; const plt = PyPlot
 
 function __init__()

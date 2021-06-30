@@ -88,8 +88,11 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
             println("trace ", state.traces[i][:videos => v => :init_scene])
             println("log score of this trace ", get_score(state.traces[i]))
             visualize_trace(state.traces, i, camera_trajectories, v, 1, params)
+
             #visualize_trace(state.traces, i, camera_trajectories, v, 2, params)
         end
+
+        visualize_trace_with_heatmap(state.traces, camera_trajectories, v, 1, params )
 
         min_particle_weight = minimum(map(i -> get_score(state.traces[i]), collect(1:num_particles)))
         println("min log score ", min_particle_weight)
@@ -121,7 +124,7 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
         println("trace ", trace[:videos => v => :init_scene])
 
         trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
-        trace = perturb_v_matrix_hmc(trace, perturb_params)
+        # trace = perturb_v_matrix_hmc(trace, perturb_params)
     end
     #println("acceptance_counter $(acceptance_counter/proposal_counter)")
 
