@@ -12,9 +12,12 @@ Samples the matrix describing the visual system.
 	for j = 1:length(params.possible_objects)
 		#set lambda when target absent
 		#v[j,1] = @trace(Gen.beta(alpha, beta), (:fa, j)) #leads to fa rate of around 0.1
-		v[j,1] = @trace(trunc_normal(0.002, 0.005, 0.0, 1.0), (:lambda_fa, j)) #these are lambdas per receptive field
+		#v[j,1] = @trace(trunc_normal(0.002, 0.005, 0.0, 1.0), (:lambda_fa, j)) #these are lambdas per receptive field
+		v[j,1] = @trace(exponential(100), (:lambda_fa, j)) #these are lambdas per receptive field
+		#v[j,1] = @trace(uniform(0.0, 1.0), (:lambda_fa, j))
 		#set miss rate when target present
-		v[j,2] = @trace(trunc_normal(0.25, 0.5, 0.0, 1.0), (:miss_rate, j))
+		#v[j,2] = @trace(trunc_normal(0.25, 0.5, 0.0, 1.0), (:miss_rate, j))
+		v[j,2] = @trace(uniform(0.0, 1.0), (:miss_rate, j))
 	end
 	return v
 end
@@ -36,7 +39,7 @@ Simulates the visual system, `num_videos` scenes each with
 
 
 	n = length(params.possible_objects)
-	v = Matrix{Float64}(undef, n, 2)
+	v = Matrix{Real}(undef, n, 2)
 
 	#v[:,1] = @trace(Map(trunc_normal(0.002, 0.005, 0.0, 1.0), collect(1:n)), :lambda_fa)
 	#v[:,2] = @trace(Map(trunc_normal(0.25, 0.5, 0.0, 1.0), collect(1:n)), :miss_rate)
@@ -55,7 +58,6 @@ Simulates the visual system, `num_videos` scenes each with
 	receptive_fieldses = fill(receptive_fields, num_videos)
 
     @trace(video_map(fs, ps, vs, receptive_fieldses), :videos)
-
 end
 
 export metacog

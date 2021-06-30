@@ -121,7 +121,8 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
         println("trace ", trace[:videos => v => :init_scene])
 
         trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
-        trace = perturb_v_matrix_hmc(trace, perturb_params)
+        #trace = perturb_v_matrix_hmc(trace, perturb_params)
+        trace = perturb_v_matrix_mh(trace, perturb_params)
     end
     #println("acceptance_counter $(acceptance_counter/proposal_counter)")
 
@@ -154,12 +155,12 @@ end
 
 """
     perturb_v_matrix(trace, perturb_params::Perturb_Params)
-Picks one element of the v matrix to perturb.
+Picks one element of the v matrix to perturb using metropolis hastings.
 
 """
 
 #just pick an element of the matrix to perturb
-function perturb_v_matrix(trace, perturb_params::Perturb_Params)
+function perturb_v_matrix_mh(trace, perturb_params::Perturb_Params)
     n = length(perturb_params.probs_possible_objects)
     i = categorical([0.5, 0.5])
     j = categorical(fill(1/n, n))
