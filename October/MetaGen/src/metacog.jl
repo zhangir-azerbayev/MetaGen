@@ -59,3 +59,4 @@ Simulates the visual system, `num_videos` scenes each with
 end
 
 export metacog
+export make_visual_system
