@@ -124,12 +124,7 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
         println("trace ", trace[:videos => v => :init_scene])
 
         trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
-<<<<<<< HEAD
-        # trace = perturb_v_matrix_hmc(trace, perturb_params)
-=======
-        #trace = perturb_v_matrix_hmc(trace, perturb_params)
         trace = perturb_v_matrix_mh(trace, perturb_params)
->>>>>>> origin/for_testing_V
     end
     #println("acceptance_counter $(acceptance_counter/proposal_counter)")
 
