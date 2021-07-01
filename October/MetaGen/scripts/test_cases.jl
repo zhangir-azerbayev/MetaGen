@@ -20,9 +20,9 @@ camera_trajectories = Matrix{Camera_Params}(undef, num_videos, num_frames)
 for v=1:num_videos
 	f = 1
 
-	labels = [5]
-	xs = [225.5]
-	ys = [173.1]
+	labels = [2, 5]
+	xs = [50.1, 225.5]
+	ys = [60.2, 173.1]
 	temp = Array{Detection2D}(undef, length(labels))
 	for i = 1:length(labels)
 		label = labels[i]
@@ -41,9 +41,9 @@ for v=1:num_videos
 	#frame 2
 	f = 2
 
-	labels = [5]
-	xs = [225.5]
-	ys = [173.1]
+	labels = [2, 5]
+	xs = [50.1, 225.5]
+	ys = [60.2, 173.1]
 	temp = Array{Detection2D}(undef, length(labels))
 	for i = 1:length(labels)
 		label = labels[i]
