@@ -124,7 +124,12 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
         println("trace ", trace[:videos => v => :init_scene])
 
         trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
+<<<<<<< HEAD
         # trace = perturb_v_matrix_hmc(trace, perturb_params)
+=======
+        #trace = perturb_v_matrix_hmc(trace, perturb_params)
+        trace = perturb_v_matrix_mh(trace, perturb_params)
+>>>>>>> origin/for_testing_V
     end
     #println("acceptance_counter $(acceptance_counter/proposal_counter)")
 
@@ -157,12 +162,12 @@ end
 
 """
     perturb_v_matrix(trace, perturb_params::Perturb_Params)
-Picks one element of the v matrix to perturb.
+Picks one element of the v matrix to perturb using metropolis hastings.
 
 """
 
 #just pick an element of the matrix to perturb
-function perturb_v_matrix(trace, perturb_params::Perturb_Params)
+function perturb_v_matrix_mh(trace, perturb_params::Perturb_Params)
     n = length(perturb_params.probs_possible_objects)
     i = categorical([0.5, 0.5])
     j = categorical(fill(1/n, n))
@@ -214,7 +219,7 @@ Performs on MH step on the false alarm rate for object of category j.
     std = 0.0005 #10% of sd in prior
     choices = get_choices(trace)
     #centered on previous value
-    @trace(trunc_normal(choices[:v_matrix => (:lambda_fa, j)], std, 0.0, 1.0), :v_matrix => (:lambda_fa, j))
+    @trace(normal(choices[:v_matrix => (:lambda_fa, j)], std), :v_matrix => (:lambda_fa, j))
 end
 
 """
