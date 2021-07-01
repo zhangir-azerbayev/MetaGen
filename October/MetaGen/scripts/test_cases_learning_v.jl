@@ -2,6 +2,9 @@ using MetaGen
 using Gen
 using PyPlot
 const plt = PyPlot
+using Random
+
+Random.seed!(1234);
 
 # Generates a v matrix
 params = Video_Params()

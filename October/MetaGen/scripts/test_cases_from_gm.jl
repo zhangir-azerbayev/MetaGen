@@ -3,11 +3,17 @@ using MetaGen
 using Gen
 
 ################################################################################
-num_videos = 1
-num_frames = 2
+num_videos = 30
+num_frames = 100
 gt_trace,_ = Gen.generate(metacog, (num_videos, num_frames))
 #println(gt_trace)
 gt_choices = get_choices(gt_trace)
+
+gt_v = zeros(Float64, length(params.possible_objects), 2)
+for j = 1:length(params.possible_objects)
+	gt_v[j,1] = gt_choices[:v_matrix => (:lambda_fa, j)]
+	gt_v[j,2] = gt_choices[:v_matrix => (:miss_rate, j)]
+end
 
 receptive_fields = make_receptive_fields()
 num_receptive_fields = length(receptive_fields)
@@ -38,32 +44,30 @@ end
 println("objects_observed ", objects_observed)
 println("camera_trajectories ", camera_trajectories)
 
-visualize_observations(objects_observed, 1, 1, receptive_fields)
-visualize_observations(objects_observed, 1, 2, receptive_fields)
-
-num_particles = 100
-traces = unfold_particle_filter(num_particles, objects_observed, camera_trajectories, num_receptive_fields)
-println("done")
 #visualize_observations(objects_observed, 1, 1, receptive_fields)
-#visualize_trace(traces, 1, camera_trajectories, 1, 1, params)
+#visualize_observations(objects_observed, 1, 2, receptive_fields)
 
 outfile = string("test_case.csv")
 file = open(outfile, "w")
 #file header
-# for v=1:1
-# 	print(file, "avg V ", v, " & ")
-#     print(file, "dictionary realities PF for scene ", v, " & ")
-# 	print(file, "mode realities PF for scene ", v, " & ")
-# end
-print(file, "avg V 1 &")
-print(file, "dictionary realities PF for scene 1 & ")
-print(file, "mode realities PF for scene  1")
+print(file, "gt_V & ")
+for v=1:29
+	print(file, "avg V ", v, " & ")
+    print(file, "dictionary realities PF for scene ", v, " & ")
+	print(file, "mode realities PF for scene ", v, " & ")
+end
+print(file, "avg V 3 &")
+print(file, "dictionary realities PF for scene 3 & ")
+print(file, "mode realities PF for scene 3")
 
 print(file, "\n")
 
-# for v=1:1
-#     print_Vs_and_Rs_to_file(file, traces, num_particles, params, v)
-# end
-# print_Vs_and_Rs_to_file(file, traces, num_particles, params, 2, true)
-print_Vs_and_Rs_to_file(file, traces, num_particles, params, 1, true)
+print(file, gt_v, " & ")
+
+num_particles = 5
+traces = unfold_particle_filter(num_particles, objects_observed, camera_trajectories, num_receptive_fields, file)
+println("done")
+#visualize_observations(objects_observed, 1, 1, receptive_fields)
+#visualize_trace(traces, 1, camera_trajectories, 1, 1, params)
+
 close(file)
