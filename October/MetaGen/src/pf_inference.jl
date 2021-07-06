@@ -33,7 +33,7 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
 
     #no video, no frames
     println("initialize pf")
-    state = Gen.initialize_particle_filter(metacog, (0, 0), init_obs, num_particles)
+    state = Gen.initialize_particle_filter(main, (0, 0), init_obs, num_particles)
 
     num_videos, num_frames = size(objects_observed)
 
@@ -62,7 +62,7 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
             for rf = 1:num_receptive_fields
                 #println("objects_observed[v, f][rf] ", objects_observed[v, f][rf])
                 #println("type ", typeof(objects_observed[v, f][rf]))
-                obs[:videos => v => :frame_chain => f => rf => :observations_2D] = convert(Array{Any, 1}, objects_observed[v, f][rf])
+                obs[:videos => v => :frame_chain => f => :observations_2D => :observations_2D => rf] = convert(Array{Any, 1}, objects_observed[v, f][rf])
             end
         end
         #def should be using map to replace for loops here
@@ -124,18 +124,18 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
     #acceptance_counter = 0
     #proposal_counter = 0
 
-    println("lambda_fa 2 ", trace[:v_matrix => (:lambda_fa, 2)])
-    println("miss 2 ", trace[:v_matrix => (:miss_rate, 2)])
-    println("lambda_fa 5 ", trace[:v_matrix => (:lambda_fa, 5)])
-    println("miss 5 ", trace[:v_matrix => (:miss_rate, 5)])
+    #println("lambda_fa 2 ", trace[:v_matrix => (:lambda_fa, 2)])
+    #println("miss 2 ", trace[:v_matrix => (:miss_rate, 2)])
+    #println("lambda_fa 5 ", trace[:v_matrix => (:lambda_fa, 5)])
+    #println("miss 5 ", trace[:v_matrix => (:miss_rate, 5)])
 
     for iter=1:500 #try 100 MH moves
         println("iter ", iter)
-        println("trace ", trace[:videos => v => :init_scene])
+        #println("trace ", trace[:videos => v => :init_scene])
 
         trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
         for iter2=1:10
-            trace = perturb_v_matrix_mh(trace, perturb_params)
+            trace = perturb_v_matrix_mh(trace, v, perturb_params)
         end
     #     println("lambda_fa 2 ", trace[:v_matrix => (:lambda_fa, 2)])
     #     println("miss 2 ", trace[:v_matrix => (:miss_rate, 2)])
@@ -155,18 +155,18 @@ Does 3 MCMC steps (with different proposal functions) on the scene.
 
 function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
     trace, accepted = add_remove_kernel(trace, v, line_segments_per_category, perturb_params)
-    println("accepted? ", accepted)
-    println("trace ", trace[:videos => v => :init_scene])
+    #println("accepted? ", accepted)
+    #println("trace ", trace[:videos => v => :init_scene])
 
     #only try changing location or category if there's at least one object in the scene
     if length(trace[:videos => v => :init_scene]) > 0
         trace, accepted = change_location_kernel(trace, v, 0.1, perturb_params)
-        println("accepted? ", accepted)
-        println("trace ", trace[:videos => v => :init_scene])
+        #println("accepted? ", accepted)
+        #println("trace ", trace[:videos => v => :init_scene])
 
         trace, accepted = change_category_kernel(trace, v, perturb_params)
-        println("accepted? ", accepted)
-        println("trace ", trace[:videos => v => :init_scene])
+        #println("accepted? ", accepted)
+        #println("trace ", trace[:videos => v => :init_scene])
     end
     return trace
 end
@@ -178,18 +178,18 @@ Picks one element of the v matrix to perturb using metropolis hastings.
 """
 
 #just pick an element of the matrix to perturb
-function perturb_v_matrix_mh(trace, perturb_params::Perturb_Params)
+function perturb_v_matrix_mh(trace, v::Int64, perturb_params::Perturb_Params)
     n = length(perturb_params.probs_possible_objects)
     i = categorical([0.5, 0.5])
     j = categorical(fill(1/n, n))
 
     if i == 1 #if perturbing fa
-        trace, accepted = mh(trace, proposal_for_v_matrix_fa, (j,))
+        trace, accepted = mh(trace, proposal_for_v_matrix_fa, (v, j))
     else
-        trace, accepted = mh(trace, proposal_for_v_matrix_miss, (j,))
+        trace, accepted = mh(trace, proposal_for_v_matrix_miss, (v, j))
     end
 
-    println("accepted? ", accepted)
+    #println("accepted? ", accepted)
     #println("trace ", trace[:v_matrix])
     return trace
 end
@@ -201,19 +201,19 @@ Perturbs an element of the v_matrix using Hamiltonian MC
 """
 
 #just pick an element of the matrix to perturb
-function perturb_v_matrix_hmc(trace, perturb_params::Perturb_Params)
+function perturb_v_matrix_hmc(trace, v::Int64, perturb_params::Perturb_Params)
     n = length(perturb_params.probs_possible_objects)
     i = categorical([0.5, 0.5])
     j = categorical(fill(1/n, n))
 
     if i == 1 #if perturbing fa
-        trace, accepted = hmc(trace, select(:v_matrix => (:miss_rate, j)))
+        trace, accepted = hmc(trace, select(:videos => v => :v_matrix => :lambda_fa => j => :fa))
     else
-        trace, accepted = hmc(trace, select(:v_matrix => (:lambda_fa, j)))
+        trace, accepted = hmc(trace, select(:videos => v => :v_matrix => :miss_rate => j => :miss))
     end
 
-    println("accepted? ", accepted)
-    println("trace ", trace[:v_matrix])
+    #println("accepted? ", accepted)
+    #println("trace ", trace[:v_matrix])
 
     return trace
 end
@@ -225,11 +225,11 @@ Performs on MH step on the false alarm rate for object of category j.
 
 """
 
-@gen function proposal_for_v_matrix_fa(trace, j::Int64)
+@gen function proposal_for_v_matrix_fa(trace, v::Int64, j::Int64)
     std = 0.01
     choices = get_choices(trace)
     #centered on previous value
-    @trace(trunc_normal(choices[:v_matrix => (:lambda_fa, j)], std, 0.0, 10000.0), :v_matrix => (:lambda_fa, j)) #had to make trunc_normal because of error otherwise
+    @trace(trunc_normal(choices[:videos => v => :v_matrix => :lambda_fa => j => :fa], std, 0.0, 10000.0), :videos => v => :v_matrix => :lambda_fa => j => :fa) #had to make trunc_normal because of error otherwise
 end
 
 """
@@ -238,11 +238,11 @@ Performs on MH step on the miss rate for object of category j.
 
 """
 
-@gen function proposal_for_v_matrix_miss(trace, j::Int64)
+@gen function proposal_for_v_matrix_miss(trace, v::Int64, j::Int64)
     std = 0.1
     choices = get_choices(trace)
     #centered on previous value
-    @trace(trunc_normal(choices[:v_matrix => (:miss_rate, j)], std, 0.0, 1.0), :v_matrix => (:miss_rate, j))
+    @trace(trunc_normal(choices[:videos => v => :v_matrix => :miss_rate => j => :miss], std, 0.0, 1.0), :videos => v => :v_matrix => :miss_rate => j => :miss)
 end
 
 """

@@ -8,6 +8,6 @@ using StatProfilerHTML
 #@profilehtml gt_trace,_ = Gen.generate(metacog, (possible_objects,))
 num_frames = 3
 num_videos = 2
-gt_trace,_ = Gen.generate(metacog, (num_videos, num_frames))
+gt_trace,_ = Gen.generate(main, (num_videos, num_frames))
 #println(gt_trace)
 gt_choices = get_choices(gt_trace)

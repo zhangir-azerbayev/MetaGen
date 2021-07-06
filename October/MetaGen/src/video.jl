@@ -41,6 +41,7 @@ uniform distribution
     return camera_params
 end
 
+#the only function that's not static. couldn't get rfs to play nicely with Map
 @gen function rfs_helper(rfs_vec::Any)#couldn't get the type quite right
     for i = 1:length(rfs_vec)
         observations_2D = @trace(rfs(rfs_vec[i]), :observations_2D => i)
@@ -83,19 +84,55 @@ end
 frame_chain = Gen.Unfold(frame_kernel)
 
 """
-Samples a new scene.
+Samples new values for lambda_fa based on the previous.
 """
-@gen (static) function video_kernel(num_frames::Int64, params::Video_Params, v::Matrix{Real}, receptive_fields::Array{Receptive_Field, 1})
+@gen (static) function update_lambda_fa(previous_lambda_fa::Real)
+    fa = @trace(trunc_normal(previous_lambda_fa, 0.001, 0.0, 100000.0), :fa)
+    return fa
+end
+
+"""
+Samples new values for miss_rate based on the previous.
+"""
+@gen (static) function update_miss_rate(previous_miss_rate::Real)
+    miss = @trace(trunc_normal(previous_miss_rate, 0.01, 0.0, 1.0), :miss)
+    return miss
+end
+
+"""
+Samples a new v based on the previous v.
+"""
+@gen (static) function update_v_matrix(previous_v_matrix::Matrix{Real})
+    #v = Matrix{Real}(undef, dim(previous_v_matrix))
+    fa = @trace(Map(update_lambda_fa)(previous_v_matrix[:,1]), :lambda_fa)
+    miss = @trace(Map(update_miss_rate)(previous_v_matrix[:,2]), :miss_rate)
+    #v[:, 1] = fa
+    #v[:, 2] = miss
+    v = hcat(fa, miss)
+    return convert(Matrix{Real}, v)
+    #return v
+end
+
+"""
+Samples a new scene and a new v_matrix.
+"""
+@gen (static) function video_kernel(current_video::Int64, previous_v_matrix::Matrix{Real}, num_frames::Int64, params::Video_Params, receptive_fields::Array{Receptive_Field, 1})
+    #for the scene. scenes are completely independent of each other
     rfs_element = GeometricElement{Object3D}(params.p_objects, object_distribution, (params,))
     rfs_element = RFSElements{Object3D}([rfs_element]) #need brackets because rfs has to take an array
     init_state = @trace(rfs(rfs_element), :init_scene)
-    states = @trace(frame_chain(num_frames, init_state, params, v, receptive_fields), :frame_chain)
-    return (init_state, states)
+
+    #for the metacognition.
+    v_matrix = @trace(update_v_matrix(previous_v_matrix), :v_matrix)
+
+    #make the observations
+    states = @trace(frame_chain(num_frames, init_state, params, v_matrix, receptive_fields), :frame_chain)
+    return v_matrix
 end
 
 #video_chain = Gen.Unfold(video_kernel)
 """Creates scene chain"""
-video_map = Gen.Map(video_kernel)
+video_chain = Gen.Unfold(video_kernel)
 
 """Creates frame chain"""
 frame_chain = Gen.Unfold(frame_kernel)
