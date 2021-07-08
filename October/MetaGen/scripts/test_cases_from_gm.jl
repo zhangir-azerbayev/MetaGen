@@ -1,9 +1,14 @@
 #for running test cases from the generative model
 using MetaGen
 using Gen
+using PyPlot
+const plt = PyPlot
+using Random
+
+Random.seed!(1234)
 
 ################################################################################
-num_videos = 3
+num_videos = 30
 num_frames = 100
 
 #for testing purposes, let's fix V
@@ -83,10 +88,48 @@ print(file, "\n")
 
 print(file, gt_v, " & ")
 
-num_particles = 1
+num_particles = 10
 traces = unfold_particle_filter(num_particles, objects_observed, camera_trajectories, num_receptive_fields, file)
 println("done")
 #visualize_observations(objects_observed, 1, 1, receptive_fields)
 #visualize_trace(traces, 1, camera_trajectories, 1, 1, params)
 
 close(file)
+
+# Gets v_hat matrix
+best_trace = Gen.get_choices(traces[1])
+v_hat = Matrix{Real}(undef, length(params.possible_objects), 2)
+for j=1:length(params.possible_objects)
+	v_hat[j, 1] = best_trace[:videos => num_videos => :v_matrix => :lambda_fa => j => :fa]
+	v_hat[j, 2] = best_trace[:videos => num_videos => :v_matrix => :miss_rate => j => :miss]
+end
+
+#plot errors of final estimate
+L1_errors = vec(abs.(gt_v - v_hat))
+
+plt.clf()
+plt.title("V matrix L1 errors, $(num_videos) videos, $(num_frames) frames, $(num_particles) particles")
+bins = [0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+plt.hist(L1_errors, bins=bins)
+plt.xlim(0, 1)
+plt.savefig("errors_$(num_videos)_$(num_frames)_$(num_particles).pdf")
+plt.clf()
+
+#plot MSE as function of videos
+MSEs = []
+
+for i=1:num_videos
+	# makes v_hat
+	v_pred = Matrix{Real}(undef, length(params.possible_objects), 2)
+	for j=1:length(params.possible_objects)
+		v_pred[j, 1] = best_trace[:videos => i => :v_matrix => :lambda_fa => j => :fa]
+		v_pred[j, 2] = best_trace[:videos => i => :v_matrix => :miss_rate => j => :miss]
+	end
+	mse = sum((gt_v - v_pred).^2) / (2 * length(params.possible_objects))
+	push!(MSEs, mse)
+end
+
+plt.plot(MSEs)
+plt.title("MSEs $(num_videos) videos, $(num_frames) frames, $(num_particles) particles")
+plt.savefig("mses_$(num_videos)_$(num_frames)_$(num_particles).pdf")
+plt.clf()
