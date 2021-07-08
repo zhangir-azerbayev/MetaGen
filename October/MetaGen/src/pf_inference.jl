@@ -124,10 +124,12 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
     #acceptance_counter = 0
     #proposal_counter = 0
 
-    #println("lambda_fa 2 ", trace[:v_matrix => (:lambda_fa, 2)])
-    #println("miss 2 ", trace[:v_matrix => (:miss_rate, 2)])
-    #println("lambda_fa 5 ", trace[:v_matrix => (:lambda_fa, 5)])
-    #println("miss 5 ", trace[:v_matrix => (:miss_rate, 5)])
+    println("before perturbations")
+    println("v ", v)
+    println("miss 2 ", trace[:init_v_matrix => :miss_rate => 2 => :miss])
+    println("lambda_fa 5 ", trace[:init_v_matrix => :lambda_fa => 5 => :fa])
+    println("miss 2 ", trace[:videos => v => :v_matrix => :miss_rate => 2 => :miss])
+    println("lambda_fa 5 ", trace[:videos => v => :v_matrix => :lambda_fa => 5 => :fa])
 
     for iter=1:500 #try 100 MH moves
         println("iter ", iter)
@@ -137,12 +139,20 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
         for iter2=1:10
             trace = perturb_v_matrix_mh(trace, v, perturb_params)
         end
-    #     println("lambda_fa 2 ", trace[:v_matrix => (:lambda_fa, 2)])
-    #     println("miss 2 ", trace[:v_matrix => (:miss_rate, 2)])
-    #     println("lambda_fa 5 ", trace[:v_matrix => (:lambda_fa, 5)])
-    #     println("miss 5 ", trace[:v_matrix => (:miss_rate, 5)])
+        # println("lambda_fa 2 ", trace[:v_matrix => (:lambda_fa, 2)])
+        # println("miss 2 ", trace[:v_matrix => (:miss_rate, 2)])
+        # println("lambda_fa 5 ", trace[:v_matrix => (:lambda_fa, 5)])
+        # println("miss 5 ", trace[:v_matrix => (:miss_rate, 5)])
     end
     #println("acceptance_counter $(acceptance_counter/proposal_counter)")
+
+    println("after perturbations")
+    println("v ", v)
+    println("miss 2 ", trace[:init_v_matrix => :miss_rate => 2 => :miss])
+    println("lambda_fa 5 ", trace[:init_v_matrix => :lambda_fa => 5 => :fa])
+    println("miss 2 ", trace[:videos => v => :v_matrix => :miss_rate => 2 => :miss])
+    println("lambda_fa 5 ", trace[:videos => v => :v_matrix => :lambda_fa => 5 => :fa])
+
 
     return trace
 end
@@ -183,15 +193,63 @@ function perturb_v_matrix_mh(trace, v::Int64, perturb_params::Perturb_Params)
     i = categorical([0.5, 0.5])
     j = categorical(fill(1/n, n))
 
-    if i == 1 #if perturbing fa
-        trace, accepted = mh(trace, proposal_for_v_matrix_fa, (v, j))
-    else
-        trace, accepted = mh(trace, proposal_for_v_matrix_miss, (v, j))
-    end
+    selection = get_selection(v, j, i)
+    trace, accepted = mh(trace, selection) #proposes new trace from the prior
+
+
+    # if i == 1 #if perturbing fa
+    #     trace, accepted = mh(trace, proposal_for_v_matrix_fa, (v, j))
+    # else
+    #     trace, accepted = mh(trace, proposal_for_v_matrix_miss, (v, j))
+    # end
 
     #println("accepted? ", accepted)
     #println("trace ", trace[:v_matrix])
     return trace
+end
+
+
+function get_selection(v::Int64, j::Int64, i::Int64)
+    if i == 1 #change lambda_fa
+        if v > 3
+            selection = select(:videos => v => :v_matrix => :lambda_fa => j => :fa,
+            :videos => v-1 => :v_matrix => :lambda_fa => j => :fa,
+            :videos => v-2 => :v_matrix => :lambda_fa => j => :fa,
+            :videos => v-3 => :v_matrix => :lambda_fa => j => :fa)
+        elseif v == 3
+            selection = select(:videos => v => :v_matrix => :lambda_fa => j => :fa,
+            :videos => v-1 => :v_matrix => :lambda_fa => j => :fa,
+            :videos => v-2 => :v_matrix => :lambda_fa => j => :fa,
+            :init_v_matrix => :lambda_fa => j => :fa)
+        elseif v == 2
+            selection = select(:videos => v => :v_matrix => :lambda_fa => j => :fa,
+            :videos => v-1 => :v_matrix => :lambda_fa => j => :fa,
+            :init_v_matrix => :lambda_fa => j => :fa)
+        else#if v == 1
+            selection = select(:videos => v => :v_matrix => :lambda_fa => j => :fa,
+            :init_v_matrix => :lambda_fa => j => :fa)
+        end
+    else
+        if v > 3
+            selection = select(:videos => v => :v_matrix => :miss_rate => j => :miss,
+            :videos => v-1 => :v_matrix => :miss_rate => j => :miss,
+            :videos => v-2 => :v_matrix => :miss_rate => j => :miss,
+            :videos => v-3 => :v_matrix => :miss_rate => j => :miss)
+        elseif v == 3
+            selection = select(:videos => v => :v_matrix => :miss_rate => j => :miss,
+            :videos => v-1 => :v_matrix => :miss_rate => j => :miss,
+            :videos => v-2 => :v_matrix => :miss_rate => j => :miss,
+            :init_v_matrix => :miss_rate => j => :miss)
+        elseif v == 2
+            selection = select(:videos => v => :v_matrix => :miss_rate => j => :miss,
+            :videos => v-1 => :v_matrix => :miss_rate => j => :miss,
+            :init_v_matrix => :miss_rate => j => :miss)
+        else#if v == 1
+            selection = select(:videos => v => :v_matrix => :miss_rate => j => :miss,
+            :init_v_matrix => :miss_rate => j => :miss)
+        end
+    end
+    return selection
 end
 
 """

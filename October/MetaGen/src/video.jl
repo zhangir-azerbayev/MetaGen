@@ -1,16 +1,16 @@
-"""
-    gen_possible_hallucination(params::Video_Params, cat::Int64)
-
-This function takes a category and params and it returns the possible
-objects (as 2D Detections) of that category that could be detected
-"""
-#hallucinate objects in 2D image
-@gen (static) function gen_possible_hallucination(params::Video_Params, cat::Int64)
-    x = @trace(uniform(0,params.image_dim_x), :x)
-    y = @trace(uniform(0,params.image_dim_y), :y)
-    return (x, y, cat)
-end
-possible_hallucination_map = Gen.Map(gen_possible_hallucination)
+# """
+#     gen_possible_hallucination(params::Video_Params, cat::Int64)
+#
+# This function takes a category and params and it returns the possible
+# objects (as 2D Detections) of that category that could be detected
+# """
+# #hallucinate objects in 2D image
+# @gen (static) function gen_possible_hallucination(params::Video_Params, cat::Int64)
+#     x = @trace(uniform(0,params.image_dim_x), :x)
+#     y = @trace(uniform(0,params.image_dim_y), :y)
+#     return (x, y, cat)
+# end
+# possible_hallucination_map = Gen.Map(gen_possible_hallucination)
 
 """given a 3D detection, return BernoulliElement over a 2D detection"""
 function render(params::Video_Params, camera_params::Camera_Params, object_3D::Object3D)
@@ -64,7 +64,7 @@ state is Array{Any,1}
     #of observations_3D [(x,y,z,cat), (x,y,z,cat)] and get out the [(x_image,y_image,cat)]
     n_real_objects = length(state)
     paramses = fill(params, n_real_objects)
-    vs = fill(v, n_real_objects)
+    #vs = fill(v, n_real_objects)
     camera_paramses = fill(camera_params, n_real_objects)
     real_detections = map(render, paramses, camera_paramses, state)
     real_detections = Array{Detection2D}(real_detections)
@@ -86,26 +86,29 @@ frame_chain = Gen.Unfold(frame_kernel)
 """
 Samples new values for lambda_fa based on the previous.
 """
-@gen (static) function update_lambda_fa(previous_lambda_fa::Real)
-    fa = @trace(trunc_normal(previous_lambda_fa, 0.001, 0.0, 100000.0), :fa)
+@gen (static) function update_lambda_fa(previous_lambda_fa::Real, t::Int64)
+    sd = max(1/10 - (t/1000), 1/1000)
+    fa = @trace(trunc_normal(previous_lambda_fa, sd, 0.0, 100000.0), :fa)
     return fa
 end
 
 """
 Samples new values for miss_rate based on the previous.
 """
-@gen (static) function update_miss_rate(previous_miss_rate::Real)
-    miss = @trace(trunc_normal(previous_miss_rate, 0.01, 0.0, 1.0), :miss)
+@gen (static) function update_miss_rate(previous_miss_rate::Real, t::Int64)
+    sd = max(1 - (t/100), 1/100)
+    miss = @trace(trunc_normal(previous_miss_rate, sd, 0.0, 1.0), :miss)
     return miss
 end
 
 """
 Samples a new v based on the previous v.
 """
-@gen (static) function update_v_matrix(previous_v_matrix::Matrix{Real})
+@gen (static) function update_v_matrix(previous_v_matrix::Matrix{Real}, t::Int64)
     #v = Matrix{Real}(undef, dim(previous_v_matrix))
-    fa = @trace(Map(update_lambda_fa)(previous_v_matrix[:,1]), :lambda_fa)
-    miss = @trace(Map(update_miss_rate)(previous_v_matrix[:,2]), :miss_rate)
+    ts = fill(t, length(previous_v_matrix[:,1]))
+    fa = @trace(Map(update_lambda_fa)(previous_v_matrix[:,1], ts), :lambda_fa)
+    miss = @trace(Map(update_miss_rate)(previous_v_matrix[:,2], ts), :miss_rate)
     #v[:, 1] = fa
     #v[:, 2] = miss
     v = hcat(fa, miss)
@@ -123,7 +126,7 @@ Samples a new scene and a new v_matrix.
     init_state = @trace(rfs(rfs_element), :init_scene)
 
     #for the metacognition.
-    v_matrix = @trace(update_v_matrix(previous_v_matrix), :v_matrix)
+    v_matrix = @trace(update_v_matrix(previous_v_matrix, current_video), :v_matrix)
 
     #make the observations
     states = @trace(frame_chain(num_frames, init_state, params, v_matrix, receptive_fields), :frame_chain)
@@ -137,4 +140,4 @@ video_chain = Gen.Unfold(video_kernel)
 """Creates frame chain"""
 frame_chain = Gen.Unfold(frame_kernel)
 
-export video_map
+export video_chain
