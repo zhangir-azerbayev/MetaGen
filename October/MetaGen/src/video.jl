@@ -12,6 +12,45 @@
 # end
 # possible_hallucination_map = Gen.Map(gen_possible_hallucination)
 
+function within_frame(p::Detection2D)
+    p[1] >= 0 && p[1] <= 320 && p[2] >= 0 && p[2] <= 240 #hard-codded frame size
+end
+
+#first approximation
+function update_alpha_beta(alphas::Matrix{Int64}, betas::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D})
+    observations_2D = filter!(within_frame, observations_2D)
+    real_detections = filter!(within_frame, real_detections)
+
+    #lets only do this by category
+    real_detections_cats = last.(real_detections)
+    observations_2D_cats = last.(observations_2D)
+
+    #see if actually detected. update miss rate
+    observations_2D_cats_edited = copy(observations_2D_cats)
+    for i = 1:length(real_detections_cats)
+        current_cat = real_detections_cats[i]
+        if current_cat in observations_2D_cats_edited #actually detected
+            betas[current_cat, 2] = betas[current_cat, 2] + 1 #increment
+            #remove
+            observations_2D_cats_edited = deleteat!(observations_2D_cats_edited, findfirst(observations_2D_cats_edited.==current_cat))
+        else #missed
+            alphas[current_cat, 2] = alphas[current_cat, 2] + 1
+        end
+    end
+
+    #everything left in observations_2D_cats_edited must have been hallucinated
+    num_cats = size(alphas)[1]
+
+    for i in 1:length(observations_2D_cats_edited)
+        alphas[observations_2D_cats_edited[i], 1] = alphas[observations_2D_cats_edited[i], 1] + 1
+    end
+
+    for i in setdiff(collect(1:num_cats), observations_2D_cats_edited)
+        betas[i, 1] = betas[i, 1] + 1 #not hallucinated
+    end
+    return alphas, betas
+end
+
 """given a 3D detection, return BernoulliElement over a 2D detection"""
 function render(params::Video_Params, camera_params::Camera_Params, object_3D::Object3D)
     cat = object_3D[4]
@@ -41,20 +80,12 @@ uniform distribution
     return camera_params
 end
 
-#the only function that's not static. couldn't get rfs to play nicely with Map
-@gen function rfs_helper(rfs_vec::Any)#couldn't get the type quite right
-    for i = 1:length(rfs_vec)
-        observations_2D = @trace(rfs(rfs_vec[i]), :observations_2D => i)
-    end
-end
-
 """
 Generates the next frame given the current frame.
 
-state is Array{Any,1}
+state is Tuple{Array{Any,1}, Matrix{Int64}, Matrix{Int64}}
 """
-@gen (static) function frame_kernel(current_frame::Int64, state, params::Video_Params, v::Matrix{Real}, receptive_fields::Vector{Receptive_Field})
-
+@gen function frame_kernel(current_frame::Int64, state::Any, params::Video_Params, v::Matrix{Real}, receptive_fields::Vector{Receptive_Field})
     ####Update 2D real objects
 
     ####Update camera location and pointing
@@ -62,11 +93,12 @@ state is Array{Any,1}
 
     #get locations of the objects in the image. basically want to input the list
     #of observations_3D [(x,y,z,cat), (x,y,z,cat)] and get out the [(x_image,y_image,cat)]
-    n_real_objects = length(state)
+    scene = state[1]
+    n_real_objects = length(scene)
     paramses = fill(params, n_real_objects)
     #vs = fill(v, n_real_objects)
     camera_paramses = fill(camera_params, n_real_objects)
-    real_detections = map(render, paramses, camera_paramses, state)
+    real_detections = map(render, paramses, camera_paramses, scene)
     real_detections = Array{Detection2D}(real_detections)
     #observations_2D will be what we condition on
 
@@ -76,39 +108,39 @@ state is Array{Any,1}
     #@show maximum(map(length, rfs_vec))
     #could re-write with map
     #@trace(Gen.Map(rfs)(rfs_vec), :observations_2D) #gets no method matching error
-    observations_2D = @trace(rfs_helper(rfs_vec), :observations_2D)
+    observations_2D = @trace(rfs(rfs_vec[1]), :observations_2D) #dirty shortcut because we only have one receptive field atm
 
+    alphas, betas = update_alpha_beta(state[2], state[3], observations_2D, real_detections)
+
+    state = (scene, alphas, betas)
     return state #just keep sending the scene / initial state in.
 end
 
 frame_chain = Gen.Unfold(frame_kernel)
 
 """
-Samples new values for lambda_fa based on the previous.
+Samples new values for lambda_fa.
 """
-@gen (static) function update_lambda_fa(previous_lambda_fa::Real, t::Int64)
-    sd = max(1/10 - (t/1000), 1/1000)
-    fa = @trace(trunc_normal(previous_lambda_fa, sd, 0.0, 100000.0), :fa)
+@gen (static) function update_lambda_fa(alpha::Int64, beta::Int64)
+    fa = @trace(beta(alpha, beta), :fa)
     return fa
 end
 
 """
-Samples new values for miss_rate based on the previous.
+Samples new values for miss_rate.
 """
-@gen (static) function update_miss_rate(previous_miss_rate::Real, t::Int64)
-    sd = max(1 - (t/100), 1/100)
-    miss = @trace(trunc_normal(previous_miss_rate, sd, 0.0, 1.0), :miss)
+@gen (static) function update_miss_rate(alpha::Int64, beta::Int64)
+    miss = @trace(beta(alpha, beta), :miss)
     return miss
 end
 
 """
 Samples a new v based on the previous v.
 """
-@gen (static) function update_v_matrix(previous_v_matrix::Matrix{Real}, t::Int64)
+@gen (static) function update_v_matrix(alphas::Matrix{Int64}, betas::Matrix{Int64})
     #v = Matrix{Real}(undef, dim(previous_v_matrix))
-    ts = fill(t, length(previous_v_matrix[:,1]))
-    fa = @trace(Map(update_lambda_fa)(previous_v_matrix[:,1], ts), :lambda_fa)
-    miss = @trace(Map(update_miss_rate)(previous_v_matrix[:,2], ts), :miss_rate)
+    fa = @trace(Map(update_lambda_fa)(alphas[:,1], betas[:,1]), :lambda_fa)
+    miss = @trace(Map(update_miss_rate)(alphas[:,2], betas[:,2]), :miss_rate)
     #v[:, 1] = fa
     #v[:, 2] = miss
     v = hcat(fa, miss)
@@ -119,18 +151,29 @@ end
 """
 Samples a new scene and a new v_matrix.
 """
-@gen (static) function video_kernel(current_video::Int64, previous_v_matrix::Matrix{Real}, num_frames::Int64, params::Video_Params, receptive_fields::Array{Receptive_Field, 1})
+@gen function video_kernel(current_video::Int64, v_matrix_state::Any, num_frames::Int64, params::Video_Params, receptive_fields::Array{Receptive_Field, 1})
     #for the scene. scenes are completely independent of each other
+    #println("current video ", current_video)
+
     rfs_element = GeometricElement{Object3D}(params.p_objects, object_distribution, (params,))
     rfs_element = RFSElements{Object3D}([rfs_element]) #need brackets because rfs has to take an array
-    init_state = @trace(rfs(rfs_element), :init_scene)
-
-    #for the metacognition.
-    v_matrix = @trace(update_v_matrix(previous_v_matrix, current_video), :v_matrix)
+    init_scene = @trace(rfs(rfs_element), :init_scene)
 
     #make the observations
-    states = @trace(frame_chain(num_frames, init_state, params, v_matrix, receptive_fields), :frame_chain)
-    return v_matrix
+    previous_v_matrix = v_matrix_state[1]
+    alphas = v_matrix_state[2]
+    betas = v_matrix_state[3]
+    init_state = (init_scene, alphas, betas)
+
+    state = @trace(frame_chain(num_frames, init_state, params, previous_v_matrix, receptive_fields), :frame_chain)
+    alphas = state[num_frames][2]#not sure num_frames is right for index
+    betas = state[num_frames][3]
+    #for the metacognition.
+    v_matrix = @trace(update_v_matrix(alphas, betas), :v_matrix)
+    v_matrix_state = (v_matrix, alphas, betas)
+    #println("alphas ", alphas)
+    #println("betas ", betas)
+    return v_matrix_state
 end
 
 #video_chain = Gen.Unfold(video_kernel)

@@ -1,5 +1,5 @@
 """
-    unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, num_receptive_fields::Int64)
+    unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Array{Detection2D}}, camera_trajectories::Matrix{Camera_Params}, num_receptive_fields::Int64)
 
 Performs inference procedure.
 
@@ -16,7 +16,7 @@ array for each frame and array for each receptive field and array for those dete
 
 
 """
-function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, num_receptive_fields::Int64, file)
+function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Array{Detection2D}}, camera_trajectories::Matrix{Camera_Params}, file)
     init_obs = Gen.choicemap()
 
     #params set to default
@@ -59,11 +59,11 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
             obs[:videos => v => :frame_chain => f => :camera => :camera_focus_y] = camera_params.camera_focus.y
             obs[:videos => v => :frame_chain => f => :camera => :camera_focus_z] = camera_params.camera_focus.z
 
-            for rf = 1:num_receptive_fields
+            #for rf = 1:num_receptive_fields
                 #println("objects_observed[v, f][rf] ", objects_observed[v, f][rf])
                 #println("type ", typeof(objects_observed[v, f][rf]))
-                obs[:videos => v => :frame_chain => f => :observations_2D => :observations_2D => rf] = convert(Array{Any, 1}, objects_observed[v, f][rf])
-            end
+            obs[:videos => v => :frame_chain => f => :observations_2D] = convert(Array{Any, 1}, objects_observed[v, f])
+            #end
         end
         #def should be using map to replace for loops here
         #point is, condition on the camera trajectory and on the observations
@@ -79,8 +79,8 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
         # end
 
         #optional rejuvination
-        (perturb_params, n_objects_per_category) = get_probs_categories(objects_observed, params, v, num_frames, num_receptive_fields)
-        line_segments_per_category = get_line_segments_per_category(params, objects_observed, camera_trajectories, v, num_frames, num_receptive_fields)
+        (perturb_params, n_objects_per_category) = get_probs_categories(objects_observed, params, v, num_frames)
+        line_segments_per_category = get_line_segments_per_category(params, objects_observed, camera_trajectories, v, num_frames)
         #line_segments = get_line_segments(objects_observed, camera_trajectories, params, v, num_frames, num_receptive_fields, total_n_objects)
         for i = 1:num_particles
             state.traces[i] = perturb(state.traces[i], v, perturb_params, line_segments_per_category)
@@ -304,7 +304,7 @@ Performs on MH step on the miss rate for object of category j.
 end
 
 """
-    get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+    get_probs_categories(objects_observed::Matrix{Array{Detection2D}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
 
 Returns a probability distribution over the object categories to be used
 in the proposal functions.
@@ -312,15 +312,15 @@ in the proposal functions.
 Derived from the objects that the visual system observes.
 """
 
-function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+function get_probs_categories(objects_observed::Matrix{Array{Detection2D}}, params::Video_Params, v::Int64, num_frames::Int64)
     track_categories = zeros(length(params.possible_objects)) #each element will be the number of times that category was detected. adding 1
     probabilities = zeros(length(params.possible_objects))
     for f = 1:num_frames
-        for rf = 1:num_receptive_fields
-            for (index, value) in enumerate(objects_observed[v, f][rf])
-                track_categories[value[3]] = track_categories[value[3]]+1#category
-            end
+        #for rf = 1:num_receptive_fields
+        for (index, value) in enumerate(objects_observed[v, f])
+            track_categories[value[3]] = track_categories[value[3]]+1#category
         end
+        #end
     end
     #make it so that categories that were never observed collectively have 10% of the weight
     other_ten_percent = sum(track_categories)/9
@@ -337,26 +337,26 @@ function get_probs_categories(objects_observed::Matrix{Array{Array{Detection2D}}
 end
 
 """
-    get_line_segments_per_category(params::Video_Params, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+    get_line_segments_per_category(params::Video_Params, objects_observed::Matrix{Array{Detection2D}}, camera_trajectories::Matrix{Camera_Params}, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
 
 Gets all line segments in 3d space that correspond to each 2D detection
 in every frame of a scene.
 """
-function get_line_segments_per_category(params::Video_Params, objects_observed::Matrix{Array{Array{Detection2D}}}, camera_trajectories::Matrix{Camera_Params}, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+function get_line_segments_per_category(params::Video_Params, objects_observed::Matrix{Array{Detection2D}}, camera_trajectories::Matrix{Camera_Params}, v::Int64, num_frames::Int64)
     line_segments = Array{Array{Line_Segment, 1}}(undef, length(params.possible_objects))
     for j = 1:length(params.possible_objects)
         line_segments[j] = []
     end
     for f = 1:num_frames
         camera_params = camera_trajectories[v, f]
-        for rf = 1:num_receptive_fields
-            for (index, value) in enumerate(objects_observed[v, f][rf])
-                println("value ", value)
-                line_segment = get_line_segment(camera_params, params, value)
-                println("line_segment in pf_inference ", line_segment)
-                push!(line_segments[value[3]], line_segment)
-            end
+        #for rf = 1:num_receptive_fields
+        for (index, value) in enumerate(objects_observed[v, f])
+            println("value ", value)
+            line_segment = get_line_segment(camera_params, params, value)
+            println("line_segment in pf_inference ", line_segment)
+            push!(line_segments[value[3]], line_segment)
         end
+        #end
     end
     return line_segments
 end
