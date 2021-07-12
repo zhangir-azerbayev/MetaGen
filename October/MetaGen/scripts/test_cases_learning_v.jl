@@ -38,9 +38,9 @@ camera_trajectories = Matrix{Camera_Params}(undef, num_videos, num_frames)
 for v=1:num_videos
     for f=1:num_frames
         temp = scenes_trace[v => :frame_chain => f => 1 => :observations_2D]
-	    temp_sorted_into_rfs = map(rf -> filter(p -> within(p, rf), temp), receptive_fields)
-	    objects_observed[v, f] = temp_sorted_into_rfs
-
+	    #temp_sorted_into_rfs = map(rf -> filter(p -> within(p, rf), temp), receptive_fields)
+	    #objects_observed[v, f] = temp_sorted_into_rfs
+        objects_observed[v, f] = temp
         camera_trajectories[v, f] = scenes_trace[v => :frame_chain => f => :camera]
     end
 end

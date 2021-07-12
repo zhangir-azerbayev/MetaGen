@@ -131,6 +131,8 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
     println("miss 2 ", trace[:videos => v => :v_matrix => :miss_rate => 2 => :miss])
     println("lambda_fa 5 ", trace[:videos => v => :v_matrix => :lambda_fa => 5 => :fa])
 
+    println("scene at v", trace[:videos => v => :init_scene])
+
     for iter=1:500 #try 100 MH moves
         println("iter ", iter)
         #println("trace ", trace[:videos => v => :init_scene])
@@ -153,7 +155,7 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
     println("miss 2 ", trace[:videos => v => :v_matrix => :miss_rate => 2 => :miss])
     println("lambda_fa 5 ", trace[:videos => v => :v_matrix => :lambda_fa => 5 => :fa])
 
-
+    println("scene at v", trace[:videos => v => :init_scene])
     return trace
 end
 
@@ -211,42 +213,20 @@ end
 
 function get_selection(v::Int64, j::Int64, i::Int64)
     if i == 1 #change lambda_fa
-        if v > 3
-            selection = select(:videos => v => :v_matrix => :lambda_fa => j => :fa,
-            :videos => v-1 => :v_matrix => :lambda_fa => j => :fa,
-            :videos => v-2 => :v_matrix => :lambda_fa => j => :fa,
-            :videos => v-3 => :v_matrix => :lambda_fa => j => :fa)
-        elseif v == 3
-            selection = select(:videos => v => :v_matrix => :lambda_fa => j => :fa,
-            :videos => v-1 => :v_matrix => :lambda_fa => j => :fa,
-            :videos => v-2 => :v_matrix => :lambda_fa => j => :fa,
-            :init_v_matrix => :lambda_fa => j => :fa)
-        elseif v == 2
-            selection = select(:videos => v => :v_matrix => :lambda_fa => j => :fa,
-            :videos => v-1 => :v_matrix => :lambda_fa => j => :fa,
-            :init_v_matrix => :lambda_fa => j => :fa)
-        else#if v == 1
+        if v == 1
             selection = select(:videos => v => :v_matrix => :lambda_fa => j => :fa,
             :init_v_matrix => :lambda_fa => j => :fa)
+        else
+            selection = select(:videos => v => :v_matrix => :lambda_fa => j => :fa,
+            :videos => v-1 => :v_matrix => :lambda_fa => j => :fa)
         end
     else
-        if v > 3
-            selection = select(:videos => v => :v_matrix => :miss_rate => j => :miss,
-            :videos => v-1 => :v_matrix => :miss_rate => j => :miss,
-            :videos => v-2 => :v_matrix => :miss_rate => j => :miss,
-            :videos => v-3 => :v_matrix => :miss_rate => j => :miss)
-        elseif v == 3
-            selection = select(:videos => v => :v_matrix => :miss_rate => j => :miss,
-            :videos => v-1 => :v_matrix => :miss_rate => j => :miss,
-            :videos => v-2 => :v_matrix => :miss_rate => j => :miss,
-            :init_v_matrix => :miss_rate => j => :miss)
-        elseif v == 2
-            selection = select(:videos => v => :v_matrix => :miss_rate => j => :miss,
-            :videos => v-1 => :v_matrix => :miss_rate => j => :miss,
-            :init_v_matrix => :miss_rate => j => :miss)
-        else#if v == 1
+        if v == 1
             selection = select(:videos => v => :v_matrix => :miss_rate => j => :miss,
             :init_v_matrix => :miss_rate => j => :miss)
+        else
+            selection = select(:videos => v => :v_matrix => :miss_rate => j => :miss,
+            :videos => v-1 => :v_matrix => :miss_rate => j => :miss)
         end
     end
     return selection
@@ -351,9 +331,9 @@ function get_line_segments_per_category(params::Video_Params, objects_observed::
         camera_params = camera_trajectories[v, f]
         #for rf = 1:num_receptive_fields
         for (index, value) in enumerate(objects_observed[v, f])
-            println("value ", value)
+            #println("value ", value)
             line_segment = get_line_segment(camera_params, params, value)
-            println("line_segment in pf_inference ", line_segment)
+            #println("line_segment in pf_inference ", line_segment)
             push!(line_segments[value[3]], line_segment)
         end
         #end

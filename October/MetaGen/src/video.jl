@@ -85,7 +85,7 @@ Generates the next frame given the current frame.
 
 state is Tuple{Array{Any,1}, Matrix{Int64}, Matrix{Int64}}
 """
-@gen function frame_kernel(current_frame::Int64, state::Any, params::Video_Params, v::Matrix{Real}, receptive_fields::Vector{Receptive_Field})
+@gen (static) function frame_kernel(current_frame::Int64, state::Any, params::Video_Params, v::Matrix{Real}, receptive_fields::Vector{Receptive_Field})
     ####Update 2D real objects
 
     ####Update camera location and pointing
@@ -161,9 +161,11 @@ Samples a new scene and a new v_matrix.
 
     #make the observations
     previous_v_matrix = v_matrix_state[1]
-    alphas = v_matrix_state[2]
-    betas = v_matrix_state[3]
-    init_state = (init_scene, alphas, betas)
+    previous_alphas = v_matrix_state[2]
+    previous_betas = v_matrix_state[3]
+    println("previous_alphas ", previous_alphas)
+    println("previous_betas ", previous_betas)
+    init_state = (init_scene, previous_alphas, previous_betas)
 
     state = @trace(frame_chain(num_frames, init_state, params, previous_v_matrix, receptive_fields), :frame_chain)
     alphas = state[num_frames][2]#not sure num_frames is right for index
@@ -171,8 +173,8 @@ Samples a new scene and a new v_matrix.
     #for the metacognition.
     v_matrix = @trace(update_v_matrix(alphas, betas), :v_matrix)
     v_matrix_state = (v_matrix, alphas, betas)
-    #println("alphas ", alphas)
-    #println("betas ", betas)
+    println("alphas ", alphas)
+    println("betas ", betas)
     return v_matrix_state
 end
 

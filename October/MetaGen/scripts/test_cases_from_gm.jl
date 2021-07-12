@@ -14,16 +14,32 @@ num_frames = 100
 #for testing purposes, let's fix V
 cm = choicemap()
 for v = 1:num_videos
-	cm[:videos => v => :v_matrix => :lambda_fa => 1 => :fa] = 0.000001
-	cm[:videos => v => :v_matrix => :lambda_fa => 2 => :fa] = 0.000001
-	cm[:videos => v => :v_matrix => :lambda_fa => 3 => :fa] = 0.000001
-	cm[:videos => v => :v_matrix => :lambda_fa => 4 => :fa] = 0.000001
-	cm[:videos => v => :v_matrix => :lambda_fa => 5 => :fa] = 0.1 #super high false alarm rate for category 5
-	cm[:videos => v => :v_matrix => :miss_rate => 1 => :miss] = 0.000001 #tiny miss rate for category 1
-	cm[:videos => v => :v_matrix => :miss_rate => 2 => :miss] = 0.01
-	cm[:videos => v => :v_matrix => :miss_rate => 3 => :miss] = 0.01
-	cm[:videos => v => :v_matrix => :miss_rate => 4 => :miss] = 0.99 #huge miss rate for category 4
-	cm[:videos => v => :v_matrix => :miss_rate => 5 => :miss] = 0.01
+	# cm[:videos => v => :v_matrix => :lambda_fa => 1 => :fa] = 0.000001
+	# cm[:videos => v => :v_matrix => :lambda_fa => 2 => :fa] = 0.000001
+	# cm[:videos => v => :v_matrix => :lambda_fa => 3 => :fa] = 0.000001
+	# cm[:videos => v => :v_matrix => :lambda_fa => 4 => :fa] = 0.000001
+	# cm[:videos => v => :v_matrix => :lambda_fa => 5 => :fa] = 0.1 #super high false alarm rate for category 5
+	# cm[:videos => v => :v_matrix => :miss_rate => 1 => :miss] = 0.000001 #tiny miss rate for category 1
+	# cm[:videos => v => :v_matrix => :miss_rate => 2 => :miss] = 0.01
+	# cm[:videos => v => :v_matrix => :miss_rate => 3 => :miss] = 0.01
+	# cm[:videos => v => :v_matrix => :miss_rate => 4 => :miss] = 0.99 #huge miss rate for category 4
+	# cm[:videos => v => :v_matrix => :miss_rate => 5 => :miss] = 0.01
+	for f = 1:num_frames
+		camera_params = camera_trajectories[v, f]
+		cm[:videos => v => :frame_chain => f => :camera => :camera_location_x] = camera_params.camera_location.x
+		cm[:videos => v => :frame_chain => f => :camera => :camera_location_y] = camera_params.camera_location.y
+		cm[:videos => v => :frame_chain => f => :camera => :camera_location_z] = camera_params.camera_location.z
+		cm[:videos => v => :frame_chain => f => :camera => :camera_focus_x] = camera_params.camera_focus.x
+		cm[:videos => v => :frame_chain => f => :camera => :camera_focus_y] = camera_params.camera_focus.y
+		cm[:videos => v => :frame_chain => f => :camera => :camera_focus_z] = camera_params.camera_focus.z
+
+		#for rf = 1:num_receptive_fields
+			#println("objects_observed[v, f][rf] ", objects_observed[v, f][rf])
+			#println("type ", typeof(objects_observed[v, f][rf]))
+		cm[:videos => v => :frame_chain => f => :observations_2D] = convert(Array{Any, 1}, objects_observed[v, f])
+		#end
+	end
+	#def
 end
 
 gt_trace,_ = Gen.generate(main, (num_videos, num_frames), cm)

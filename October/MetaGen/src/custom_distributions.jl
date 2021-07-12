@@ -219,12 +219,12 @@ function Gen.random(::New_Location_Distribution_Noisy, cat::Int64, params::Video
     end
     i = categorical(fill(1/n, n)) #which line segment
     line_segment = line_segments[i]
-    println("line_segment ", line_segment)
+    #println("line_segment ", line_segment)
     #length of the line segment
     length = sqrt((line_segment.start.x-line_segment.endpoint.x)^2 + (line_segment.start.y-line_segment.endpoint.y)^2 + (line_segment.start.z-line_segment.endpoint.z)^2)
-    println("length ", length)
+    #println("length ", length)
     d = uniform(0, length) #sample a distance along the line segment
-    println("d ", d)
+    #println("d ", d)
     #plug in d/length as t
     x = line_segment.start.x + line_segment.a*(d/length)
     y = line_segment.start.y + line_segment.b*(d/length)
@@ -232,7 +232,7 @@ function Gen.random(::New_Location_Distribution_Noisy, cat::Int64, params::Video
 
     #add noise
     dist = trunc_normal(0., 0.1, 0., 10.) #mean noise is 0, sd is 0.1?
-    println("dist ", dist)
+    #println("dist ", dist)
     angle = uniform(0, 2*pi)
 
     (x_noisy, y_noisy, z_noisy) = sample_point(line_segment, Coordinate(x,y,z), dist, angle)
@@ -323,14 +323,14 @@ function Gen.random(::New_Object_Distribution_Noisy_Or_Uniform, params::Video_Pa
     if length(line_segments) > 0
         coin_flip = bernoulli(0.5)
         if coin_flip
-            println("from data-driven distribution")
+            #println("from data-driven distribution")
             to_return = new_location_distribution_noisy(cat, params, line_segments)
         else
-            println("from uniform distribution")
+            #println("from uniform distribution")
             to_return = location_distribution_uniform(cat, params)
         end
     else
-        println("from uniform distribution")
+        #println("from uniform distribution")
         to_return = location_distribution_uniform(cat, params)
     end
     return to_return

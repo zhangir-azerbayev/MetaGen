@@ -12,8 +12,8 @@ params = Video_Params()
 receptive_fields = make_receptive_fields()
 num_receptive_fields = length(receptive_fields)
 
-num_videos = 5
-num_frames = 10
+num_videos = 2
+num_frames = 2
 
 objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
 camera_trajectories = Matrix{Camera_Params}(undef, num_videos, num_frames)
@@ -39,7 +39,7 @@ for v=1:num_videos
 
 	#################################
 	#frame 2
-	for f = 2:10
+	for f = 2:2
 
 		labels = [2]
 		xs = [50.1]
@@ -69,7 +69,23 @@ end
 outfile = string("test_case.csv")
 file = open(outfile, "w")
 
+#file header
+print(file, "gt_V & ")
+for v=1:29
+	print(file, "avg V ", v, " & ")
+    print(file, "dictionary realities PF for scene ", v, " & ")
+	print(file, "mode realities PF for scene ", v, " & ")
+end
+print(file, "avg V 30 &")
+print(file, "dictionary realities PF for scene 30 & ")
+print(file, "mode realities PF for scene 30")
+
+print(file, "\n")
+
+gt_v = [0.5 0.0; 0.0 0.0; 0.5 0.0; 0.5 0.5; 0.5 0.1]
+print(file, gt_v, " & ")
 num_particles = 1
+
 traces = unfold_particle_filter(num_particles, objects_observed, camera_trajectories, file)
 println("done")
 #visualize_observations(objects_observed, 1, 1, receptive_fields)
@@ -77,21 +93,10 @@ println("done")
 
 
 
-#file header
-for v=1:4
-	print(file, "avg V ", v, " & ")
-    print(file, "dictionary realities PF for scene ", v, " & ")
-	print(file, "mode realities PF for scene ", v, " & ")
-end
-print(file, "avg V 5 &")
-print(file, "dictionary realities PF for scene 5 & ")
-print(file, "mode realities PF for scene 5")
 
-print(file, "\n")
-
-for v=1:4
-	print_Vs_and_Rs_to_file(file, traces, num_particles, params, v)
-end
-print_Vs_and_Rs_to_file(file, traces, num_particles, params, 5, true)
+# for v=1:4
+# 	print_Vs_and_Rs_to_file(file, traces, num_particles, params, v)
+# end
+# print_Vs_and_Rs_to_file(file, traces, num_particles, params, 5, true)
 #print_Vs_and_Rs_to_file(file, traces, num_particles, params, 1, true)
 close(file)
