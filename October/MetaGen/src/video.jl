@@ -17,7 +17,10 @@ function within_frame(p::Detection2D)
 end
 
 #first approximation
-function update_alpha_beta(alphas::Matrix{Int64}, betas::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D})
+function update_alpha_beta(alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D})
+    alphas = deepcopy(alphas_old)
+    betas = deepcopy(betas_old)
+
     observations_2D = filter!(within_frame, observations_2D)
     real_detections = filter!(within_frame, real_detections)
 
@@ -109,11 +112,9 @@ state is Tuple{Array{Any,1}, Matrix{Int64}, Matrix{Int64}}
     #could re-write with map
     #@trace(Gen.Map(rfs)(rfs_vec), :observations_2D) #gets no method matching error
     observations_2D = @trace(rfs(rfs_vec[1]), :observations_2D) #dirty shortcut because we only have one receptive field atm
-
     alphas, betas = update_alpha_beta(state[2], state[3], observations_2D, real_detections)
-
-    state = (scene, alphas, betas)
-    return state #just keep sending the scene / initial state in.
+    state = (scene, alphas, betas) #just keep sending the scene in.
+    return state
 end
 
 frame_chain = Gen.Unfold(frame_kernel)
@@ -151,11 +152,12 @@ end
 """
 Samples a new scene and a new v_matrix.
 """
-@gen function video_kernel(current_video::Int64, v_matrix_state::Any, num_frames::Int64, params::Video_Params, receptive_fields::Array{Receptive_Field, 1})
+@gen (static) function video_kernel(current_video::Int64, v_matrix_state::Any, num_frames::Int64, params::Video_Params, receptive_fields::Array{Receptive_Field, 1})
     #for the scene. scenes are completely independent of each other
     #println("current video ", current_video)
 
-    rfs_element = GeometricElement{Object3D}(params.p_objects, object_distribution, (params,))
+    #rfs_element = GeometricElement{Object3D}(params.p_objects, object_distribution, (params,))
+    rfs_element = PoissonElement{Object3D}(params.p_objects, object_distribution, (params,))
     rfs_element = RFSElements{Object3D}([rfs_element]) #need brackets because rfs has to take an array
     init_scene = @trace(rfs(rfs_element), :init_scene)
 
@@ -163,18 +165,14 @@ Samples a new scene and a new v_matrix.
     previous_v_matrix = v_matrix_state[1]
     previous_alphas = v_matrix_state[2]
     previous_betas = v_matrix_state[3]
-    println("previous_alphas ", previous_alphas)
-    println("previous_betas ", previous_betas)
     init_state = (init_scene, previous_alphas, previous_betas)
 
     state = @trace(frame_chain(num_frames, init_state, params, previous_v_matrix, receptive_fields), :frame_chain)
-    alphas = state[num_frames][2]#not sure num_frames is right for index
-    betas = state[num_frames][3]
+    alphas = state[end][2]#not sure num_frames or end is better for index
+    betas = state[end][3]
     #for the metacognition.
     v_matrix = @trace(update_v_matrix(alphas, betas), :v_matrix)
     v_matrix_state = (v_matrix, alphas, betas)
-    println("alphas ", alphas)
-    println("betas ", betas)
     return v_matrix_state
 end
 

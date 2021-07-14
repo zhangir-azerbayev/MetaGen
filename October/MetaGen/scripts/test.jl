@@ -84,5 +84,7 @@ gt_trace,_ = Gen.generate(main, (num_videos, num_frames), cm);
 #println(gt_trace)
 gt_choices = get_choices(gt_trace)
 
-regenerate(gt_trace, select(:videos => 1 => :init_scene));
+#they run fine when main isn't (static)
+new_trace,_ = regenerate(gt_trace, select(:videos => 1 => :init_scene));
+gt_choices = get_choices(new_trace)
 regenerate(gt_trace, select(:videos => 2 => :v_matrix => :lambda_fa => 1 => :fa));

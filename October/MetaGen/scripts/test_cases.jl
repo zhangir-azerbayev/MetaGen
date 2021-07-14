@@ -12,34 +12,35 @@ params = Video_Params()
 receptive_fields = make_receptive_fields()
 num_receptive_fields = length(receptive_fields)
 
-num_videos = 2
-num_frames = 2
+num_videos = 30
+num_frames = 10
 
 objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
 camera_trajectories = Matrix{Camera_Params}(undef, num_videos, num_frames)
 for v=1:num_videos
-	f = 1
+	for f = 1
 
-	labels = [2, 5]
-	xs = [50.1, 225.5]
-	ys = [60.2, 173.1]
-	temp = Array{Detection2D}(undef, length(labels))
-	for i = 1:length(labels)
-		label = labels[i]
-		x = xs[i]
-		y = ys[i]
-		temp[i] = (x, y, label) #so now I have an array of detections
+		labels = [2, 5]
+		xs = [50.1, 225.5]
+		ys = [60.2, 173.1]
+		temp = Array{Detection2D}(undef, length(labels))
+		for i = 1:length(labels)
+			label = labels[i]
+			x = xs[i]
+			y = ys[i]
+			temp[i] = (x, y, label) #so now I have an array of detections
+		end
+		#turn that array of detections into an array of an array of detections sorted by receptive_field
+		#temp_sorted_into_rfs = map(rf -> filter(p -> within(p, rf), temp), receptive_fields)
+		objects_observed[v, f] = temp
+
+		c = Camera_Params(camera_location = Coordinate(0.01,0.02,0.001), camera_focus = Coordinate(1.0,1.0,1.0))
+		camera_trajectories[v, f] = c
 	end
-	#turn that array of detections into an array of an array of detections sorted by receptive_field
-	#temp_sorted_into_rfs = map(rf -> filter(p -> within(p, rf), temp), receptive_fields)
-	objects_observed[v, f] = temp
-
-	c = Camera_Params(camera_location = Coordinate(0.01,0.02,0.001), camera_focus = Coordinate(1.0,1.0,1.0))
-	camera_trajectories[v, f] = c
 
 	#################################
 	#frame 2
-	for f = 2:2
+	for f = 2:10
 
 		labels = [2]
 		xs = [50.1]
@@ -73,7 +74,7 @@ file = open(outfile, "w")
 print(file, "gt_V & ")
 for v=1:29
 	print(file, "avg V ", v, " & ")
-    print(file, "dictionary realities PF for scene ", v, " & ")
+	print(file, "dictionary realities PF for scene ", v, " & ")
 	print(file, "mode realities PF for scene ", v, " & ")
 end
 print(file, "avg V 30 &")
