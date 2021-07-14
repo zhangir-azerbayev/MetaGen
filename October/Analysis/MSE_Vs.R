@@ -28,7 +28,7 @@ MSE_Vs <- function(data){
   gt_V <- matrix(as.numeric(temp_var), ncol=2, byrow=TRUE)
   
   M_mean = 0.5 #mean of a beta with alpha = 2 and beta = 10
-  FA_mean = 1/1000
+  FA_mean = 0.5
   exp_mat <- cbind(rep(FA_mean, n_objects), rep(M_mean, n_objects)) #for when it's fa rather than hall lambda
   
   MSE_exp_FA = sum((gt_V[,1] - exp_mat[,1])^2)/n_objects
