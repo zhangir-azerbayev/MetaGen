@@ -8,7 +8,7 @@ using Random
 Random.seed!(1235)
 
 ################################################################################
-num_videos = 30
+num_videos = 2
 num_frames = 100
 
 #for testing purposes, let's fix V
@@ -19,9 +19,9 @@ cm[:init_v_matrix => :lambda_fa => 3 => :fa] = 0.00001
 cm[:init_v_matrix => :lambda_fa => 4 => :fa] = 0.00001
 cm[:init_v_matrix => :lambda_fa => 5 => :fa] = 0.3 #super high false alarm rate for category 5
 cm[:init_v_matrix => :miss_rate => 1 => :miss] = 0.01 #tiny miss rate for category 1
-cm[:init_v_matrix => :miss_rate => 2 => :miss] = 0.99 #huge miss rate for category 2
+cm[:init_v_matrix => :miss_rate => 2 => :miss] = 0.6 #huge miss rate for category 2
 cm[:init_v_matrix => :miss_rate => 3 => :miss] = 0.01
-cm[:init_v_matrix => :miss_rate => 4 => :miss] = 0.99
+cm[:init_v_matrix => :miss_rate => 4 => :miss] = 0.01
 cm[:init_v_matrix => :miss_rate => 5 => :miss] = 0.01
 for v = 1:num_videos
 	cm[:videos => v => :v_matrix => :lambda_fa => 1 => :fa] = 0.00001
@@ -79,6 +79,7 @@ for v = 1:num_videos
 		objects_observed[v, f] = temp
 		if length(temp) > 4
 			println("temp too long ", temp)
+			println("at video number ", v)
 		end
 		location_x = gt_choices[:videos => v => :frame_chain => f => :camera => :camera_location_x]
 		location_y = gt_choices[:videos => v => :frame_chain => f => :camera => :camera_location_y]
@@ -98,14 +99,14 @@ outfile = string("test_case.csv")
 file = open(outfile, "w")
 #file header
 print(file, "gt_V & ")
-for v=1:29
+for v=1:(num_videos-1)
 	print(file, "avg V ", v, " & ")
     print(file, "dictionary realities PF for scene ", v, " & ")
 	print(file, "mode realities PF for scene ", v, " & ")
 end
-print(file, "avg V 30 &")
-print(file, "dictionary realities PF for scene 30 & ")
-print(file, "mode realities PF for scene 30")
+print(file, "avg V ", num_videos, " &")
+print(file, "dictionary realities PF for scene ", num_videos, " & ")
+print(file, "mode realities PF for scene  ", num_videos,)
 
 print(file, "\n")
 

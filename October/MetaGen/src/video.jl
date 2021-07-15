@@ -157,7 +157,7 @@ Samples a new scene and a new v_matrix.
     #println("current video ", current_video)
 
     #rfs_element = GeometricElement{Object3D}(params.p_objects, object_distribution, (params,))
-    rfs_element = PoissonElement{Object3D}(params.p_objects, object_distribution, (params,))
+    rfs_element = GeometricElement{Object3D}(params.p_objects, object_distribution, (params,))
     rfs_element = RFSElements{Object3D}([rfs_element]) #need brackets because rfs has to take an array
     init_scene = @trace(rfs(rfs_element), :init_scene)
 

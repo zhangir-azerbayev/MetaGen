@@ -103,7 +103,7 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after rejuvination ", ess)
 
-        if v==30
+        if v==num_videos #if on last video
             print_Vs_and_Rs_to_file(file, state.traces, num_particles, params, v, true)
         else
             print_Vs_and_Rs_to_file(file, state.traces, num_particles, params, v)
