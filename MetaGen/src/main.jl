@@ -22,7 +22,7 @@ Samples the matrix describing the initial visual system.
 		#set lambda when target absent
 		#v[j,1] = @trace(Gen.beta(alpha, beta), (:fa, j)) #leads to fa rate of around 0.1
 		#v[j,1] = @trace(trunc_normal(0.002, 0.005, 0.0, 1.0), (:lambda_fa, j)) #these are lambdas per receptive field
-	arg1 = fill(0.0, length(params.possible_objects))
+	arg1 = fill(1.0, length(params.possible_objects))
 	arg2 = fill(1.0, length(params.possible_objects))
 	fa = @trace(Map(lambda_fa)(arg1, arg2), :lambda_fa) #these are lambdas per receptive field
 		#v[j,1] = @trace(uniform(0.0, 1.0), (:lambda_fa, j))
