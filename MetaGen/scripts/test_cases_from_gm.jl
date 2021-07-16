@@ -8,32 +8,34 @@ using Random
 Random.seed!(1235)
 
 ################################################################################
-num_videos = 2
+num_videos = 300
 num_frames = 100
 
 #for testing purposes, let's fix V
+gt_v = [0.4 0.4; 0.3 0.3; 0.1 0.7; 0.05 0.05; 0.005 0.5]
+
 cm = choicemap()
-cm[:init_v_matrix => :lambda_fa => 1 => :fa] = 0.00001
-cm[:init_v_matrix => :lambda_fa => 2 => :fa] = 0.00001
-cm[:init_v_matrix => :lambda_fa => 3 => :fa] = 0.00001
-cm[:init_v_matrix => :lambda_fa => 4 => :fa] = 0.00001
-cm[:init_v_matrix => :lambda_fa => 5 => :fa] = 0.3 #super high false alarm rate for category 5
-cm[:init_v_matrix => :miss_rate => 1 => :miss] = 0.01 #tiny miss rate for category 1
-cm[:init_v_matrix => :miss_rate => 2 => :miss] = 0.6 #huge miss rate for category 2
-cm[:init_v_matrix => :miss_rate => 3 => :miss] = 0.01
-cm[:init_v_matrix => :miss_rate => 4 => :miss] = 0.01
-cm[:init_v_matrix => :miss_rate => 5 => :miss] = 0.01
+cm[:init_v_matrix => :lambda_fa => 1 => :fa] = gt_v[1, 1]
+cm[:init_v_matrix => :lambda_fa => 2 => :fa] = gt_v[2, 1]
+cm[:init_v_matrix => :lambda_fa => 3 => :fa] = gt_v[3, 1]
+cm[:init_v_matrix => :lambda_fa => 4 => :fa] = gt_v[4, 1]
+cm[:init_v_matrix => :lambda_fa => 5 => :fa] = gt_v[5, 1]
+cm[:init_v_matrix => :miss_rate => 1 => :miss] = gt_v[1, 2]
+cm[:init_v_matrix => :miss_rate => 2 => :miss] = gt_v[2, 2]
+cm[:init_v_matrix => :miss_rate => 3 => :miss] = gt_v[3, 2]
+cm[:init_v_matrix => :miss_rate => 4 => :miss] = gt_v[4, 2]
+cm[:init_v_matrix => :miss_rate => 5 => :miss] = gt_v[5, 2]
 for v = 1:num_videos
-	cm[:videos => v => :v_matrix => :lambda_fa => 1 => :fa] = 0.00001
-	cm[:videos => v => :v_matrix => :lambda_fa => 2 => :fa] = 0.00001
-	cm[:videos => v => :v_matrix => :lambda_fa => 3 => :fa] = 0.00001
-	cm[:videos => v => :v_matrix => :lambda_fa => 4 => :fa] = 0.00001
-	cm[:videos => v => :v_matrix => :lambda_fa => 5 => :fa] = 0.3 #super high false alarm rate for category 5
-	cm[:videos => v => :v_matrix => :miss_rate => 1 => :miss] = 0.01 #tiny miss rate for category 1
-	cm[:videos => v => :v_matrix => :miss_rate => 2 => :miss] = 0.99 #huge miss rate for category 2
-	cm[:videos => v => :v_matrix => :miss_rate => 3 => :miss] = 0.01
-	cm[:videos => v => :v_matrix => :miss_rate => 4 => :miss] = 0.99
-	cm[:videos => v => :v_matrix => :miss_rate => 5 => :miss] = 0.01
+	cm[:videos => v => :v_matrix => :lambda_fa => 1 => :fa] = gt_v[1, 1]
+	cm[:videos => v => :v_matrix => :lambda_fa => 2 => :fa] = gt_v[2, 1]
+	cm[:videos => v => :v_matrix => :lambda_fa => 3 => :fa] = gt_v[3, 1]
+	cm[:videos => v => :v_matrix => :lambda_fa => 4 => :fa] = gt_v[4, 1]
+	cm[:videos => v => :v_matrix => :lambda_fa => 5 => :fa] = gt_v[5, 1]
+	cm[:videos => v => :v_matrix => :miss_rate => 1 => :miss] = gt_v[1, 2]
+	cm[:videos => v => :v_matrix => :miss_rate => 2 => :miss] = gt_v[2, 2]
+	cm[:videos => v => :v_matrix => :miss_rate => 3 => :miss] = gt_v[3, 2]
+	cm[:videos => v => :v_matrix => :miss_rate => 4 => :miss] = gt_v[4, 2]
+	cm[:videos => v => :v_matrix => :miss_rate => 5 => :miss] = gt_v[5, 2]
 end
 # 	for f = 1:num_frames
 # 		camera_params = camera_trajectories[v, f]
@@ -58,12 +60,6 @@ gt_trace,_ = Gen.generate(main, (num_videos, num_frames), cm)
 gt_choices = get_choices(gt_trace)
 
 params = Video_Params()
-
-gt_v = zeros(Float64, length(params.possible_objects), 2)
-for j = 1:length(params.possible_objects)
-	gt_v[j,1] = gt_choices[:videos => 1 => :v_matrix => :lambda_fa => j => :fa]
-	gt_v[j,2] = gt_choices[:videos => 1 => :v_matrix => :miss_rate => j => :miss]
-end
 
 receptive_fields = make_receptive_fields()
 num_receptive_fields = length(receptive_fields)
@@ -112,7 +108,7 @@ print(file, "\n")
 
 print(file, gt_v, " & ")
 
-num_particles = 2
+num_particles = 1
 traces = unfold_particle_filter(num_particles, objects_observed, camera_trajectories, file)
 println("done")
 #visualize_observations(objects_observed, 1, 1, receptive_fields)

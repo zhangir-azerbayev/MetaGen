@@ -123,7 +123,7 @@ frame_chain = Gen.Unfold(frame_kernel)
 Samples new values for lambda_fa.
 """
 @gen (static) function update_lambda_fa(alpha::Int64, beta::Int64)
-    fa = @trace(beta(alpha, beta), :fa)
+    fa = @trace(gamma(alpha, 1/beta), :fa)
     return fa
 end
 

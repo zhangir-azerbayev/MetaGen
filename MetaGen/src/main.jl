@@ -1,10 +1,11 @@
 @gen (static) function lambda_fa(arg1::Real, arg2::Real)
-	fa = @trace(uniform(arg1, arg2), :fa)
+:q
+	fa = @trace(gamma(arg1, arg2), :fa)
 	return fa
 end
 
 @gen (static) function miss_rate(arg1::Real, arg2::Real)
-	miss = @trace(uniform(arg1, arg2), :miss)
+	miss = @trace(beta(arg1, arg2), :miss)
 	return miss
 end
 
