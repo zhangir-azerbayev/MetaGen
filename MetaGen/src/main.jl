@@ -1,5 +1,4 @@
 @gen (static) function lambda_fa(arg1::Real, arg2::Real)
-:q
 	fa = @trace(gamma(arg1, arg2), :fa)
 	return fa
 end
