@@ -126,12 +126,16 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
 
     println("before perturbations")
     println("v ", v)
-    println("miss 2 ", trace[:init_v_matrix => :miss_rate => 2 => :miss])
-    println("lambda_fa 5 ", trace[:init_v_matrix => :lambda_fa => 5 => :fa])
-    println("miss 2 ", trace[:videos => v => :v_matrix => :miss_rate => 2 => :miss])
-    println("lambda_fa 5 ", trace[:videos => v => :v_matrix => :lambda_fa => 5 => :fa])
 
-    println("scene at v", trace[:videos => v => :init_scene])
+    println("alpha ", get_retval(trace)[end][2][5,2])
+    println("beta ", get_retval(trace)[end][3][5,2])
+
+    #println("miss 2 ", trace[:init_v_matrix => :miss_rate => 2 => :miss])
+    println("init miss 5 ", trace[:init_v_matrix => :miss_rate => 5 => :miss])
+    #println("miss 2 ", trace[:videos => v => :v_matrix => :miss_rate => 2 => :miss])
+    println("miss rate 5 ", trace[:videos => v => :v_matrix => :miss_rate => 5 => :miss])
+
+    println("scene at v ", trace[:videos => v => :init_scene])
 
     for iter=1:500 #try 100 MH moves
         println("iter ", iter)
@@ -150,12 +154,16 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
 
     println("after perturbations")
     println("v ", v)
-    println("miss 2 ", trace[:init_v_matrix => :miss_rate => 2 => :miss])
-    println("lambda_fa 5 ", trace[:init_v_matrix => :lambda_fa => 5 => :fa])
-    println("miss 2 ", trace[:videos => v => :v_matrix => :miss_rate => 2 => :miss])
-    println("lambda_fa 5 ", trace[:videos => v => :v_matrix => :lambda_fa => 5 => :fa])
 
-    println("scene at v", trace[:videos => v => :init_scene])
+    println("alpha ", get_retval(trace)[end][2][5,2])
+    println("beta ", get_retval(trace)[end][3][5,2])
+
+    #println("miss 2 ", trace[:init_v_matrix => :miss_rate => 2 => :miss])
+    println("init miss 5 ", trace[:init_v_matrix => :miss_rate => 5 => :miss])
+    #println("miss 2 ", trace[:videos => v => :v_matrix => :miss_rate => 2 => :miss])
+    println("lambda_fa 5 ", trace[:videos => v => :v_matrix => :miss_rate => 5 => :miss])
+
+    println("scene at v ", trace[:videos => v => :init_scene])
     return trace
 end
 

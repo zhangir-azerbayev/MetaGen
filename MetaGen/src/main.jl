@@ -73,7 +73,8 @@ Simulates the visual system, `num_videos` scenes each with
 	betas = fill(1, size(init_v_matrix))
 	v_matrix_state = (init_v_matrix, alphas, betas)
 	#println("alphas in main ", v_matrix_state[2])
-    @trace(video_chain(num_videos, v_matrix_state, num_frames, params, receptive_fields), :videos)
+    videos = @trace(video_chain(num_videos, v_matrix_state, num_frames, params, receptive_fields), :videos)
+	return videos
 end
 
 export main

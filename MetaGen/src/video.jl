@@ -48,9 +48,9 @@ function update_alpha_beta(alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, 
         alphas[observations_2D_cats_edited[i], 1] = alphas[observations_2D_cats_edited[i], 1] + 1
     end
 
-    for i in setdiff(collect(1:num_cats), observations_2D_cats_edited)
-        betas[i, 1] = betas[i, 1] + 1 #not hallucinated
-    end
+    #update beta for hallucinations
+    betas[:, 1] = betas[:, 1] .+ 1 #add one for each frame
+
     return alphas, betas
 end
 

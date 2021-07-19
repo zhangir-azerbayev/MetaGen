@@ -8,7 +8,7 @@ using Random
 Random.seed!(1235)
 
 ################################################################################
-num_videos = 300
+num_videos = 20
 num_frames = 100
 
 #for testing purposes, let's fix V
@@ -58,6 +58,9 @@ end
 gt_trace,_ = Gen.generate(main, (num_videos, num_frames), cm)
 #println(gt_trace)
 gt_choices = get_choices(gt_trace)
+for v = 1:num_videos
+	println("scene at v ", gt_trace[:videos => v => :init_scene])
+end
 
 params = Video_Params()
 
