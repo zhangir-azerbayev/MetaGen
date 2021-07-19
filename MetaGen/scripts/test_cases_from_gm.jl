@@ -8,7 +8,7 @@ using Random
 Random.seed!(1235)
 
 ################################################################################
-num_videos = 20
+num_videos = 300
 num_frames = 100
 
 #for testing purposes, let's fix V
