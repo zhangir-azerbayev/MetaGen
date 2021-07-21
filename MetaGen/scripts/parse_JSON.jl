@@ -4,7 +4,7 @@ using Pipe: @pipe
 
 include("useful_functions.jl")
 
-dict = @pipe "../../metagen_data/labelled_data/0/tiny_set_detections.json" |> open |> read |> String |> JSON.parse
+dict = @pipe "../metagen_data/labelled_data/0/tiny_set_detections.json" |> open |> read |> String |> JSON.parse
 
 #try to make objects_observed::Array{Array{Array{Array{Detection2D}}}} of observed objects.
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
