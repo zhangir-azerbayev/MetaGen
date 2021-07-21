@@ -62,6 +62,8 @@ function print_Vs_and_Rs_to_file(file, tr, num_samples::Int64, params, r::Int64,
     else
         print(file ,reality_as_string, " & ")
     end
+
+    return frequency_realities[m] #return the mode reality
 end
 
 export print_Vs_and_Rs_to_file

@@ -68,6 +68,12 @@ function within(point::Detection2D, rf::Receptive_Field)
     x >= rf.p1[1] && x < rf.p2[1] && y >= rf.p1[2] && y < rf.p2[2] #top and right size will not be represented in rfs. nead it to be this way so intersections in receptive fields have reasonable explanations
 end
 
+function within(point::Tuple{Float64, Float64}, rf::Receptive_Field)
+    x = point[1]
+    y = point[2]
+    x >= rf.p1[1] && x < rf.p2[1] && y >= rf.p1[2] && y < rf.p2[2] #top and right size will not be represented in rfs. nead it to be this way so intersections in receptive fields have reasonable explanations
+end
+
 export within
 
 ################################################################################

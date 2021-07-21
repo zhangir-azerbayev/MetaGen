@@ -89,9 +89,49 @@ function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptiv
     println("f_z_max ", f_z_max)
     println("f_z_min ", f_z_min)
 
-
-
     return objects_observed, camera_trajectories
+end
+
+
+
+#dict is actually an array of dictionaries
+function write_to_dict(dict::Array{Any,1}, camera_trajectories::Matrix{Camera_Params}, inferred_realities)
+    num_videos = 2
+    num_frames = 300
+
+    params = Video_Params()
+
+    #add inferences about the objects in the scenes
+    for v = 1:num_videos
+        #for each object
+        parsed = eval(Meta.parse(inferred_realities[v][1]))
+        a = Array{Any}(undef, length(parsed))
+        for i in 1:length(parsed)
+            r = parsed[i]
+            a[i] = Dict("label" => r[4], "position" => r[1:3])
+        end
+        d = dict[v]
+        merge!(d, Dict("inferences" => a))
+
+        #add per frame
+        for f = 1:num_frames
+            labels = []
+            centers = []
+            for i in 1:length(parsed)
+                r = parsed[i]
+                x, y = get_image_xy(camera_trajectories[v,f], params, Coordinate(r[1],r[2],r[3]))
+                if within((x, y), Receptive_Field((0,0), (params.image_dim_x, params.image_dim_y)))
+                    push!(labels, r[4])
+                    push!(centers, (x, y))
+                end
+            end
+            d_f = d["views"][f]
+            a = Dict("labels" => labels, "centers" => centers)
+            merge!(d_f, Dict("inferences" => a))
+        end
+    end
+
+    return dict
 end
 
 # function count_observations(objects_observed::Matrix{Array{Array{Detection2D}}})
