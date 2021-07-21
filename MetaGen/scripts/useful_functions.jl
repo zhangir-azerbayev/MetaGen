@@ -1,10 +1,10 @@
 
 function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field})
 
-    num_videos = 100
-    num_frames = 75
+    num_videos = 2
+    num_frames = 300
 
-    objects_observed = Matrix{Array{Array{Detection2D}}}(undef, num_videos, num_frames)
+    objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
 
     camera_trajectories = Matrix{Camera_Params}(undef, num_videos, num_frames)
@@ -40,8 +40,8 @@ function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptiv
                 temp[i] = (x, y, label) #so now I have an array of detections
             end
             #turn that array of detections into an array of an array of detections sorted by receptive_field
-            temp_sorted_into_rfs = map(rf -> filter(p -> within(p, rf), temp), receptive_fields)
-            objects_observed[v, f] = temp_sorted_into_rfs
+            #temp_sorted_into_rfs = map(rf -> filter(p -> within(p, rf), temp), receptive_fields)
+            objects_observed[v, f] = temp
 
             #camera trajectory
             x = dict[v]["views"][f]["camera"][1]

@@ -4,7 +4,7 @@ using Pipe: @pipe
 
 include("useful_functions.jl")
 
-dict = @pipe "../Data/0_data_detections.json" |> open |> read |> String |> JSON.parse
+dict = @pipe "../../metagen_data/unlabelled_data/0/tiny_set_detections.json" |> open |> read |> String |> JSON.parse
 
 #try to make objects_observed::Array{Array{Array{Array{Detection2D}}}} of observed objects.
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
@@ -17,13 +17,15 @@ objects_observed, camera_trajectories = make_observations(dict, receptive_fields
 
 #count_observations(objects_observed)
 
-num_particles = 100
-traces = unfold_particle_filter(num_particles, objects_observed, camera_trajectories, length(receptive_fields))
+outfile = string("test.csv")
+file = open(outfile, "w")
+
+num_particles = 1
+traces = unfold_particle_filter(num_particles, objects_observed, camera_trajectories, file)
 
 println("done")
 
-outfile = string("test.csv")
-file = open(outfile, "w")
+
 #file header
 for v=1:1
 	print(file, "avg V ", v, " & ")
