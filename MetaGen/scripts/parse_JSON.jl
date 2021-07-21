@@ -58,3 +58,5 @@ out = write_to_dict(dict, camera_trajectories, inferred_realities)
 open("output_tiny_set_detections.json","w") do f
 	JSON.print(f,out)
 end
+
+println("finished writing json")
