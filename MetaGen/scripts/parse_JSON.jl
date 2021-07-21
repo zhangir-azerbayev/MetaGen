@@ -55,6 +55,6 @@ close(file)
 out = write_to_dict(dict, camera_trajectories, inferred_realities)
 
 #open("../../scratch_work_07_16_21/output_tiny_set_detections.json","w") do f
-open("../metagen_data/labelled_data/0/output_tiny_set_detections.json","w") do f
+open("output_tiny_set_detections.json","w") do f
 	JSON.print(f,out)
 end
