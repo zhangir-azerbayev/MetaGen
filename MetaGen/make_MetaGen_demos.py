@@ -41,21 +41,23 @@ COCO_CLASSES = ('__background__', 'person', 'bicycle', 'car', 'motorcycle',
 f = open("scratch_work_07_16_21/output_tiny_set_detections.json",)
 dict = json.load(f)
 
+v = 1
+
 for x in range(300):
-    img64 = dict[0]["views"][x]["image"]
+    img64 = dict[v]["views"][x]["image"]
     im_bytes = base64.b64decode(img64)
     im_file = BytesIO(im_bytes)
     img = Image.open(im_file)
 
-    centers = dict[0]["views"][x]["inferences"]["centers"]
+    centers = dict[v]["views"][x]["inferences"]["centers"]
     for i in range(len(centers)):
-        center = dict[0]["views"][x]["inferences"]["centers"][i]
-        label = dict[0]["views"][x]["inferences"]['labels'][i]
+        center = dict[v]["views"][x]["inferences"]["centers"][i]
+        label = dict[v]["views"][x]["inferences"]['labels'][i]
         draw = ImageDraw.Draw(img)
         text = str(COCO_CLASSES[label])
         text_location = [center[0] + 2, center[1]]
         draw.ellipse([center[0] - 1, center[1] - 1, center[0] + 1, center[1] + 1], 'red')
         draw.text(xy=text_location, text=text, fill='white')
 
-    name = "scratch_work_07_16_21/0_output/"+ str(x) +".jpg"
+    name = "scratch_work_07_16_21/" + str(v) + "_output/"+ str(x) +".jpg"
     img.save(name)

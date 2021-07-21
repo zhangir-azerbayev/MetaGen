@@ -41,23 +41,25 @@ COCO_CLASSES = ('__background__', 'person', 'bicycle', 'car', 'motorcycle',
 f = open("scratch_work_07_16_21/tiny_set_detections.json",)
 dict = json.load(f)
 
+v = 1
+
 for x in range(300):
-    img64 = dict[0]["views"][x]["image"]
+    img64 = dict[v]["views"][x]["image"]
     im_bytes = base64.b64decode(img64)
     im_file = BytesIO(im_bytes)
     img = Image.open(im_file)
 
-    boxes = dict[0]["views"][x]["detections"]["boxes"]
-    for i in range(len(boxes)):
-        box = dict[0]["views"][x]["detections"]["boxes"][i]
-        label = dict[0]["views"][x]["detections"]['labels'][i]
-        prob = dict[0]["views"][x]["detections"]['scores'][i]
-        if prob > 0.3:
+    centers = dict[v]["views"][x]["detections"]["center"]
+    for i in range(len(centers)):
+        center = dict[v]["views"][x]["detections"]["center"][i]
+        label = dict[v]["views"][x]["detections"]['labels'][i]
+        prob = dict[v]["views"][x]["detections"]['scores'][i]
+        if prob > 0.5:
             draw = ImageDraw.Draw(img)
             text = str(COCO_CLASSES[label]) + " " + str(truncate(prob, 2))
-            text_location = [box[0] + 2, box[1]]
-            draw.rectangle(xy=box, outline='red')
+            text_location = [center[0] + 2, center[1]]
+            draw.ellipse([center[0] - 1, center[1] - 1, center[0] + 1, center[1] + 1], 'red')
             draw.text(xy=text_location, text=text, fill='white')
 
-        name = "scratch_work_07_16_21/0/"+ str(x) +".jpg"
+        name = "scratch_work_07_16_21/" + str(v) + "/"+ str(x) +".jpg"
         img.save(name)
