@@ -5,8 +5,8 @@ using Random
 
 include("useful_functions.jl")
 
-#dict = @pipe "../metagen_data/labelled_data/0/tiny_set_detections.json" |> open |> read |> String |> JSON.parse
-dict = @pipe "../../scratch_work_07_16_21/tiny_set_detections.json" |> open |> read |> String |> JSON.parse
+dict = @pipe "../metagen_data/labelled_data/0/tiny_set_detections.json" |> open |> read |> String |> JSON.parse
+#dict = @pipe "../../scratch_work_07_16_21/tiny_set_detections.json" |> open |> read |> String |> JSON.parse
 
 Random.seed!(15)
 #try to make objects_observed::Array{Array{Array{Array{Detection2D}}}} of observed objects.
