@@ -28,7 +28,7 @@ function unfold_particle_filter(lesioned::Bool, num_particles::Int, objects_obse
 
     #no video, no frames
     println("initialize pf")
-    state = Gen.initialize_particle_filter(main, (0, 0, params), init_obs, num_particles)
+    state = initialize_particle_filter(main, (0, 0, params), init_obs, num_particles)
 
     num_videos, num_frames = size(objects_observed)
 
@@ -36,7 +36,7 @@ function unfold_particle_filter(lesioned::Bool, num_particles::Int, objects_obse
 
         println("v ", v)
 
-        maybe_resample!(state, ess_threshold=num_particles)#used to be /2. now always resampling becasue I want to get rid of -Inf before they become NANs
+        maybe_resample!(state)
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after resample ", ess)
 
@@ -70,7 +70,7 @@ function unfold_particle_filter(lesioned::Bool, num_particles::Int, objects_obse
             end
         end
 
-        Gen.particle_filter_step!(state, (v, num_frames, params), (UnknownChange(),), obs)
+        particle_filter_step!(state, (v, num_frames, params), (UnknownChange(),), obs)
 
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after pf step ", ess)
@@ -81,6 +81,7 @@ function unfold_particle_filter(lesioned::Bool, num_particles::Int, objects_obse
         #line_segments = get_line_segments(objects_observed, camera_trajectories, params, v, num_frames, num_receptive_fields, total_n_objects)
         #to-do: threads here
         Threads.@threads for i = 1:num_particles
+        #for i = 1:num_particles
             println("perturb particle i ", i)
             state.traces[i] = perturb(lesioned, state.traces[i], v, perturb_params, line_segments_per_category)
             println("done perturbing i ", i)
@@ -109,7 +110,7 @@ function unfold_particle_filter(lesioned::Bool, num_particles::Int, objects_obse
         end
     end
 
-    return Gen.sample_unweighted_traces(state, num_particles)
+    return sample_unweighted_traces(state, num_particles)
 
 end
 
