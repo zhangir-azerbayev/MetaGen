@@ -8,8 +8,9 @@ using Random
 Random.seed!(1235)
 
 ################################################################################
-num_videos = 300
-num_frames = 100
+num_videos = 10
+num_frames = 300
+params = Video_Params()
 
 #for testing purposes, let's fix V
 gt_v = [0.4 0.4; 0.3 0.3; 0.1 0.7; 0.05 0.05; 0.005 0.5]
@@ -37,6 +38,7 @@ for v = 1:num_videos
 	cm[:videos => v => :v_matrix => :miss_rate => 4 => :miss] = gt_v[4, 2]
 	cm[:videos => v => :v_matrix => :miss_rate => 5 => :miss] = gt_v[5, 2]
 end
+
 # 	for f = 1:num_frames
 # 		camera_params = camera_trajectories[v, f]
 # 		cm[:videos => v => :frame_chain => f => :camera => :camera_location_x] = camera_params.camera_location.x
@@ -55,7 +57,7 @@ end
 # 	#def
 # end
 
-gt_trace,_ = Gen.generate(main, (num_videos, num_frames), cm)
+gt_trace,_ = Gen.generate(main, (num_videos, num_frames, params), cm)
 #println(gt_trace)
 gt_choices = get_choices(gt_trace)
 for v = 1:num_videos
@@ -111,8 +113,8 @@ print(file, "\n")
 
 print(file, gt_v, " & ")
 
-num_particles = 1
-traces = unfold_particle_filter(num_particles, objects_observed, camera_trajectories, file)
+num_particles = 10
+traces = unfold_particle_filter(false, num_particles, objects_observed, camera_trajectories, params, file)
 println("done")
 #visualize_observations(objects_observed, 1, 1, receptive_fields)
 #visualize_trace(traces, 1, camera_trajectories, 1, 1, params)

@@ -57,7 +57,7 @@ Simulates the visual system, `num_videos` scenes each with
 	vs = fill(v, num_videos)
 	receptive_fieldses = fill(receptive_fields, num_videos)
 
-    @trace(video_map(fs, ps, vs, receptive_fieldses), :videos)
+    @trace(video_chain(fs, ps, vs, receptive_fieldses), :videos)
 end
 
 export metacog

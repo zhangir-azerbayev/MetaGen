@@ -9,6 +9,7 @@ function get_rfs_vec(rec_fields::Vector{Receptive_Field},
     paramses = fill(params, length(rec_fields))
     vs = fill(v, length(rec_fields))
     rfs_vec = map(get_rfs, rec_fields, real_rf, paramses, vs)
+    #println("rfs_vec ", rfs_vec)
 end
 
 """

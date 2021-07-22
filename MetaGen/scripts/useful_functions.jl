@@ -1,9 +1,5 @@
 
-function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field})
-
-    num_videos = 2
-    num_frames = 300
-
+function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field}, num_videos::Int64, num_frames::Int64)
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
 
@@ -95,10 +91,7 @@ end
 
 
 #dict is actually an array of dictionaries
-function write_to_dict(dict::Array{Any,1}, camera_trajectories::Matrix{Camera_Params}, inferred_realities)
-    num_videos = 2
-    num_frames = 300
-
+function write_to_dict(dict::Array{Any,1}, camera_trajectories::Matrix{Camera_Params}, inferred_realities, num_videos::Int64, num_frames::Int64)
     params = Video_Params()
 
     #add inferences about the objects in the scenes

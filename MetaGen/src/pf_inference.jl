@@ -16,24 +16,19 @@ array for each frame and array for each receptive field and array for those dete
 
 
 """
-function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Array{Detection2D}}, camera_trajectories::Matrix{Camera_Params}, file)
+function unfold_particle_filter(lesioned::Bool, num_particles::Int, objects_observed::Matrix{Array{Detection2D}}, camera_trajectories::Matrix{Camera_Params}, params::Video_Params, file)
     init_obs = Gen.choicemap()
 
-    #params set to default
-    params = Video_Params()
-
-    # #for degugging purposes, condition on V
-    # for j = 1:length(params.possible_objects)
-	# 	#set lambda when target absent
-	# 	#v[j,1] = @trace(Gen.beta(alpha, beta), (:fa, j)) #leads to fa rate of around 0.1
-	# 	init_obs[:v_matrix => (:lambda_fa, j)] = 0.00000002 #these are lambdas per receptive field
-	# 	#set miss rate when target present
-	# 	init_obs[:v_matrix => (:miss_rate, j)] = 0.45
-	# end
+    if lesioned
+        for j = 1:params.n_possible_objects
+            init_obs[:init_v_matrix => :lambda_fa => j => :fa] = 1.0
+            init_obs[:init_v_matrix => :miss_rate => j => :miss] = 0.5
+        end
+    end
 
     #no video, no frames
     println("initialize pf")
-    state = Gen.initialize_particle_filter(main, (0, 0), init_obs, num_particles)
+    state = Gen.initialize_particle_filter(main, (0, 0, params), init_obs, num_particles)
 
     num_videos, num_frames = size(objects_observed)
 
@@ -68,22 +63,26 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
         #def should be using map to replace for loops here
         #point is, condition on the camera trajectory and on the observations
 
-        Gen.particle_filter_step!(state, (v, num_frames), (UnknownChange(),), obs)
+        if lesioned
+            for j = 1:params.n_possible_objects
+                obs[:videos => v => :v_matrix => :lambda_fa => j => :fa] = 1.0
+                obs[:videos => v => :v_matrix => :miss_rate => j => :miss] = 0.5
+            end
+        end
+
+        Gen.particle_filter_step!(state, (v, num_frames, params), (UnknownChange(),), obs)
 
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after pf step ", ess)
-        # for i = 1:num_particles
-        #     println("weight ", state.log_weights[i])
-        # #     println("frame 1")
-        # #     println(state.traces[i][:videos => v => :frame_chain => 1 => :camera])
-        # end
 
         #optional rejuvination
         (perturb_params, n_objects_per_category) = get_probs_categories(objects_observed, params, v, num_frames)
         line_segments_per_category = get_line_segments_per_category(params, objects_observed, camera_trajectories, v, num_frames)
         #line_segments = get_line_segments(objects_observed, camera_trajectories, params, v, num_frames, num_receptive_fields, total_n_objects)
-        for i = 1:num_particles
-            state.traces[i] = perturb(state.traces[i], v, perturb_params, line_segments_per_category)
+        #to-do: threads here
+        Threads.@threads for i = 1:num_particles
+            println("perturb particle i ", i)
+            state.traces[i] = perturb(lesioned, state.traces[i], v, perturb_params, line_segments_per_category)
             println("done perturbing i ", i)
             println("trace ", state.traces[i][:videos => v => :init_scene])
             println("log score of this trace ", get_score(state.traces[i]))
@@ -103,7 +102,7 @@ function unfold_particle_filter(num_particles::Int, objects_observed::Matrix{Arr
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after rejuvination ", ess)
 
-        if v==num_videos #if on last video
+        if lesioned && v==num_videos
             print_Vs_and_Rs_to_file(file, state.traces, num_particles, params, v, true)
         else
             print_Vs_and_Rs_to_file(file, state.traces, num_particles, params, v)
@@ -120,7 +119,7 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
 
 """
 
-@gen function perturb(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
+@gen function perturb(lesioned::Bool, trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
     #acceptance_counter = 0
     #proposal_counter = 0
 
@@ -137,13 +136,15 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
 
     println("scene at v ", trace[:videos => v => :init_scene])
 
-    for iter=1:500 #try 100 MH moves
+    for iter=1:5 #try 100 MH moves
         println("iter ", iter)
         #println("trace ", trace[:videos => v => :init_scene])
 
         trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
-        for iter2=1:10
-            trace = perturb_v_matrix_mh(trace, v, perturb_params)
+        if lesioned == false
+            for iter2=1:10
+                trace = perturb_v_matrix_mh(trace, v, perturb_params)
+            end
         end
         # println("lambda_fa 2 ", trace[:v_matrix => (:lambda_fa, 2)])
         # println("miss 2 ", trace[:v_matrix => (:miss_rate, 2)])
