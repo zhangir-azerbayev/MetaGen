@@ -105,13 +105,13 @@ state is Tuple{Array{Any,1}, Matrix{Int64}, Matrix{Int64}}
     real_detections = Array{Detection2D}(real_detections)
     #observations_2D will be what we condition on
 
-    rfs_vec = get_rfs_vec(receptive_fields, real_detections, params, v)
+    rfs_vec = get_rfs_vec(real_detections, params, v)
 
     #for loop over receptive fields
     #@show maximum(map(length, rfs_vec))
     #could re-write with map
     #@trace(Gen.Map(rfs)(rfs_vec), :observations_2D) #gets no method matching error
-    observations_2D = @trace(rfs(rfs_vec[1]), :observations_2D) #dirty shortcut because we only have one receptive field atm
+    observations_2D = @trace(rfs(rfs_vec), :observations_2D) #dirty shortcut because we only have one receptive field atm
     alphas, betas = update_alpha_beta(state[2], state[3], observations_2D, real_detections)
     state = (scene, alphas, betas) #just keep sending the scene in.
     return state

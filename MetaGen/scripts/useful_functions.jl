@@ -29,10 +29,24 @@ function make_observations(dict::Array{Any,1}, receptive_fields::Vector{Receptiv
             labels = dict[v]["views"][f]["detections"]["labels"][indices]
             center = dict[v]["views"][f]["detections"]["center"][indices]
             temp = Array{Detection2D}(undef, length(labels))
+            if length(labels) > 5
+                println("uh oh. too many obs ", length(labels))
+                println("video ", v)
+                println("frame ", f)
+            end
             for i = 1:length(labels)
                 label = labels[i]
                 x = center[i][1]
                 y = center[i][2]
+                if x < 0 || x > 320
+                    println("uh oh. x ", x)
+                    println("video ", v)
+                    println("frame ", f)
+                elseif y < 0 || y > 240
+                    println("uh oh. y ", y)
+                    println("video ", v)
+                    println("frame ", f)
+                end
                 temp[i] = (x, y, label) #so now I have an array of detections
             end
             #turn that array of detections into an array of an array of detections sorted by receptive_field

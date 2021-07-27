@@ -404,7 +404,8 @@ function Gen.random(::Hallucination_Distribution, params::Video_Params, v::Matri
     #saying there must be no fewer than 0 objects per scene, and at most 100
     #numObjects = @trace(trunc_poisson(sum(params.v[:,1]), -1.0, 100.0), (:numObjects)) #may want to truncate so 0 objects isn't possible
     #objects = @trace(multinomial_objects(numObjects,[0.2,0.2,0.2,0.2,0.2], ), (:objects))
-    c = categorical(v[:,1]./sum(v[:,1]))
+    ws = @inbounds 1.0/sum(v[:,1]) * v[:,1]
+    c = categorical(ws)
     detection_2D = construct_2D(c, params, rec_field)
 end
 
@@ -412,7 +413,9 @@ function Gen.logpdf(::Hallucination_Distribution, detection_2D::Detection2D, par
 
     #multinomial
     cat = detection_2D[3] #grabbing the category type
-    p_categorical = Gen.logpdf(categorical, cat, v[:,1]./sum(v[:,1])) #prob_vec is the hallucination lambdas normalized
+    ws = @inbounds 1.0/sum(v[:,1]) * v[:,1]
+    p_categorical = Gen.logpdf(categorical, cat, ws) #prob_vec is the hallucination lambdas normalized
+
 
     #x-coordinate
     #all the x_coordinates

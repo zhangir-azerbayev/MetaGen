@@ -5,15 +5,15 @@ using Random
 
 include("useful_functions.jl")
 
-dict = @pipe "../metagen_data/labelled_data/0/tiny_set_detections.json" |> open |> read |> String |> JSON.parse
-#dict = @pipe "../../scratch_work_07_16_21/tiny_set_detections.json" |> open |> read |> String |> JSON.parse
+dict = @pipe "../metagen_data/labelled_data/0/0_data_detections.json" |> open |> read |> String |> JSON.parse
+#dict = @pipe "../../scratch_work_07_16_21/0_data_detections.json" |> open |> read |> String |> JSON.parse
 
 Random.seed!(15)
 #try to make objects_observed::Array{Array{Array{Array{Detection2D}}}} of observed objects.
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
 
 ################################################################################
-num_videos = 2
+num_videos = 100
 num_frames = 300
 
 params = Video_Params(n_possible_objects = 91)
@@ -66,7 +66,9 @@ end
 
 ################################################################################
 #run Lesioned MetaGen
-traces = unfold_particle_filter(true, num_particles, objects_observed, camera_trajectories, params, file)
+unfold_particle_filter(true, num_particles, objects_observed, camera_trajectories, params, file)
+unfold_particle_filter(true, num_particles, objects_observed, camera_trajectories, params, file)
+
 
 println("done with pf for lesioned metagen")
 

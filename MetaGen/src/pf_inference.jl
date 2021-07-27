@@ -137,7 +137,7 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
 
     println("scene at v ", trace[:videos => v => :init_scene])
 
-    for iter=1:5 #try 100 MH moves
+    for iter=1:500 #try 100 MH moves
         println("iter ", iter)
         #println("trace ", trace[:videos => v => :init_scene])
 

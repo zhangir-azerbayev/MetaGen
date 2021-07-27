@@ -1,14 +1,12 @@
 """
 return rfs_vec, where the vector is the rfs indexed by receptive field
 """
-function get_rfs_vec(rec_fields::Vector{Receptive_Field},
-                            real_objects::Vector{Detection2D},
-                            params::Video_Params, v::Matrix{Real})
-
-    real_rf = map(rf -> filter(p -> within(p, rf), real_objects), rec_fields)
-    paramses = fill(params, length(rec_fields))
-    vs = fill(v, length(rec_fields))
-    rfs_vec = map(get_rfs, rec_fields, real_rf, paramses, vs)
+function get_rfs_vec(real_objects::Vector{Detection2D},
+                    params::Video_Params, v::Matrix{Real})
+    #just one rf
+    rec_field = Receptive_Field(p1 = (0, 0), p2 = (320, 240)) #should make it from params
+    real_rf = filter(p -> within(p, rec_field), real_objects)
+    rfs_vec = get_rfs(rec_field, real_rf, params, v)
     #println("rfs_vec ", rfs_vec)
 end
 
@@ -33,7 +31,7 @@ function get_rfs(rec_field::Receptive_Field, real::Vector{Detection2D}, params::
 
     #println("imagined_objects_2D ", imagined_objects_2D)
     #println("real_objects_2D ", real_objects_2D)
-    rfs = vcat(imagined_objects_2D, real_objects_2D)
+    rfs = [imagined_objects_2D; real_objects_2D]
 
     rfs = RFSElements{Detection2D}(rfs)
     return rfs
@@ -66,13 +64,13 @@ returns true if the object position is within rf
 function within(point::Detection2D, rf::Receptive_Field)
     x = point[1]
     y = point[2]
-    x >= rf.p1[1] && x < rf.p2[1] && y >= rf.p1[2] && y < rf.p2[2] #top and right size will not be represented in rfs. nead it to be this way so intersections in receptive fields have reasonable explanations
+    x >= rf.p1[1] && x <= rf.p2[1] && y >= rf.p1[2] && y <= rf.p2[2] #top and right size will not be represented in rfs. nead it to be this way so intersections in receptive fields have reasonable explanations
 end
 
 function within(point::Tuple{Float64, Float64}, rf::Receptive_Field)
     x = point[1]
     y = point[2]
-    x >= rf.p1[1] && x < rf.p2[1] && y >= rf.p1[2] && y < rf.p2[2] #top and right size will not be represented in rfs. nead it to be this way so intersections in receptive fields have reasonable explanations
+    x >= rf.p1[1] && x <= rf.p2[1] && y >= rf.p1[2] && y <= rf.p2[2] #top and right size will not be represented in rfs. nead it to be this way so intersections in receptive fields have reasonable explanations
 end
 
 export within
