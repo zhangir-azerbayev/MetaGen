@@ -88,8 +88,9 @@ in `perturb_params`.
 
     id = {:id} ~ categorical(fill(1/n, n)) #select element to change
     #make it so doesn't propose current category
+    label = scene[id][4]
     probs_possible_objects = deepcopy(perturb_params.probs_possible_objects)
-    probs_possible_objects[id] = 0
+    probs_possible_objects[label] = 0
     probs_possible_objects = probs_possible_objects./sum(probs_possible_objects)
     perturb_params_new = Perturb_Params(probs_possible_objects)
 
