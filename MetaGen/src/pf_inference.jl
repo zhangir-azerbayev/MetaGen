@@ -139,7 +139,7 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
 
     for iter=1:500 #try 100 MH moves
         println("iter ", iter)
-        println("trace ", trace[:videos => v => :init_scene])
+        #println("trace ", trace[:videos => v => :init_scene])
 
         trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
         if lesioned == false
