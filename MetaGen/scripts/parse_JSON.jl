@@ -1,4 +1,7 @@
-import Pkg; Pkg.activate()
+println("here")
+using Pkg
+Pkg.activate("../../../../../../home/mb2987/ORB_project3/MetaGen/.")
+println("activated")
 
 using MetaGen
 using JSON

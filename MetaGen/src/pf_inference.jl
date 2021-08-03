@@ -180,7 +180,7 @@ function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_seg
     #println("accepted? ", accepted)
     #println("trace ", trace[:videos => v => :init_scene])
 
-    println("trace ", trace[:videos => v => :init_scene])
+    #println("trace ", trace[:videos => v => :init_scene])
 
 
     #only try changing location or category if there's at least one object in the scene
