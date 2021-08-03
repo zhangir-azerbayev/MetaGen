@@ -17,9 +17,13 @@ function within_frame(p::Detection2D)
 end
 
 #first approximation
-function update_alpha_beta(alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D})
+function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D})
     alphas = deepcopy(alphas_old)
     betas = deepcopy(betas_old)
+
+    if lesioned
+        return alphas, betas
+    end
 
     observations_2D = filter!(within_frame, observations_2D)
     real_detections = filter!(within_frame, real_detections)
@@ -50,7 +54,6 @@ function update_alpha_beta(alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, 
 
     #update beta for hallucinations
     betas[:, 1] = betas[:, 1] .+ 1 #add one for each frame
-
     return alphas, betas
 end
 
@@ -88,7 +91,7 @@ Generates the next frame given the current frame.
 
 state is Tuple{Array{Any,1}, Matrix{Int64}, Matrix{Int64}}
 """
-@gen (static) function frame_kernel(current_frame::Int64, state::Any, params::Video_Params, v::Matrix{Real}, receptive_fields::Vector{Receptive_Field})
+@gen (static) function frame_kernel(current_frame::Int64, state::Any, lesioned::Bool, params::Video_Params, v::Matrix{Real}, receptive_fields::Vector{Receptive_Field})
     ####Update 2D real objects
 
     ####Update camera location and pointing
@@ -112,7 +115,7 @@ state is Tuple{Array{Any,1}, Matrix{Int64}, Matrix{Int64}}
     #could re-write with map
     #@trace(Gen.Map(rfs)(rfs_vec), :observations_2D) #gets no method matching error
     observations_2D = @trace(rfs(rfs_vec), :observations_2D) #dirty shortcut because we only have one receptive field atm
-    alphas, betas = update_alpha_beta(state[2], state[3], observations_2D, real_detections)
+    alphas, betas = update_alpha_beta(lesioned, state[2], state[3], observations_2D, real_detections)
     state = (scene, alphas, betas) #just keep sending the scene in.
     return state
 end
@@ -152,7 +155,7 @@ end
 """
 Samples a new scene and a new v_matrix.
 """
-@gen (static) function video_kernel(current_video::Int64, v_matrix_state::Any, num_frames::Int64, params::Video_Params, receptive_fields::Array{Receptive_Field, 1})
+@gen (static) function video_kernel(current_video::Int64, v_matrix_state::Any, lesioned::Bool, num_frames::Int64, params::Video_Params, receptive_fields::Array{Receptive_Field, 1})
     #for the scene. scenes are completely independent of each other
     #println("current video ", current_video)
 
@@ -166,10 +169,12 @@ Samples a new scene and a new v_matrix.
     previous_betas = v_matrix_state[3]
     init_state = (init_scene, previous_alphas, previous_betas)
 
-    state = @trace(frame_chain(num_frames, init_state, params, previous_v_matrix, receptive_fields), :frame_chain)
+    state = @trace(frame_chain(num_frames, init_state, lesioned, params, previous_v_matrix, receptive_fields), :frame_chain)
     alphas = state[end][2]#not sure num_frames or end is better for index
     betas = state[end][3]
     #for the metacognition.
+    # println("alphas ", alphas)
+    # println("betas ", betas)
     v_matrix = @trace(update_v_matrix(alphas, betas), :v_matrix)
     v_matrix_state = (v_matrix, alphas, betas)
     return v_matrix_state

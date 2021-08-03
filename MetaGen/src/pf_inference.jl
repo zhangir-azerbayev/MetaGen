@@ -4,6 +4,7 @@
 Performs inference procedure.
 
 # Arguments
+- v_matrix::Union{Matrix{Float64}, Nothing} V matrix to condition on. If nothing, do inference over V matrix.
 - num_particles::Int
 - objects_observed: indexed by ``(\\mathrm{scene, frame, receptive field, detection})``
 - camera_trajectories: Indexed by ``(\\mathrm{scene, frame})``
@@ -16,21 +17,24 @@ array for each frame and array for each receptive field and array for those dete
 
 
 """
-function unfold_particle_filter(lesioned::Bool, num_particles::Int, objects_observed::Matrix{Array{Detection2D}}, camera_trajectories::Matrix{Camera_Params}, params::Video_Params, file)
+function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing}, num_particles::Int, objects_observed::Matrix{Array{Detection2D}}, camera_trajectories::Matrix{Camera_Params}, params::Video_Params, file)
     init_obs = Gen.choicemap()
 
-    if lesioned
+    if !isnothing(v_matrix)
         for j = 1:params.n_possible_objects
-            init_obs[:init_v_matrix => :lambda_fa => j => :fa] = 1.0
-            init_obs[:init_v_matrix => :miss_rate => j => :miss] = 0.5
+            init_obs[:init_v_matrix => :lambda_fa => j => :fa] = v_matrix[j,1]
+            init_obs[:init_v_matrix => :miss_rate => j => :miss] = v_matrix[j,2]
         end
     end
 
     #no video, no frames
     println("initialize pf")
-    state = initialize_particle_filter(main, (0, 0, params), init_obs, num_particles)
+    state = initialize_particle_filter(main, (!isnothing(v_matrix), 0, 0, params), init_obs, num_particles)
 
     num_videos, num_frames = size(objects_observed)
+
+    inferred_realities = Array{Any}(undef, num_videos)
+    avg_v = zeros(params.n_possible_objects, 2)
 
     for v=1:num_videos
 
@@ -63,14 +67,14 @@ function unfold_particle_filter(lesioned::Bool, num_particles::Int, objects_obse
         #def should be using map to replace for loops here
         #point is, condition on the camera trajectory and on the observations
 
-        if lesioned
+        if !isnothing(v_matrix)
             for j = 1:params.n_possible_objects
-                obs[:videos => v => :v_matrix => :lambda_fa => j => :fa] = 1.0
-                obs[:videos => v => :v_matrix => :miss_rate => j => :miss] = 0.5
+                init_obs[:init_v_matrix => :lambda_fa => j => :fa] = v_matrix[j,1]
+                init_obs[:init_v_matrix => :miss_rate => j => :miss] = v_matrix[j,2]
             end
         end
 
-        particle_filter_step!(state, (v, num_frames, params), (UnknownChange(),), obs)
+        particle_filter_step!(state, (!isnothing(v_matrix), v, num_frames, params), (UnknownChange(),), obs)
 
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after pf step ", ess)
@@ -83,7 +87,7 @@ function unfold_particle_filter(lesioned::Bool, num_particles::Int, objects_obse
         Threads.@threads for i = 1:num_particles
         #for i = 1:num_particles
             println("perturb particle i ", i)
-            state.traces[i] = perturb(lesioned, state.traces[i], v, perturb_params, line_segments_per_category)
+            state.traces[i] = perturb(!isnothing(v_matrix), state.traces[i], v, perturb_params, line_segments_per_category)
             println("done perturbing i ", i)
             println("trace ", state.traces[i][:videos => v => :init_scene])
             println("log score of this trace ", get_score(state.traces[i]))
@@ -103,14 +107,10 @@ function unfold_particle_filter(lesioned::Bool, num_particles::Int, objects_obse
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after rejuvination ", ess)
 
-        if lesioned && v==num_videos
-            print_Vs_and_Rs_to_file(file, state.traces, num_particles, params, v, true)
-        else
-            print_Vs_and_Rs_to_file(file, state.traces, num_particles, params, v)
-        end
+        inferred_realities[v], avg_v = print_Vs_and_Rs_to_file(file, state.traces, num_particles, params, v)
     end
 
-    return sample_unweighted_traces(state, num_particles)
+    return (sample_unweighted_traces(state, num_particles), inferred_realities, avg_v)
 
 end
 
@@ -126,20 +126,20 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
 
     println("before perturbations")
     println("v ", v)
-
-    println("alpha ", get_retval(trace)[end][2][5,2])
-    println("beta ", get_retval(trace)[end][3][5,2])
-
-    #println("miss 2 ", trace[:init_v_matrix => :miss_rate => 2 => :miss])
-    println("init miss 5 ", trace[:init_v_matrix => :miss_rate => 5 => :miss])
-    #println("miss 2 ", trace[:videos => v => :v_matrix => :miss_rate => 2 => :miss])
-    println("miss rate 5 ", trace[:videos => v => :v_matrix => :miss_rate => 5 => :miss])
-
-    println("scene at v ", trace[:videos => v => :init_scene])
+    #
+    # println("alpha ", get_retval(trace)[end][2][5,2])
+    # println("beta ", get_retval(trace)[end][3][5,2])
+    #
+    # #println("miss 2 ", trace[:init_v_matrix => :miss_rate => 2 => :miss])
+    # println("init miss 5 ", trace[:init_v_matrix => :miss_rate => 5 => :miss])
+    # #println("miss 2 ", trace[:videos => v => :v_matrix => :miss_rate => 2 => :miss])
+    # println("miss rate 5 ", trace[:videos => v => :v_matrix => :miss_rate => 5 => :miss])
+    #
+    # println("scene at v ", trace[:videos => v => :init_scene])
 
     for iter=1:500 #try 100 MH moves
         println("iter ", iter)
-        #println("trace ", trace[:videos => v => :init_scene])
+        println("trace ", trace[:videos => v => :init_scene])
 
         trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
         if lesioned == false
@@ -157,15 +157,15 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
     println("after perturbations")
     println("v ", v)
 
-    println("alpha ", get_retval(trace)[end][2][5,2])
-    println("beta ", get_retval(trace)[end][3][5,2])
-
-    #println("miss 2 ", trace[:init_v_matrix => :miss_rate => 2 => :miss])
-    println("init miss 5 ", trace[:init_v_matrix => :miss_rate => 5 => :miss])
-    #println("miss 2 ", trace[:videos => v => :v_matrix => :miss_rate => 2 => :miss])
-    println("miss rate 5 ", trace[:videos => v => :v_matrix => :miss_rate => 5 => :miss])
-
-    println("scene at v ", trace[:videos => v => :init_scene])
+    # println("alpha ", get_retval(trace)[end][2][5,2])
+    # println("beta ", get_retval(trace)[end][3][5,2])
+    #
+    # #println("miss 2 ", trace[:init_v_matrix => :miss_rate => 2 => :miss])
+    # println("init miss 5 ", trace[:init_v_matrix => :miss_rate => 5 => :miss])
+    # #println("miss 2 ", trace[:videos => v => :v_matrix => :miss_rate => 2 => :miss])
+    # println("miss rate 5 ", trace[:videos => v => :v_matrix => :miss_rate => 5 => :miss])
+    #
+    # println("scene at v ", trace[:videos => v => :init_scene])
     return trace
 end
 
@@ -179,6 +179,9 @@ function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_seg
     trace, accepted = add_remove_kernel(trace, v, line_segments_per_category, perturb_params)
     #println("accepted? ", accepted)
     #println("trace ", trace[:videos => v => :init_scene])
+
+    println("trace ", trace[:videos => v => :init_scene])
+
 
     #only try changing location or category if there's at least one object in the scene
     if length(trace[:videos => v => :init_scene]) > 0

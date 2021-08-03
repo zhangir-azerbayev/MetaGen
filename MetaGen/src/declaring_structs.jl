@@ -8,7 +8,7 @@ end
 "Parametrizes a scene"
 Base.@kwdef struct Video_Params
     p_objects::Float64 = 0.9
-    n_possible_objects = 5
+    n_possible_objects = 8
     possible_objects::Vector{Int64} = collect(1:n_possible_objects)
     probs_possible_objects = collect(ones(n_possible_objects)./n_possible_objects)
     x_min::Float64 = -16

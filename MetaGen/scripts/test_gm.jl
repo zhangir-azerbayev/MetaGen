@@ -18,6 +18,7 @@ params = Video_Params()
 
 @time gt_trace,_ = Gen.generate(main, (num_videos, num_frames, params));
 
+@profilehtml Gen.generate(main, (num_videos, num_frames, params));
 
 
 #Profile.init(; n = 10^7, delay = 1e-6)

@@ -63,7 +63,7 @@ function print_Vs_and_Rs_to_file(file, tr, num_samples::Int64, params, r::Int64,
         print(file ,reality_as_string, " & ")
     end
 
-    return frequency_realities[m] #return the mode reality
+    return (frequency_realities[m], avg_v) #return the mode reality and average v
 end
 
 export print_Vs_and_Rs_to_file

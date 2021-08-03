@@ -142,7 +142,7 @@ Involution corresponding to `change_category_proposal`
     @write(u_prime[:new], e_old, :discrete)
 end
 
-add_remove_kernel(trace, v, line_segments, perturb_params) = mh(trace, add_remove_proposal, (v, line_segments, perturb_params), add_remove_involution)
+add_remove_kernel(trace, v, line_segments, perturb_params) = mh_here(trace, add_remove_proposal, (v, line_segments, perturb_params), add_remove_involution)
 change_location_kernel(trace, v, variance, perturb_params) = mh(trace, change_location_proposal, (v, variance, perturb_params), change_location_involution)
 change_category_kernel(trace, v, perturb_params) = mh(trace, change_category_proposal, (v, perturb_params), change_category_involution)
 
@@ -155,7 +155,7 @@ function metropolis_hastings_here(
     check=false, observations=EmptyChoiceMap())
     trace_translator = SymmetricTraceTranslator(proposal, proposal_args, involution)
     (new_trace, log_weight) = trace_translator(trace; check=check, observations=observations)
-    println("proposal ", new_trace[:videos => 1 => :init_scene])
+    println("proposal ", new_trace[:videos => 1 => :init_scene]) #could edit this _here function to print v
     println("ratio ", exp(log_weight))
     if log(rand()) < log_weight
         # accept

@@ -5,21 +5,23 @@ using Random
 
 include("useful_functions.jl")
 
-dict = @pipe "../metagen_data/labelled_data/0/0_data_detections.json" |> open |> read |> String |> JSON.parse
-#dict = @pipe "../../scratch_work_07_16_21/0_data_detections.json" |> open |> read |> String |> JSON.parse
+dict = @pipe "../metagen_data/labelled_data_old/0_data_labelled.json" |> open |> read |> String |> JSON.parse
+#dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
+#dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
+
 
 Random.seed!(15)
 #try to make objects_observed::Array{Array{Array{Array{Detection2D}}}} of observed objects.
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
 
 ################################################################################
-num_videos = 100
+num_videos = 20
 num_frames = 300
 
-params = Video_Params(n_possible_objects = 91)
+params = Video_Params(n_possible_objects = 8)
 
 receptive_fields = make_receptive_fields()
-objects_observed, camera_trajectories = make_observations(dict, receptive_fields, num_videos, num_frames)
+objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames)
 
 ################################################################################
 #Set up the output file
@@ -52,22 +54,23 @@ print(file, "\n")
 
 ################################################################################
 #Online MetaGen
-num_particles = 10
-traces = unfold_particle_filter(false, num_particles, objects_observed, camera_trajectories, params, file)
+num_particles = 1
+#@profilehtml unfold_particle_filter(false, num_particles, objects_observed, camera_trajectories, params, file)
+traces, inferred_realities, avg_v = unfold_particle_filter(nothing, num_particles, objects_observed, camera_trajectories, params, file)
 
 println("done with pf for online & retrospective metagen")
 
 ################################################################################
-#printing results from Retrospective MetaGen
-inferred_realities = Array{Any}(undef, num_videos)
-for v=1:num_videos
-    inferred_realities[v] = print_Vs_and_Rs_to_file(file, traces, num_particles, params, v)
-end
+#Retrospective MetaGen
+unfold_particle_filter(avg_v, num_particles, objects_observed, camera_trajectories, params, file)
+
 
 ################################################################################
 #run Lesioned MetaGen
-unfold_particle_filter(true, num_particles, objects_observed, camera_trajectories, params, file)
-unfold_particle_filter(true, num_particles, objects_observed, camera_trajectories, params, file)
+v = zeros(length(params.possible_objects), 2)
+v[:,1] .= 1.0
+v[:,2] .= 0.5
+unfold_particle_filter(v, num_particles, objects_observed, camera_trajectories, params, file)
 
 
 println("done with pf for lesioned metagen")
@@ -78,11 +81,11 @@ close(file)
 #for writing an output file for a demo using Retrospective MetaGen
 
 ###### add to dictionary
-# out = write_to_dict(dict, camera_trajectories, inferred_realities, num_videos, num_frames)
-#
-# #open("../../scratch_work_07_16_21/output_tiny_set_detections.json","w") do f
-# open("output_tiny_set_detections.json","w") do f
-# 	JSON.print(f,out)
-# end
-#
-# println("finished writing json")
+out = write_to_dict(dict, camera_trajectories, inferred_realities, num_videos, num_frames)
+
+#open("../../scratch_work_07_16_21/output_tiny_set_detections.json","w") do f
+open("output.json","w") do f
+	JSON.print(f,out)
+end
+
+println("finished writing json")
