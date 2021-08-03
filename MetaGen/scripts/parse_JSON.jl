@@ -1,3 +1,5 @@
+using Pkg; Pkg.activate()
+
 using MetaGen
 using JSON
 using Pipe: @pipe
