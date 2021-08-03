@@ -1,4 +1,4 @@
-using Pkg; Pkg.activate()
+import Pkg; Pkg.activate()
 
 using MetaGen
 using JSON
