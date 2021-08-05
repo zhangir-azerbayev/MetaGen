@@ -8,6 +8,7 @@ using Random
 
 config_path = ARGS[1]
 config = YAML.load_file(config_path)
+mkdir("results/$(config["experiment_name"])")
 
 include("useful_functions.jl")
 
@@ -31,7 +32,7 @@ objects_observed, camera_trajectories = make_observations_office(dict, receptive
 
 ################################################################################
 #Set up the output file
-outfile = config["output_csv"]
+outfile = "results/$(config["experiment_name"])/output.csv"
 file = open(outfile, "w")
 
 #file header
@@ -96,7 +97,7 @@ close(file)
 out = write_to_dict(dict, camera_trajectories, inferred_realities, num_videos, num_frames)
 
 #open("../../scratch_work_07_16_21/output_tiny_set_detections.json","w") do f
-open(config["output_json"],"w") do f
+open("results/$(config["experiment_name"])/output.json","w") do f
 	JSON.print(f,out)
 end
 

@@ -1,3 +1,5 @@
+experiment_name: "example"
+
 # Generative model parameters
 num_videos: 2
 num_frames: 300
