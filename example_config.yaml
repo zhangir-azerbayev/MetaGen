@@ -1,0 +1,13 @@
+# Generative model parameters
+num_videos: 2
+num_frames: 300
+
+# Inference parameters
+num_particles: 4
+mcmc_steps_outer: 5
+mcmc_steps_inner: 5
+
+# data and output
+input_file: 0_data_labelled.json
+output_csv: results.csv
+output_json: demo.json
