@@ -18,9 +18,11 @@ array for each frame and array for each receptive field and array for those dete
 
 """
 function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing}, num_particles::Int, objects_observed::Matrix{Array{Detection2D}}, camera_trajectories::Matrix{Camera_Params}, params::Video_Params, file)
+    lesioned = !isnothing(v_matrix)
+
     init_obs = Gen.choicemap()
 
-    if !isnothing(v_matrix)
+    if lesioned
         for j = 1:params.n_possible_objects
             init_obs[:init_v_matrix => :lambda_fa => j => :fa] = v_matrix[j,1]
             init_obs[:init_v_matrix => :miss_rate => j => :miss] = v_matrix[j,2]
@@ -29,7 +31,7 @@ function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing}, num_p
 
     #no video, no frames
     println("initialize pf")
-    state = initialize_particle_filter(main, (!isnothing(v_matrix), 0, 0, params), init_obs, num_particles)
+    state = initialize_particle_filter(main, (lesioned, 0, 0, params), init_obs, num_particles)
 
     num_videos, num_frames = size(objects_observed)
 
@@ -61,33 +63,36 @@ function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing}, num_p
             #for rf = 1:num_receptive_fields
                 #println("objects_observed[v, f][rf] ", objects_observed[v, f][rf])
                 #println("type ", typeof(objects_observed[v, f][rf]))
+            #println(typeof(objects_observed[v, f]))
+            #println(typeof(convert(Array{Any, 1}, objects_observed[v, f])))
             obs[:videos => v => :frame_chain => f => :observations_2D] = convert(Array{Any, 1}, objects_observed[v, f])
             #end
         end
         #def should be using map to replace for loops here
         #point is, condition on the camera trajectory and on the observations
 
-        if !isnothing(v_matrix)
+        if lesioned
             for j = 1:params.n_possible_objects
                 init_obs[:init_v_matrix => :lambda_fa => j => :fa] = v_matrix[j,1]
                 init_obs[:init_v_matrix => :miss_rate => j => :miss] = v_matrix[j,2]
             end
         end
 
-        particle_filter_step!(state, (!isnothing(v_matrix), v, num_frames, params), (UnknownChange(),), obs)
+        particle_filter_step!(state, (lesioned, v, num_frames, params), (UnknownChange(),), obs)
 
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after pf step ", ess)
 
         #optional rejuvination
         (perturb_params, n_objects_per_category) = get_probs_categories(objects_observed, params, v, num_frames)
+        println("perturb_params ", perturb_params)
         line_segments_per_category = get_line_segments_per_category(params, objects_observed, camera_trajectories, v, num_frames)
         #line_segments = get_line_segments(objects_observed, camera_trajectories, params, v, num_frames, num_receptive_fields, total_n_objects)
         #to-do: threads here
         Threads.@threads for i = 1:num_particles
         #for i = 1:num_particles
             println("perturb particle i ", i)
-            state.traces[i] = perturb(!isnothing(v_matrix), state.traces[i], v, perturb_params, line_segments_per_category)
+            state.traces[i] = perturb(lesioned, state.traces[i], v, perturb_params, line_segments_per_category)
             println("done perturbing i ", i)
             println("trace ", state.traces[i][:videos => v => :init_scene])
             println("log score of this trace ", get_score(state.traces[i]))
@@ -137,7 +142,7 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
     #
     # println("scene at v ", trace[:videos => v => :init_scene])
 
-    for iter=1:500 #try 100 MH moves
+    for iter=1:250 #try 100 MH moves
         println("iter ", iter)
         #println("trace ", trace[:videos => v => :init_scene])
 
@@ -315,11 +320,11 @@ function get_probs_categories(objects_observed::Matrix{Array{Detection2D}}, para
         end
         #end
     end
-    #make it so that categories that were never observed collectively have 10% of the weight
+    #make it so that 10% of the weight gets divided evenly among all the categories
     other_ten_percent = sum(track_categories)/9
-    each = other_ten_percent/sum(track_categories.==0)
+    each = other_ten_percent/length(params.possible_objects)
     probabilities = copy(track_categories)
-    probabilities[track_categories.==0] .= each
+    probabilities = probabilities .+ each
 
     #in case of no observations, make uniform
     if sum(probabilities) == 0

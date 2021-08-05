@@ -1,7 +1,7 @@
-println("here")
-using Pkg
-Pkg.activate("../../../../../../home/mb2987/ORB_project3/MetaGen/.")
-println("activated")
+#println("here")
+#using Pkg
+#Pkg.activate("../../../../../../home/mb2987/ORB_project3/MetaGen/.")
+#println("activated")
 
 using MetaGen
 using JSON
@@ -20,7 +20,7 @@ Random.seed!(15)
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
 
 ################################################################################
-num_videos = 20
+num_videos = 5
 num_frames = 300
 
 params = Video_Params(n_possible_objects = 8)
