@@ -11,8 +11,11 @@ config = YAML.load_file(config_path)
 mkdir("results/$(config["experiment_name"])")
 
 include("useful_functions.jl")
-
-dict = @pipe config["input_file"] |> open |> read |> String |> JSON.parse
+dict = []
+for i = 0:config["batches_upto"]
+	to_add =  @pipe "$(config["input_file_dir"])$(i)_data_labelled.json" |> open |> read |> String |> JSON.parse
+	append!(dict, to_add)
+end
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 
