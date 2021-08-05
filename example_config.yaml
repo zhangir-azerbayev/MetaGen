@@ -1,0 +1,14 @@
+experiment_name: "example"
+
+# Generative model parameters
+num_videos: 2
+num_frames: 300
+
+# Inference parameters
+num_particles: 4
+mcmc_steps_outer: 5
+mcmc_steps_inner: 5
+
+# data and output
+input_file_dir: "" #need a slash at the end if not empty string
+batches_upto: 1

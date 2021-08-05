@@ -17,7 +17,14 @@ array for each frame and array for each receptive field and array for those dete
 
 
 """
-function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing}, num_particles::Int, objects_observed::Matrix{Array{Detection2D}}, camera_trajectories::Matrix{Camera_Params}, params::Video_Params, file)
+function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing},
+                                num_particles::Int,
+                                mcmc_steps_outer::Int,
+                                mcmc_steps_inner::Int,
+                                objects_observed::Matrix{Array{Detection2D}},
+                                camera_trajectories::Matrix{Camera_Params},
+                                params::Video_Params,
+                                file)
     lesioned = !isnothing(v_matrix)
 
     init_obs = Gen.choicemap()
@@ -92,7 +99,7 @@ function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing}, num_p
         Threads.@threads for i = 1:num_particles
         #for i = 1:num_particles
             println("perturb particle i ", i)
-            state.traces[i] = perturb(lesioned, state.traces[i], v, perturb_params, line_segments_per_category)
+            state.traces[i] = perturb(lesioned, state.traces[i], v, perturb_params, mcmc_steps_outer, mcmc_steps_inner, line_segments_per_category)
             println("done perturbing i ", i)
             println("trace ", state.traces[i][:videos => v => :init_scene])
             println("log score of this trace ", get_score(state.traces[i]))
@@ -125,7 +132,13 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
 
 """
 
-@gen function perturb(lesioned::Bool, trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
+@gen function perturb(lesioned::Bool,
+                      trace,
+                      v::Int64,
+                      perturb_params::Perturb_Params,
+                      mcmc_steps_outer::Int,
+                      mcmc_steps_inner::Int,
+                      line_segments_per_category::Array{Array{Line_Segment,1},1})
     #acceptance_counter = 0
     #proposal_counter = 0
 
@@ -142,13 +155,13 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
     #
     # println("scene at v ", trace[:videos => v => :init_scene])
 
-    for iter=1:250 #try 100 MH moves
+    for iter=1:mcmc_steps_outer #try 100 MH moves
         println("iter ", iter)
         #println("trace ", trace[:videos => v => :init_scene])
 
         trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
         if lesioned == false
-            for iter2=1:10
+            for iter2=1:mcmc_steps_inner
                 trace = perturb_v_matrix_mh(trace, v, perturb_params)
             end
         end
