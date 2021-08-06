@@ -15,7 +15,7 @@ MSE_Vs <- function(data){
   list <- grep('avg V', colnames(data), value=TRUE)
   n_percepts = length(list)
   #n_objects (length of possible objects)
-  n_objects = 5
+  n_objects = 8
   
   for(p in 1:n_percepts){
     data[[list[p]]] <- clean_V(data[[list[p]]])

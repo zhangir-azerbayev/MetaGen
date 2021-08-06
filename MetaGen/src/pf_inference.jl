@@ -80,8 +80,8 @@ function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing},
 
         if lesioned
             for j = 1:params.n_possible_objects
-                init_obs[:init_v_matrix => :lambda_fa => j => :fa] = v_matrix[j,1]
-                init_obs[:init_v_matrix => :miss_rate => j => :miss] = v_matrix[j,2]
+                obs[:videos => v => :v_matrix => :lambda_fa => j => :fa] = v_matrix[j,1]
+                obs[:videos => v => :v_matrix => :miss_rate => j => :miss] = v_matrix[j,2]
             end
         end
 
@@ -119,7 +119,7 @@ function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing},
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after rejuvination ", ess)
 
-        inferred_realities[v], avg_v = print_Vs_and_Rs_to_file(file, state.traces, num_particles, params, v)
+        inferred_realities[v], avg_v = print_Vs_and_Rs_to_file_new(file, state.traces, num_particles, params, v, v==num_videos)
     end
 
     return (sample_unweighted_traces(state, num_particles), inferred_realities, avg_v)
