@@ -129,7 +129,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
     			"book","clock", "vase", "scissors", "teddy bear", "hair drier",
     			"toothbrush"]
 
-    office_subset = ["book", "chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
+    office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
 
 

@@ -28,7 +28,7 @@ Random.seed!(15)
 num_videos = 2
 num_frames = 300
 
-params = Video_Params(n_possible_objects = 8)
+params = Video_Params(n_possible_objects = 7)
 
 receptive_fields = make_receptive_fields()
 objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames)

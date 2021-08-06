@@ -188,3 +188,6 @@ video_chain = Gen.Unfold(video_kernel)
 frame_chain = Gen.Unfold(frame_kernel)
 
 export video_chain
+export render
+export within
+export update_alpha_beta
