@@ -1,4 +1,5 @@
 #helper functions for pre-processing data
+using DataFrames
 
 COCO_CLASSES = ["person", "bicycle", "car", "motorcycle",
 			"airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant",
@@ -14,7 +15,15 @@ COCO_CLASSES = ["person", "bicycle", "car", "motorcycle",
 			"book","clock", "vase", "scissors", "teddy bear", "hair drier",
 			"toothbrush"]
 
-office_subset = ["book", "chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
+#for now, remove books
+office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
+
+dictionary_scenenet_to_office = Dict("chair" => "chair",
+"straightchair" => "chair", "swivelchair" => "chair", "windsorchair" => "chair",
+"cantileverchair" => "chair", "keyboard" => "keyboard", "computerkeyboard" => "keyboard",
+"laptop" => "laptop", "table" => "dining table", "plant" => "potted plant",
+"cellphone" => "cell phone", "cellulartelephone" => "cell phone",
+"bottle" => "bottle", "winebottle" => "bottle")
 
 
 
@@ -24,7 +33,10 @@ function get_ground_truth(dict::Array{Any}, num_videos::Int64)
     for v = 1:num_videos
         world_state = []
         for item = 1:length(dict[v]["labels"])
-            label = findfirst(office_subset .== dict[v]["labels"][item]["semantic_label"])
+			scene_net_name = dict[v]["labels"][item]["category_name"]
+			println(scene_net_name)
+			office_name = get(dictionary_scenenet_to_office, scene_net_name, "NA") #office name will be NA if it's not an entry in the dictionary
+            label = findfirst(office_subset .== office_name)
             location = dict[v]["labels"][item]["position"]
             if !isnothing(label)
                 push!(world_state, (location[1], location[2], location[3], label))

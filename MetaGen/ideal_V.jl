@@ -9,12 +9,14 @@ include("helper_function.jl")
 include("scripts/useful_functions.jl")
 
 #could equally use input dictionary
-dict = @pipe "output.json" |> open |> read |> String |> JSON.parse
+#dict = @pipe "output.json" |> open |> read |> String |> JSON.parse
+dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 
-num_videos = 2
+
+num_videos = 1
 num_frames = 300
 
-params = Video_Params(n_possible_objects = 8)
+params = Video_Params(n_possible_objects = 7)
 receptive_fields = make_receptive_fields()
 objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames)
 
@@ -41,27 +43,37 @@ function print_helper(file, v::Int64, avg_v::Matrix{Float64})
 	print(file, "\n")
 end
 
-function print_ideal_v(file, dict::Array{Any}, params::Video_Params, camera_trajectories::Matrix{Camera_Params})
+function print_ideal_v(file, dict::Array{Any}, params::Video_Params,
+	camera_trajectories::Matrix{Camera_Params},
+	objects_observed::Matrix{Array{Detection2D}})
+
     num_videos, num_frames = size(camera_trajectories)
 
     #could make these zeros
     alphas = fill(1, (params.n_possible_objects,2))
     betas = fill(1, (params.n_possible_objects,2))
     avg_v = fill(0.0, (params.n_possible_objects,2))
+
+	gt_objects = get_ground_truth(dict, num_videos) #3D objects
+	println("gt_objects", gt_objects)
     for v = 1:num_videos
-        gt_objects = get_ground_truth(dict[v]["labels"]) #3D objects
         for f = 1:num_frames
-            paramses = fill(params, length(gt_objects))
-            camera_paramses = fill(camera_trajectories[v, f], length(gt_objects))
-            gt_objects_2D = map(render, paramses, camera_paramses, gt_objects)
+            paramses = fill(params, length(gt_objects[v]))
+            camera_paramses = fill(camera_trajectories[v, f], length(gt_objects[v]))
+            gt_objects_2D = map(render, paramses, camera_paramses, gt_objects[v])
             gt_objects_2D = Array{Detection2D}(gt_objects_2D)
 
-            inferences = convert(Vector{Int64}, dict[v]["views"][f]["inferences"]["labels"])
-            println("inferences ", inferences)
-            alphas, betas = update_alpha_beta(alphas, betas, inferences, gt_objects_2D)
+			#observations
+
+            #inferences = convert(Vector{Int64}, dict[v]["views"][f]["inferences"]["labels"])
+            #println("inferences ", inferences)
+            #alphas, betas = update_alpha_beta(alphas, betas, inferences, gt_objects_2D)
+			alphas, betas = update_alpha_beta(false, alphas, betas, objects_observed[v,f], gt_objects_2D)
         end
         println("alphas fa ", alphas[:,1])
         println("betas fa ", betas[:,1])
+		println("alphas miss ", alphas[:,2])
+        println("betas miss ", betas[:,2])
         avg_v[:,1] = alphas[:,1] ./ (betas[:,1].^2)#fa rate. mean of gamma distribution
         avg_v[:,2] = alphas[:,2] ./ (alphas[:,2] .+ betas[:,2])#miss rates. mean of beta distribution
         print_helper(file, v, avg_v)
@@ -69,7 +81,7 @@ function print_ideal_v(file, dict::Array{Any}, params::Video_Params, camera_traj
     return alphas, betas
 end
 
-alphas, betas = print_ideal_v(file, dict, params, camera_trajectories)
+alphas, betas = print_ideal_v(file, dict, params, camera_trajectories, objects_observed)
 close(file)
 
 ################################################################################
@@ -89,7 +101,7 @@ gt_v[:,1] = (alphas[:,1] .- 1) ./ ((betas[:,1] .- 1).^2)
 gt_v[:,2] = (alphas[:,2] .- 1) ./ ((alphas[:,2] .- 1) .+ (betas[:,2] .- 1))
 
 for v=1:num_videos
-	print_helper(file, v, avg_v)
+	print_helper(file, v, gt_v)
 end
 
 close(file)
