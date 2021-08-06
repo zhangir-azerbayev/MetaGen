@@ -1,6 +1,6 @@
 library(tidyverse)
 setwd("~/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/")
-data = read_csv("processed_data.csv")
+data = read_delim("similarity.csv", delim='&')
 
 mean(data$sim_lesioned)
 mean(data$sim_online)

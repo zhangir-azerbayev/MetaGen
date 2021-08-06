@@ -49,7 +49,7 @@ function print_ideal_v(file, dict::Array{Any}, params::Video_Params, camera_traj
     betas = fill(1, (params.n_possible_objects,2))
     avg_v = fill(0.0, (params.n_possible_objects,2))
     for v = 1:num_videos
-        gt_objects = parse_dict_to_objects(dict[v]["labels"]) #3D objects
+        gt_objects = get_ground_truth(dict[v]["labels"]) #3D objects
         for f = 1:num_frames
             paramses = fill(params, length(gt_objects))
             camera_paramses = fill(camera_trajectories[v, f], length(gt_objects))
