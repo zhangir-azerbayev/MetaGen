@@ -47,7 +47,7 @@ mcmc_steps_inner = config["mcmc_steps_inner"]
 #@profilehtml unfold_particle_filter(false, num_particles, objects_observed, camera_trajectories, params, file)
 traces, inferred_realities, avg_v = unfold_particle_filter(nothing,
 	num_particles, mcmc_steps_outer, mcmc_steps_inner, objects_observed,
-	camera_trajectories, params, file)
+	camera_trajectories, params, online_file)
 close(online_file)
 
 println("done with pf for online & retrospective metagen")
@@ -61,7 +61,7 @@ retro_file = open(retro_outfile, "w")
 file_header(retro_file)
 
 unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
-	objects_observed, camera_trajectories, params, file)
+	objects_observed, camera_trajectories, params, retro_file)
 close(retro_file)
 
 ################################################################################
@@ -76,7 +76,7 @@ v = zeros(length(params.possible_objects), 2)
 v[:,1] .= 1.0
 v[:,2] .= 0.5
 unfold_particle_filter(v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
-	objects_observed, camera_trajectories, params, file)
+	objects_observed, camera_trajectories, params, lesioned_file)
 close(lesioned_file)
 
 println("done with pf for lesioned metagen")
