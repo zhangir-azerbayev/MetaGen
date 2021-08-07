@@ -1,3 +1,15 @@
+function file_header(file)
+    #set up file header
+    print(file, "video_number&")
+    for i = 1:params.n_possible_objects
+    	print(file, "fa_", string(i), "&")
+    	print(file, "m_", string(i), "&")
+    end
+    print(file, "inferred_dictionary_realities&inferred_mode_realities")
+    print(file, "\n")
+end
+
+
 function make_observations_full_COCO(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field}, num_videos::Int64, num_frames::Int64)
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
@@ -117,7 +129,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
     			"book","clock", "vase", "scissors", "teddy bear", "hair drier",
     			"toothbrush"]
 
-    office_subset = ["book", "chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
+    office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
 
 
