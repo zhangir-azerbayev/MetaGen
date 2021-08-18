@@ -1,10 +1,9 @@
 # unlabelled, labelled data, and slurmouts directories, dist
 data_labelled/*.json
 data_unlabelled/*.json
-slurmout/*
-!slurmout/.gitkeep
-dist/*
-!dist/.gitkeep
+slurmout/*.out
+dist/*.png
+
 
 #Ignores threedworld repo 
 tdw/ 
