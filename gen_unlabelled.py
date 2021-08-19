@@ -83,7 +83,6 @@ for video in tqdm(range(num_videos)):
                                   "id": obj_id}])
 
         resp = c.communicate([{"$type": "send_collisions", "stay": True}])
-                              #{"$type": "send_bounds", "id": id}])
 
         # Check that object does not collide with other objects and the wall
         col = None
@@ -112,8 +111,9 @@ for video in tqdm(range(num_videos)):
                                   {"$type": "teleport_object", "id": collidee, "position": {"x": x_1, "y":
                                       placement_height, "z": z_1}},
                                   {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle, "z": 0}, "id": collider},
-                                  {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle_1, "z": 0}, "id": collidee},
-                                  {"$type": "send_collisions", "stay": True}])
+                                  {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle_1, "z":
+                                      0}, "id": collidee}])
+            resp = c.communicate({"$type": "send_collisions", "stay": True})
 
             # refresh col and b
             col = None
