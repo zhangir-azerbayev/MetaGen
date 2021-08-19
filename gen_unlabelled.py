@@ -31,13 +31,17 @@ def CircleTrajectory(num_frames, radius):
 
 # Creates objects dictionary
 lib = ModelLibrarian(library="models_core.json")
-
+"""
 objects = dict({})
 search_terms = ["chair", "sofa"]
 
 for search_term in search_terms:
     records = lib.search_records(search_term)
     objects[search_term] = [record.name for record in records]
+"""
+
+objects = dict({'chair': ['blue_club_chair', 'blue_side_chair', 'brown_leather_dining_chair', 'brown_leather_side_chair', 'chair_annabelle', 'chair_billiani_doll', 'chair_willisau_riale', 'dark_red_club_chair', 'emeco_navy_chair', 'green_side_chair', 'lapalma_stil_chair', 'linbrazil_diz_armchair', 'linen_dining_chair', 'red_side_chair', 'tan_lounger_chair', 'tan_side_chair', 'vitra_meda_chair', 'white_club_chair', 'wood_chair', 'yellow_side_chair'], 'sofa': ['arflex_hollywood_sofa', 'arflex_strips_sofa', 'meridiani_freeman_sofa', 'minotti_helion_3_seater_sofa', 'napoleon_iii_sofa', 'on_the_rocks_sofa', 'sayonara_sofa']})
+
 
 
 print(objects)
@@ -62,7 +66,8 @@ for video in tqdm(range(num_videos)):
 
     labels = []
     category_names = []
-    for id in range(num_objects):
+    placement_height = 0
+    for obj_id in range(num_objects):
         x = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
         z = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
 
@@ -72,9 +77,10 @@ for video in tqdm(range(num_videos)):
         category_names.append(coco_name)
         tdw_name = random.choice(objects[coco_name])
 
-        resp = c.communicate([c.get_add_object(model_name = tdw_name, object_id = id),
-                              {"$type": "teleport_object", "id": id, "position": {"x": x, "y": 0, "z": z}},
-                              {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle, "z": 0}, "id": id}])
+        resp = c.communicate([c.get_add_object(model_name = tdw_name, object_id = obj_id),
+                              {"$type": "teleport_object", "id": obj_id, "position": {"x": x, "y": placement_height, "z": z}},
+                              {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle, "z": 0},
+                                  "id": obj_id}])
 
         resp = c.communicate([{"$type": "send_collisions", "stay": True}])
                               #{"$type": "send_bounds", "id": id}])
@@ -95,24 +101,27 @@ for video in tqdm(range(num_videos)):
 
 
         while enco or col:
-            print(f"object{id} hitting something")
+            print(f"object{obj_id} hitting something")
             x = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
             z = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
             if enco:
-                print(f"hitting wall, moving object{id}")
+                print(f"hitting wall, moving object{obj_id}")
                 collider = enco.get_object_id()
-                resp = c.communicate([{"$type": "teleport_object", "id": collider, "position": {"x": x, "y": 0, "z": z}},
+                resp = c.communicate([{"$type": "teleport_object", "id": collider, "position": {"x": x, "y":
+                    placement_height, "z": z}},
                                       {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle, "z": 0}, "id": collider},
                                       {"$type": "send_collisions", "stay": True}])
             else: # col
-                print(f"hitting object, moving object{id}")
+                print(f"hitting object, moving object{obj_id}")
                 x_1 = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
                 z_1 = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
                 collider = col.get_collider_id()
                 collidee = col.get_collidee_id()
                 angle_1 = random.uniform(0, 360)
-                resp = c.communicate([{"$type": "teleport_object", "id": collider, "position": {"x": x, "y": 0, "z": z}},
-                                      {"$type": "teleport_object", "id": collidee, "position": {"x": x_1, "y": 0, "z": z_1}},
+                resp = c.communicate([{"$type": "teleport_object", "id": collider, "position": {"x": x, "y":
+                    placement_height, "z": z}},
+                                      {"$type": "teleport_object", "id": collidee, "position": {"x": x_1, "y":
+                                          placement_height, "z": z_1}},
                                       {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle, "z": 0}, "id": collider},
                                       {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle_1, "z": 0}, "id": collidee},
                                       {"$type": "send_collisions", "stay": True}])
@@ -131,14 +140,17 @@ for video in tqdm(range(num_videos)):
 
 
 
-        print("placed object {}".format(id))
+        print("placed object {}".format(obj_id))
         print(tdw_name)
         print(x, z)
         print('#'*20)
 
     # saves labels
     resp = c.communicate({"$type": "send_bounds", "ids": list(range(num_objects))})
-    b = Bounds(resp[0])
+    for r in resp: 
+        r_id = OutputData.get_data_type_id(r)
+        if r_id == 'boun': 
+            b = Bounds(resp[0])
 
     for obj in range(num_objects):
         position = b.get_center(obj)
