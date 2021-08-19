@@ -87,56 +87,41 @@ for video in tqdm(range(num_videos)):
 
         # Check that object does not collide with other objects and the wall
         col = None
-        enco = None
         for r in resp:
             r_id = OutputData.get_data_type_id(r)
             print(r_id)
             if r_id == "coll":
                 col = Collision(r)
-            if r_id == "enco":
-                enco = EnvironmentCollision(r)
 
         x_lim = dimensions[0]/2 - 2
         z_lim = dimensions[1]/2 - 2
 
 
-        while enco or col:
-            print(f"object{obj_id} hitting something")
+        while col:
             x = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
             z = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
-            if enco:
-                print(f"hitting wall, moving object{obj_id}")
-                collider = enco.get_object_id()
-                resp = c.communicate([{"$type": "teleport_object", "id": collider, "position": {"x": x, "y":
-                    placement_height, "z": z}},
-                                      {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle, "z": 0}, "id": collider},
-                                      {"$type": "send_collisions", "stay": True}])
-            else: # col
-                print(f"hitting object, moving object{obj_id}")
-                x_1 = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
-                z_1 = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
-                collider = col.get_collider_id()
-                collidee = col.get_collidee_id()
-                angle_1 = random.uniform(0, 360)
-                resp = c.communicate([{"$type": "teleport_object", "id": collider, "position": {"x": x, "y":
-                    placement_height, "z": z}},
-                                      {"$type": "teleport_object", "id": collidee, "position": {"x": x_1, "y":
-                                          placement_height, "z": z_1}},
-                                      {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle, "z": 0}, "id": collider},
-                                      {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle_1, "z": 0}, "id": collidee},
-                                      {"$type": "send_collisions", "stay": True}])
+                
+            x_1 = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
+            z_1 = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
+            collider = col.get_collider_id()
+            collidee = col.get_collidee_id()
+            print(f"collision between objects {collider}, {collidee}")
+            angle_1 = random.uniform(0, 360)
+            resp = c.communicate([{"$type": "teleport_object", "id": collider, "position": {"x": x, "y":
+                placement_height, "z": z}},
+                                  {"$type": "teleport_object", "id": collidee, "position": {"x": x_1, "y":
+                                      placement_height, "z": z_1}},
+                                  {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle, "z": 0}, "id": collider},
+                                  {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle_1, "z": 0}, "id": collidee},
+                                  {"$type": "send_collisions", "stay": True}])
 
             # refresh col and b
             col = None
-            enco = None
             for r in resp:
                 r_id = OutputData.get_data_type_id(r)
                 print(r_id)
                 if r_id == "coll":
                     col = Collision(r)
-                if r_id == "enco":
-                    enco = EnvironmentCollision(r)
-
 
 
 
@@ -150,14 +135,16 @@ for video in tqdm(range(num_videos)):
     for r in resp: 
         r_id = OutputData.get_data_type_id(r)
         if r_id == 'boun': 
-            b = Bounds(resp[0])
+            b = Bounds(r)
 
+    print('saving labels')
+    print('number of responses: ', len(resp))
     for obj in range(num_objects):
         position = b.get_center(obj)
         labels.append({"category_name": category_names[obj], "position": position})
 
 
-    c.communicate({"$type": "simulate_physics", "value": True})
+    c.communicate({"$type": "simulate_physics", "value": False})
     # Creates frames
     radius = dimensions[0]/2 - 2
     angles = [2 * math.pi * i / num_frames for i in range(num_frames)]
