@@ -5,7 +5,7 @@ import random
 import json
 from random import randrange
 from tqdm import tqdm
-random.seed(17)
+random.seed(18)
 
 from pathlib import Path
 from tdw.controller import Controller
@@ -17,6 +17,16 @@ num_videos = 20
 num_frames = 250
 dimensions = [10, 10]
 data = []
+
+
+# Trajectory generators 
+def CircleTrajectory(num_frames, radius): 
+    angles = [2 * math.pi * i / num_frames for i in range(num_frames)]
+
+    for angle in angles: 
+        camera = {"x": radius * math.cos(angle), "y": 3, "z": radius * math.sin(angle)}
+        lookat = {"x": -radius * math.cos(angle), "y": 0, "z": -radius * math.sin(angle)}
+        yield camera, lookat
 
 
 # Creates objects dictionary
@@ -151,11 +161,8 @@ for video in tqdm(range(num_videos)):
     print("created avatar")
 
     views = []
-    for frame in range(num_frames):
-        angle = angles[frame]
-
-        camera = {"x": radius * math.cos(angle), "y": 3, "z": radius * math.sin(angle)}
-        lookat = {"x": -radius * math.cos(angle), "y": 0, "z": -radius*math.cos(angle)}
+    trajectories = CircleTrajectory(num_frames, dimensions[0]/2 - 2)
+    for frame, (camera, lookat) in zip(range(num_frames), trajectories):
         resp = c.communicate([{"$type": "teleport_avatar_to",
                                "position": camera,
                                "avatar_id": avatar_id},
@@ -181,3 +188,13 @@ for video in tqdm(range(num_videos)):
 
 with open("unlabelled_data.json", "w") as f:
     json.dump(data, f)
+
+# end of script
+
+
+
+# Defines camera trajectory generators 
+
+
+
+
