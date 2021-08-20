@@ -1,3 +1,15 @@
+function file_header(file)
+    #set up file header
+    print(file, "video_number&")
+    for i = 1:params.n_possible_objects
+    	print(file, "fa_", string(i), "&")
+    	print(file, "m_", string(i), "&")
+    end
+    print(file, "inferred_dictionary_realities&inferred_mode_realities")
+    print(file, "\n")
+end
+
+
 function make_observations_full_COCO(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field}, num_videos::Int64, num_frames::Int64)
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
@@ -101,7 +113,7 @@ function make_observations_full_COCO(dict::Array{Any,1}, receptive_fields::Vecto
     return objects_observed, camera_trajectories
 end
 
-function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field}, num_videos::Int64, num_frames::Int64)
+function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field}, num_videos::Int64, num_frames::Int64, threshold=0.5)
 
     COCO_CLASSES = ["person", "bicycle", "car", "motorcycle",
     			"airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant",
@@ -117,9 +129,9 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
     			"book","clock", "vase", "scissors", "teddy bear", "hair drier",
     			"toothbrush"]
 
-    office_subset = ["book", "chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
+    #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-
+    office_subset = ["chair", "couch"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
@@ -146,7 +158,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
     for v=1:num_videos
         for f=1:num_frames
             #indices is where confidence was > 0.5
-            indices = dict[v]["views"][f]["detections"]["scores"] .> 0.5
+            indices = dict[v]["views"][f]["detections"]["scores"] .> threshold
             arr = dict[v]["views"][f]["detections"]["labels"][indices]
             center = dict[v]["views"][f]["detections"]["center"][indices]
             #temp = Array{Detection2D}(undef, length(labels))
@@ -169,13 +181,19 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
             objects_observed[v, f] = convert(Array{Detection2D}, temp)
 
             #camera trajectory
-            x = dict[v]["views"][f]["camera"][1]
-            y = dict[v]["views"][f]["camera"][2]
-            z = dict[v]["views"][f]["camera"][3]
+            # x = dict[v]["views"][f]["camera"][1]
+            # y = dict[v]["views"][f]["camera"][2]
+            # z = dict[v]["views"][f]["camera"][3]
+            x = dict[v]["views"][f]["camera"]["x"]
+            y = dict[v]["views"][f]["camera"]["y"]
+            z = dict[v]["views"][f]["camera"]["z"]
             #focus
-            f_x = dict[v]["views"][f]["lookat"][1]
-            f_y = dict[v]["views"][f]["lookat"][2]
-            f_z = dict[v]["views"][f]["lookat"][3]
+            #f_x = dict[v]["views"][f]["lookat"][1]
+            #f_y = dict[v]["views"][f]["lookat"][2]
+            #f_z = dict[v]["views"][f]["lookat"][3]
+            f_x = dict[v]["views"][f]["lookat"]["x"]
+            f_y = dict[v]["views"][f]["lookat"]["y"]
+            f_z = dict[v]["views"][f]["lookat"]["z"]
             c = Camera_Params(camera_location = Coordinate(x,y,z), camera_focus = Coordinate(f_x,f_y,f_z))
             camera_trajectories[v, f] = c
 

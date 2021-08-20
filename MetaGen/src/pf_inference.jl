@@ -46,6 +46,7 @@ function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing},
     avg_v = zeros(params.n_possible_objects, 2)
 
     for v=1:num_videos
+	@time begin
 
         println("v ", v)
 
@@ -80,8 +81,8 @@ function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing},
 
         if lesioned
             for j = 1:params.n_possible_objects
-                init_obs[:init_v_matrix => :lambda_fa => j => :fa] = v_matrix[j,1]
-                init_obs[:init_v_matrix => :miss_rate => j => :miss] = v_matrix[j,2]
+                obs[:videos => v => :v_matrix => :lambda_fa => j => :fa] = v_matrix[j,1]
+                obs[:videos => v => :v_matrix => :miss_rate => j => :miss] = v_matrix[j,2]
             end
         end
 
@@ -119,7 +120,9 @@ function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing},
         ess = effective_sample_size(normalize_weights(state.log_weights)[2])
         println("ess after rejuvination ", ess)
 
-        inferred_realities[v], avg_v = print_Vs_and_Rs_to_file(file, state.traces, num_particles, params, v)
+        inferred_realities[v], avg_v = print_Vs_and_Rs_to_file_new(file, state.traces, num_particles, params, v, v==num_videos)
+	println("time of v ", v)
+	end #end timer
     end
 
     return (sample_unweighted_traces(state, num_particles), inferred_realities, avg_v)
@@ -154,15 +157,16 @@ Does 500 MCMC steps (with different proposal functions) on the scene and on the 
     # println("miss rate 5 ", trace[:videos => v => :v_matrix => :miss_rate => 5 => :miss])
     #
     # println("scene at v ", trace[:videos => v => :init_scene])
+    n = length(perturb_params.probs_possible_objects)
 
     for iter=1:mcmc_steps_outer #try 100 MH moves
         println("iter ", iter)
-        #println("trace ", trace[:videos => v => :init_scene])
+        println("trace ", trace[:videos => v => :init_scene])
 
         trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
         if lesioned == false
             for iter2=1:mcmc_steps_inner
-                trace = perturb_v_matrix_mh(trace, v, perturb_params)
+                trace = perturb_whole_v_matrix_mh(trace, v, n)
             end
         end
         # println("lambda_fa 2 ", trace[:v_matrix => (:lambda_fa, 2)])
@@ -207,10 +211,18 @@ function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_seg
         #println("accepted? ", accepted)
         #println("trace ", trace[:videos => v => :init_scene])
 
-        trace, accepted = change_category_kernel(trace, v, perturb_params)
+        #trace, accepted = change_category_kernel(trace, v, perturb_params)
         #println("accepted? ", accepted)
         #println("trace ", trace[:videos => v => :init_scene])
     end
+    return trace
+end
+
+
+#perturb the whole v matrix
+function perturb_whole_v_matrix_mh(trace, v::Int64, n::Int64)
+    selection = get_selection_whole(v, n)
+    trace, accepted = mh(trace, selection) #proposes new trace from the prior
     return trace
 end
 
@@ -219,10 +231,8 @@ end
 Picks one element of the v matrix to perturb using metropolis hastings.
 
 """
-
 #just pick an element of the matrix to perturb
-function perturb_v_matrix_mh(trace, v::Int64, perturb_params::Perturb_Params)
-    n = length(perturb_params.probs_possible_objects)
+function perturb_individual_element_v_matrix_mh(trace, v::Int64, n::Int64)
     i = categorical([0.5, 0.5])
     j = categorical(fill(1/n, n))
 
@@ -241,7 +251,7 @@ function perturb_v_matrix_mh(trace, v::Int64, perturb_params::Perturb_Params)
     return trace
 end
 
-
+#return a selection for one element of the matrix
 function get_selection(v::Int64, j::Int64, i::Int64)
     if i == 1 #change lambda_fa
         if v == 1
@@ -260,6 +270,27 @@ function get_selection(v::Int64, j::Int64, i::Int64)
             :videos => v-1 => :v_matrix => :miss_rate => j => :miss)
         end
     end
+    return selection
+end
+
+#return a selection for the whole v matrix
+function get_selection_whole(v::Int64, n::Int64)
+    selection = select()
+
+    for j = 1:n
+        if v == 1
+            push!(selection, :videos => v => :v_matrix => :lambda_fa => j => :fa)
+            push!(selection, :init_v_matrix => :lambda_fa => j => :fa)
+            push!(selection, :v_matrix => :miss_rate => j => :miss)
+            push!(selection, :init_v_matrix => :miss_rate => j => :miss)
+        else
+            push!(selection, :videos => v => :v_matrix => :lambda_fa => j => :fa)
+            push!(selection, :videos => v-1 => :v_matrix => :lambda_fa => j => :fa)
+            push!(selection, :videos => v => :v_matrix => :miss_rate => j => :miss)
+            push!(selection, :videos => v-1 => :v_matrix => :miss_rate => j => :miss)
+        end
+    end
+
     return selection
 end
 

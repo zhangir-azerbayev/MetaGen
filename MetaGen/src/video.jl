@@ -28,6 +28,8 @@ function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old:
     observations_2D = filter!(within_frame, observations_2D)
     real_detections = filter!(within_frame, real_detections)
 
+    #println(real_detections)
+
     #lets only do this by category
     real_detections_cats = last.(real_detections)
     observations_2D_cats = last.(observations_2D)
@@ -188,3 +190,6 @@ video_chain = Gen.Unfold(video_kernel)
 frame_chain = Gen.Unfold(frame_kernel)
 
 export video_chain
+export render
+#export within_frame
+export update_alpha_beta
