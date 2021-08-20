@@ -25,7 +25,7 @@ Random.seed!(15)
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
 
 ################################################################################
-num_videos = 2
+num_videos = 5
 num_frames = 300
 
 params = Video_Params(n_possible_objects = 7)
@@ -42,7 +42,7 @@ file_header(online_file)
 ################################################################################
 #Online MetaGen
 num_particles = 1
-mcmc_steps_outer = 1
+mcmc_steps_outer = 500
 mcmc_steps_inner = 1
 #@profilehtml unfold_particle_filter(false, num_particles, objects_observed, camera_trajectories, params, file)
 traces, inferred_realities, avg_v = unfold_particle_filter(nothing,
