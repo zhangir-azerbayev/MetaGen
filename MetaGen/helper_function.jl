@@ -139,11 +139,11 @@ end
 ################################################################################
 
 function within_frame(x::Float64, y::Float64)
-    x >= 0 && x <= 320 && y >= 0 && y <= 240 #hard-codded frame size
+    x >= 0 && x <= 256 && y >= 0 && y <= 256 #hard-codded frame size
 end
 
 function within_frame(p::Detection2D)
-    p[1] >= 0 && p[1] <= 320 && p[2] >= 0 && p[2] <= 240 #hard-codded frame size
+    p[1] >= 0 && p[1] <= 256 && p[2] >= 0 && p[2] <= 256 #hard-codded frame size
 end
 
 ################################################################################
