@@ -11,18 +11,18 @@ Base.@kwdef struct Video_Params
     n_possible_objects = 8
     possible_objects::Vector{Int64} = collect(1:n_possible_objects)
     probs_possible_objects = collect(ones(n_possible_objects)./n_possible_objects)
-    x_min::Float64 = -16
-    y_min::Float64 = -10
-    z_min::Float64 = -10
-    x_max::Float64 = 10
-    y_max::Float64 = 10
-    z_max::Float64 = 10
+    x_min::Float64 = -5
+    y_min::Float64 = 0
+    z_min::Float64 = -5
+    x_max::Float64 = 5
+    y_max::Float64 = 3
+    z_max::Float64 = 5
     num_receptive_fields::Int64 = 1
     #camera parameters that don't change
-    image_dim_x::Int64 = 320
-    image_dim_y::Int64 = 240
-    horizontal_FoV::Float64 = 60
-    vertical_FoV::Float64 = 45
+    image_dim_x::Int64 = 256
+    image_dim_y::Int64 = 256
+    horizontal_FoV::Float64 = 35
+    vertical_FoV::Float64 = 35
 end
 
 "Parametrizes the state of the camera, which changes within a scene"
