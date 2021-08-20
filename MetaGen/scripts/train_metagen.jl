@@ -13,7 +13,8 @@ mkdir("results_marlene/$(config["experiment_name"])")
 include("useful_functions.jl")
 dict = []
 for i = 0:config["batches_upto"]
-	to_add =  @pipe "$(config["input_file_dir"])$(i)_data_labelled.json" |> open |> read |> String |> JSON.parse
+	#to_add =  @pipe "$(config["input_file_dir"])$(i)_data_labelled.json" |> open |> read |> String |> JSON.parse
+	to_add =  @pipe "$(config["input_file_dir"])data_labelled.json" |> open |> read |> String |> JSON.parse
 	append!(dict, to_add)
 end
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
@@ -27,11 +28,12 @@ Random.seed!(15)
 ################################################################################
 num_videos = config["num_videos"]
 num_frames = config["num_frames"]
+threshold = config["threshold"]
 
-params = Video_Params(n_possible_objects = 7)
+params = Video_Params(n_possible_objects = 2)
 
 receptive_fields = make_receptive_fields()
-objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames)
+objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)
 
 ################################################################################
 #Set up the output file
