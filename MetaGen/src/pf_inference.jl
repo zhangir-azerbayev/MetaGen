@@ -46,6 +46,7 @@ function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing},
     avg_v = zeros(params.n_possible_objects, 2)
 
     for v=1:num_videos
+	@time begin
 
         println("v ", v)
 
@@ -120,6 +121,8 @@ function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing},
         println("ess after rejuvination ", ess)
 
         inferred_realities[v], avg_v = print_Vs_and_Rs_to_file_new(file, state.traces, num_particles, params, v, v==num_videos)
+	println("time of v ", v)
+	end #end timer
     end
 
     return (sample_unweighted_traces(state, num_particles), inferred_realities, avg_v)

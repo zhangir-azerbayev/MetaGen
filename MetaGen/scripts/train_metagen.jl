@@ -1,4 +1,4 @@
-println("here")
+println("Starting")
 
 using MetaGen
 using JSON
@@ -8,7 +8,8 @@ using Random
 
 config_path = ARGS[1]
 config = YAML.load_file(config_path)
-mkdir("results_marlene/$(config["experiment_name"])")
+output_dir = "results_marlene/$(config["experiment_name"])_" * ENV["SLURM_JOB_ID"]
+mkdir(output_dir)
 
 include("useful_functions.jl")
 dict = []
@@ -35,12 +36,13 @@ objects_observed, camera_trajectories = make_observations_office(dict, receptive
 
 ################################################################################
 #Set up the output file
-online_outfile = "results_marlene/$(config["experiment_name"])/online_output.csv"
+online_outfile = output_dir * "/online_output.csv"
 online_file = open(online_outfile, "w")
 file_header(online_file)
 
 ################################################################################
 #Online MetaGen
+println("start pf for online & retrospective metagen")
 num_particles = config["num_particles"]
 mcmc_steps_outer = config["mcmc_steps_outer"]
 mcmc_steps_inner = config["mcmc_steps_inner"]
@@ -52,11 +54,14 @@ close(online_file)
 
 println("done with pf for online & retrospective metagen")
 
+
+## Commented out for testing
+#=
 ################################################################################
 #Retrospective MetaGen
 
 #Set up the output file
-retro_outfile = "results_marlene/$(config["experiment_name"])/retrospective_output.csv"
+retro_outfile = output_dir * "/retrospective_output.csv"
 retro_file = open(retro_outfile, "w")
 file_header(retro_file)
 
@@ -68,7 +73,7 @@ close(retro_file)
 #run Lesioned MetaGen
 
 #Set up the output file
-lesioned_outfile = "results_marlene/$(config["experiment_name"])/lesioned_output.csv"
+lesioned_outfile = output_dir * "/lesioned_output.csv"
 lesioned_file = open(lesioned_outfile, "w")
 file_header(lesioned_file)
 
@@ -80,6 +85,8 @@ unfold_particle_filter(v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
 close(lesioned_file)
 
 println("done with pf for lesioned metagen")
+=#
+#End Comment
 
 ################################################################################
 #for writing an output file for a demo using Retrospective MetaGen
@@ -88,7 +95,7 @@ println("done with pf for lesioned metagen")
 out = write_to_dict(dict, camera_trajectories, inferred_realities, num_videos, num_frames)
 
 #open("../../scratch_work_07_16_21/output_tiny_set_detections.json","w") do f
-open("results_marlene/$(config["experiment_name"])/output.json","w") do f
+open(output_dir * "/output.json","w") do f
 	JSON.print(f,out)
 end
 
