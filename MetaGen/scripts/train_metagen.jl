@@ -13,11 +13,11 @@ mkdir(output_dir)
 
 include("useful_functions.jl")
 dict = []
-for i = 0:config["batches_upto"]
+#for i = 0:config["batches_upto"]
 	#to_add =  @pipe "$(config["input_file_dir"])$(i)_data_labelled.json" |> open |> read |> String |> JSON.parse
-	to_add =  @pipe "$(config["input_file_dir"])data_labelled.json" |> open |> read |> String |> JSON.parse
-	append!(dict, to_add)
-end
+to_add =  @pipe "$(config["input_file_dir"])data_labelled.json" |> open |> read |> String |> JSON.parse
+append!(dict, to_add)
+#end
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 
