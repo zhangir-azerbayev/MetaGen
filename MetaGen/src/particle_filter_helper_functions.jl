@@ -87,7 +87,7 @@ function particle_filter_step!(state::ParticleFilterState{U}, new_args::Tuple, a
     trace_translator = SimpleExtendingTraceTranslator(new_args, argdiffs, observations, proposal, proposal_args)
     num_particles = length(state.traces)
     log_incremental_weights = Vector{Float64}(undef, num_particles)
-    println("using parallelized particle filter step")
+    #println("using parallelized particle filter step")
     Threads.@threads for i=1:num_particles
         (state.new_traces[i], log_weight) = trace_translator(state.traces[i])
         log_incremental_weights[i] = log_weight
@@ -112,7 +112,7 @@ function particle_filter_step!(state::ParticleFilterState{U}, new_args::Tuple, a
         observations::ChoiceMap) where {U}
     num_particles = length(state.traces)
     log_incremental_weights = Vector{Float64}(undef, num_particles)
-    println("using parallelized particle filter step")
+    #println("using parallelized particle filter step")
     Threads.@threads for i=1:num_particles
         (state.new_traces[i], increment, _, discard) = update(
             state.traces[i], new_args, argdiffs, observations)

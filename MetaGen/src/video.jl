@@ -125,10 +125,22 @@ end
 frame_chain = Gen.Unfold(frame_kernel)
 
 """
+Print
+"""
+function print_helper_alphas_betas(alphas::Matrix{Int64}, betas::Matrix{Int64})
+    @show alphas
+    @show betas
+end
+
+"""
 Samples new values for lambda_fa.
 """
 @gen (static) function update_lambda_fa(alpha::Int64, beta::Int64)
+    #println("in update_lambda_fa")
+    #println("alpha ", alpha)
+    #println("beta ", beta)
     fa = @trace(gamma(alpha, 1/beta), :fa)
+    #println("fa ", fa)
     return fa
 end
 
@@ -136,7 +148,11 @@ end
 Samples new values for miss_rate.
 """
 @gen (static) function update_miss_rate(alpha::Int64, beta::Int64)
+    #println("in update_miss_rate")
+    #println("alpha ", alpha)
+    #println("beta ", beta)
     miss = @trace(beta(alpha, beta), :miss)
+    #println("miss ", miss)
     return miss
 end
 
@@ -145,6 +161,7 @@ Samples a new v based on the previous v.
 """
 @gen (static) function update_v_matrix(alphas::Matrix{Int64}, betas::Matrix{Int64})
     #v = Matrix{Real}(undef, dim(previous_v_matrix))
+    #a = print_helper_alphas_betas(alphas, betas)
     fa = @trace(Map(update_lambda_fa)(alphas[:,1], betas[:,1]), :lambda_fa)
     miss = @trace(Map(update_miss_rate)(alphas[:,2], betas[:,2]), :miss_rate)
     #v[:, 1] = fa

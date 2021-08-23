@@ -12,9 +12,9 @@ using GenRFS
 #call it
 #@profilehtml gt_trace,_ = Gen.generate(metacog, (possible_objects,))
 #@profilehtml gt_trace,_ = Gen.generate(metacog, (possible_objects,))
-num_frames = 300
-num_videos = 100
-params = Video_Params()
+num_frames = 1
+num_videos = 2
+params = Video_Params(n_possible_objects = 2)
 
 @time gt_trace,_ = Gen.generate(main, (false, num_videos, num_frames, params));
 

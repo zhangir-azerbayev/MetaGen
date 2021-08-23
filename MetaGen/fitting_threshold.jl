@@ -8,8 +8,8 @@ include("scripts/useful_functions.jl")
 dict = @pipe "../../metagen-data/data_labelled/data_labelled.json" |> open |> read |> String |> JSON.parse
 
 
-num_videos = 20
-num_frames = 250
+num_videos = 1
+num_frames = 10
 ground_truth_world_states = get_ground_truth(dict, num_videos)
 
 function fit_threshold_NN(num_videos::Int64, num_frames::Int64, dict::Any,
@@ -33,11 +33,11 @@ function fit_threshold_NN(num_videos::Int64, num_frames::Int64, dict::Any,
     return sum(sim_NN)/num_videos #averaging across videos
 end
 
-thresholds = collect(0:10)/10
+thresholds = collect(0:.01:0.2)
 vs = fill(num_videos, length(thresholds))
 fs = fill(num_frames, length(thresholds))
 dicts = fill(dict, length(thresholds))
 gts = fill(ground_truth_world_states, length(thresholds))
 how_good = map(fit_threshold_NN, vs, fs, dicts, gts, thresholds)
 
-println(how_good)
+println(thresholds[findmax(how_good)[2]])

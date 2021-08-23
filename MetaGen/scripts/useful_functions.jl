@@ -176,6 +176,33 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
                     push!(temp, (x, y, label))
                 end
             end
+
+            #slighly change duplicates
+            #while exact duplicate in x
+            # if length(unique(first.(temp))) < length(first.(temp))
+            #     println("v ", v)
+            #     println("f ", f)
+            # end
+            # while length(unique(first.(temp))) < length(first.(temp))
+            #     xs = countmemb(first.(temp))
+            #     #invert the mapping
+            #     frequency = Dict()
+            #     for (k, v) in xs
+            #         if haskey(frequency, v)
+            #             push!(frequency[v],k)
+            #         else
+            #             frequency[v] = [k]
+            #         end
+            #     end
+            #     arr = collect(keys(frequency))
+            #     arr_as_numeric = convert(Array{Int64,1}, arr)
+            #     m = maximum(arr_as_numeric) #finding mode
+            #     duplicated_x_val = parse(Float64, frequency[m][1])
+            #     index_of_duplicate = findfirst(first.(temp).==duplicated_x_val)
+            #     new_entry = (temp[index_of_duplicate][1] + 1, temp[index_of_duplicate][2] + 1, temp[index_of_duplicate][3])
+            #     temp[index_of_duplicate] = new_entry
+            # end
+
             #turn that array of detections into an array of an array of detections sorted by receptive_field
             #temp_sorted_into_rfs = map(rf -> filter(p -> within(p, rf), temp), receptive_fields)
             objects_observed[v, f] = convert(Array{Detection2D}, temp)
