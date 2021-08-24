@@ -12,12 +12,12 @@
 # end
 # possible_hallucination_map = Gen.Map(gen_possible_hallucination)
 
-function within_frame(p::Detection2D, params::Video_Params)
-    p[1] >= 0 && p[1] <= params.image_dim_x && p[2] >= 0 && p[2] <= params.image_dim_y #hard-codded frame size
+function within_frame(p::Detection2D)
+    p[1] >= 0 && p[1] <= 256 && p[2] >= 0 && p[2] <= 256 #hard-codded frame size because I can't figure out how to use two arguments and filter
 end
 
 #first approximation
-function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D}, params::Video_Params)
+function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D})
     alphas = deepcopy(alphas_old)
     betas = deepcopy(betas_old)
 
@@ -117,7 +117,7 @@ state is Tuple{Array{Any,1}, Matrix{Int64}, Matrix{Int64}}
     #could re-write with map
     #@trace(Gen.Map(rfs)(rfs_vec), :observations_2D) #gets no method matching error
     observations_2D = @trace(rfs(rfs_vec), :observations_2D) #dirty shortcut because we only have one receptive field atm
-    alphas, betas = update_alpha_beta(lesioned, state[2], state[3], observations_2D, real_detections, params)
+    alphas, betas = update_alpha_beta(lesioned, state[2], state[3], observations_2D, real_detections)
     state = (scene, alphas, betas) #just keep sending the scene in.
     return state
 end
