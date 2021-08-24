@@ -58,7 +58,7 @@ println("done with pf for online & retrospective metagen")
 
 
 ## Commented out for testing
-#=
+#
 ################################################################################
 #Retrospective MetaGen
 
@@ -87,7 +87,7 @@ unfold_particle_filter(v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
 close(lesioned_file)
 
 println("done with pf for lesioned metagen")
-=#
+
 #End Comment
 
 ################################################################################
