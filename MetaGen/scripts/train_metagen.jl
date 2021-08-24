@@ -33,7 +33,7 @@ threshold = config["threshold"]
 
 params = Video_Params(n_possible_objects = 2)
 
-receptive_fields = make_receptive_fields()
+receptive_fields = make_receptive_fields(params)
 objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)
 
 ################################################################################

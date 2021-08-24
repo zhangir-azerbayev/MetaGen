@@ -35,7 +35,7 @@ updating their beliefs as opposed to just resampling V from the prior
 """
 @gen (static) function main(lesioned::Bool, num_videos::Int64, num_frames::Int64, params::Video_Params)
 
-	receptive_fields = make_receptive_fields()
+	receptive_fields = make_receptive_fields(params)
 
 	init_v_matrix = @trace(make_visual_system(params), :init_v_matrix)
 	alphas = fill(1, size(init_v_matrix))

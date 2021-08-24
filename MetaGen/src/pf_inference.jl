@@ -97,23 +97,24 @@ array for each frame and array for each receptive field and array for those dete
 
                 #println("particles")
                 # for i = 1:num_particles
-                #     println("particle ", i)
-                #     trace = state.traces[i]
+                #      println("particle ", i)
+                #      trace = state.traces[i]
                 #     choice = get_choices(trace)
                 #     open("$i.txt", "w") do f
                 #         Base.show(f, "text/plain", get_choices(trace))
                 #     end
                 #
-                #     println("score ", get_score(trace))
-                #
-                #     if v==2
-                #         selection = select(:videos => 2 => :frame_chain => 111 => :observations_2D)
-                #         args = get_args(trace)
-                #         trace2, weight = regenerate(trace, args, (), selection)
-                #         println("after regenerate score ", get_score(trace2))
-                #         #println("after regenerate score ", weight)
-                #         println("after regenerate ", trace2[:videos => 2 => :frame_chain => 111 => :observations_2D])
-                #     end
+                #      println("score ", get_score(trace))
+                # #
+                #      if v==2
+                #          selection = select(:videos => 2 => :frame_chain => 111 => :observations_2D)
+                #          args = get_args(trace)
+                #          println("args ", args)
+                #          trace2, weight = regenerate(trace, args, (), selection)
+                #          println("after regenerate score ", get_score(trace2))
+                #          #println("after regenerate score ", weight)
+                #          println("after regenerate ", trace2[:videos => 2 => :frame_chain => 111 => :observations_2D])
+                #      end
                 #
                 #
                 #     #println("choices")
@@ -141,9 +142,13 @@ array for each frame and array for each receptive field and array for those dete
                 #to-do: threads here
                 Threads.@threads for i = 1:num_particles
                     #for i = 1:num_particles
+                    println("score particle i ", i, " before perturbation", get_score(state.traces[i]))
+                    #println("trace ", state.traces[i][:videos => v => :init_scene])
                     #println("perturb particle i ", i)
                     state.traces[i] = perturb(lesioned, state.traces[i], v, perturb_params, mcmc_steps_outer, mcmc_steps_inner, line_segments_per_category)
                     #println("done perturbing i ", i)
+                    println("score particle i ", i, " after perturbation", get_score(state.traces[i]))
+                    #println("trace ", state.traces[i][:videos => v => :init_scene])
                     #println("trace ", state.traces[i][:videos => v => :init_scene])
                     #println("log score of this trace ", get_score(state.traces[i]))
                     #visualize_trace(state.traces, i, camera_trajectories, v, 1, params)

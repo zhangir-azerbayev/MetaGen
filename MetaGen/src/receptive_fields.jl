@@ -4,7 +4,7 @@ return rfs_vec, where the vector is the rfs indexed by receptive field
 function get_rfs_vec(real_objects::Vector{Detection2D},
                     params::Video_Params, v::Matrix{Real})
     #just one rf
-    rec_field = Receptive_Field(p1 = (0, 0), p2 = (320, 240)) #should make it from params
+    rec_field = Receptive_Field(p1 = (0, 0), p2 = (params.image_dim_x, params.image_dim_y)) #should make it from params
     real_rf = filter(p -> within(p, rec_field), real_objects)
     rfs_vec = get_rfs(rec_field, real_rf, params, v)
     #println("rfs_vec ", rfs_vec)
@@ -79,7 +79,7 @@ export within
 """
 set up receptive_fields
 """
-function make_receptive_fields()
+function make_receptive_fields(params::Video_Params)
 
     # #square receptive fields. hardcoded for the 240 x 320 image
     # pixels = 80
@@ -131,7 +131,7 @@ function make_receptive_fields()
 	# receptive_fields = vcat(receptive_fields_layer_1, receptive_fields_layer_2, receptive_fields_layer_3, receptive_fields_layer_4)
 
     receptive_fields = Vector{Receptive_Field}(undef, 1)
-    receptive_fields[1] = Receptive_Field(p1 = (0, 0), p2 = (320, 240))
+    receptive_fields[1] = Receptive_Field(p1 = (0, 0), p2 = (params.image_dim_x, params.image_dim_y))
 
     return receptive_fields
 end

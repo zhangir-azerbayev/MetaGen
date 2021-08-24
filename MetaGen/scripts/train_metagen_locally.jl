@@ -10,7 +10,7 @@ using Random
 # config = YAML.load_file(config_path)
 # mkdir("results_marlene/$(config["experiment_name"])")
 
-include("useful_functions.jl")
+include("scripts/useful_functions.jl")
 #dict = []
 # for i = 0:config["batches_upto"]
 # 	to_add =  @pipe "$(config["input_file_dir"])$(i)_data_labelled.json" |> open |> read |> String |> JSON.parse
@@ -25,15 +25,19 @@ Random.seed!(15) #15 produces -Inf for a particle from video 1, frame 111, no re
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
 
 ################################################################################
-num_videos = 10
-num_frames = 200
+num_videos = 2
+num_frames = 111
 threshold = 0.11
 
 params = Video_Params(n_possible_objects = 2)
 
-receptive_fields = make_receptive_fields()
+receptive_fields = make_receptive_fields(params)
 objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)
 
+num_videos = 1
+num_frames = 1
+unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
+	objects_observed_2, camera_trajectories_2, params, retro_file)
 ################################################################################
 #Set up the output file
 online_outfile = "online_output.csv"
@@ -42,28 +46,31 @@ file_header(online_file)
 
 ################################################################################
 #Online MetaGen
-num_particles = 20
-mcmc_steps_outer = 5
+num_particles = 1
+mcmc_steps_outer = 0
 mcmc_steps_inner = 1
 #@profilehtml unfold_particle_filter(false, num_particles, objects_observed, camera_trajectories, params, file)
-traces, inferred_realities, avg_v = unfold_particle_filter(nothing,
-	num_particles, mcmc_steps_outer, mcmc_steps_inner, objects_observed,
-	camera_trajectories, params, online_file)
-close(online_file)
-
-println("done with pf for online")
+# traces, inferred_realities, avg_v = unfold_particle_filter(nothing,
+# 	num_particles, mcmc_steps_outer, mcmc_steps_inner, objects_observed,
+# 	camera_trajectories, params, online_file)
+# close(online_file)
+#
+# println("done with pf for online")
 
 ################################################################################
 # #Retrospective MetaGen
 #
-# #Set up the output file
-# retro_outfile = "retrospective_output.csv"
-# retro_file = open(retro_outfile, "w")
-# file_header(retro_file)
-#
-# unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
-# 	objects_observed, camera_trajectories, params, retro_file)
-# close(retro_file)
+#Set up the output file
+retro_outfile = "retrospective_output.csv"
+retro_file = open(retro_outfile, "w")
+file_header(retro_file)
+
+#avg_v = [1.345607517442517 0.05552836984050278; 0.8646456561991073 0.12447763775408457]
+avg_v = [1.0 0.5; 1.0 0.5]
+
+unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
+	objects_observed, camera_trajectories, params, retro_file)
+close(retro_file)
 #
 # ################################################################################
 # #Lesioned MetaGen
