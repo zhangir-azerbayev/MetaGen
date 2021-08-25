@@ -85,43 +85,44 @@ for video in tqdm(range(num_videos)):
         resp = c.communicate([{"$type": "send_collisions", "stay": True}])
 
         # Check that object does not collide with other objects and the wall
-        col = None
+        collisions = []
         for r in resp:
             r_id = OutputData.get_data_type_id(r)
             print(r_id)
             if r_id == "coll":
-                col = Collision(r)
+                collisions.append(Collision(r))
 
         x_lim = dimensions[0]/2 - 2
         z_lim = dimensions[1]/2 - 2
 
 
-        while col:
-            x = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
-            z = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
-                
-            x_1 = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
-            z_1 = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
-            collider = col.get_collider_id()
-            collidee = col.get_collidee_id()
-            print(f"collision between objects {collider}, {collidee}")
-            angle_1 = random.uniform(0, 360)
-            resp = c.communicate([{"$type": "teleport_object", "id": collider, "position": {"x": x, "y":
-                placement_height, "z": z}},
-                                  {"$type": "teleport_object", "id": collidee, "position": {"x": x_1, "y":
-                                      placement_height, "z": z_1}},
-                                  {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle, "z": 0}, "id": collider},
-                                  {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle_1, "z":
-                                      0}, "id": collidee}])
-            resp = c.communicate({"$type": "send_collisions", "stay": True})
+        while collisions:
+            for col in collisions: 
+                x = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
+                z = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
+                    
+                x_1 = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
+                z_1 = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
+                collider = col.get_collider_id()
+                collidee = col.get_collidee_id()
+                print(f"collision between objects {collider}, {collidee}")
+                angle_1 = random.uniform(0, 360)
+                resp = c.communicate([{"$type": "teleport_object", "id": collider, "position": {"x": x, "y":
+                    placement_height, "z": z}},
+                                      {"$type": "teleport_object", "id": collidee, "position": {"x": x_1, "y":
+                                          placement_height, "z": z_1}},
+                                      {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle, "z": 0}, "id": collider},
+                                      {"$type": "rotate_object_to_euler_angles", "euler_angles": {"x": 0, "y": angle_1, "z":
+                                          0}, "id": collidee}])
+                resp = c.communicate({"$type": "send_collisions", "stay": True})
 
             # refresh col and b
-            col = None
+            collisions = []
             for r in resp:
                 r_id = OutputData.get_data_type_id(r)
                 print(r_id)
                 if r_id == "coll":
-                    col = Collision(r)
+                    collisions.append(Collision(r))
 
 
 
@@ -188,11 +189,9 @@ for video in tqdm(range(num_videos)):
 with open("unlabelled_data.json", "w") as f:
     json.dump(data, f)
 
-# end of script
 
 
 
-# Defines camera trajectory generators 
 
 
 
