@@ -17,7 +17,7 @@ COCO_CLASSES = ["person", "bicycle", "car", "motorcycle",
 
 #for now, remove books
 #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
-office_subset = ["chair", "couch"]
+office_subset = ["chair", "microwave"]
 
 # dictionary_scenenet_to_office = Dict("chair" => "chair",
 # "straightchair" => "chair", "swivelchair" => "chair", "windsorchair" => "chair",
@@ -30,7 +30,8 @@ office_subset = ["chair", "couch"]
 # "cellphone" => "cell phone", "cellulartelephone" => "cell phone",
 # "bottle" => "bottle", "winebottle" => "bottle")
 
-dictionary_gt_to_office = Dict("chair" => "chair", "sofa" => "couch")
+#dictionary_gt_to_office = Dict("chair" => "chair", "sofa" => "couch")
+dictionary_gt_to_office = Dict("chair" => "chair", "microwave" => "microwave")
 
 
 

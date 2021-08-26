@@ -58,7 +58,7 @@ println("done with pf for online & retrospective metagen")
 
 
 ## Commented out for testing
-#
+#=
 ################################################################################
 #Retrospective MetaGen
 
@@ -89,9 +89,10 @@ close(lesioned_file)
 println("done with pf for lesioned metagen")
 
 #End Comment
+=#
 
 ################################################################################
-#for writing an output file for a demo using Retrospective MetaGen
+#for writing an output file for a demo using MetaGen
 
 ###### add to dictionary
 out = write_to_dict(dict, camera_trajectories, inferred_realities, num_videos, num_frames)

@@ -10,14 +10,13 @@ include("scripts/useful_functions.jl")
 
 #could equally use input dictionary
 #dict = @pipe "output.json" |> open |> read |> String |> JSON.parse
-dict = @pipe "../../scratch_work_07_16_21/08_17/single_objects/data_labelled_single_objects.json" |>
-	open |> read |> String |> JSON.parse
+dict = @pipe "../Data/output.json" |> open |> read |> String |> JSON.parse
 
 
-num_videos = 38
-num_frames = 50
+num_videos = 10
+num_frames = 200
 
-threshold = 0.01
+threshold = 0.11
 
 params = Video_Params(n_possible_objects = 2)
 receptive_fields = make_receptive_fields()
@@ -25,8 +24,7 @@ objects_observed, camera_trajectories = make_observations_office(dict, receptive
 
 ###############################################################################
 #Set up the output file
-#outfile = string("../Data/ideal_v_matrix.csv")
-outfile = string("eh.csv")
+outfile = string("../Data/ideal_v_matrix.csv")
 file = open(outfile, "w")
 
 #return
