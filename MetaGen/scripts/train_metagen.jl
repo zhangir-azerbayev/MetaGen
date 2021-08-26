@@ -44,7 +44,7 @@ file_header(online_file)
 
 ################################################################################
 #Online MetaGen
-println("start pf for online & retrospective metagen")
+println("start pf for online")
 num_particles = config["num_particles"]
 mcmc_steps_outer = config["mcmc_steps_outer"]
 mcmc_steps_inner = config["mcmc_steps_inner"]
@@ -54,13 +54,14 @@ traces, inferred_realities, avg_v = unfold_particle_filter(nothing,
 	camera_trajectories, params, online_file)
 close(online_file)
 
-println("done with pf for online & retrospective metagen")
+println("done with pf for online")
 
 
 ## Commented out for testing
-#=
+
 ################################################################################
 #Retrospective MetaGen
+println("start retrospective")
 
 #Set up the output file
 retro_outfile = output_dir * "/retrospective_output.csv"
@@ -70,6 +71,8 @@ file_header(retro_file)
 unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
 	objects_observed, camera_trajectories, params, retro_file)
 close(retro_file)
+
+println("done with pf for retrospective")
 
 ################################################################################
 #run Lesioned MetaGen
@@ -89,7 +92,7 @@ close(lesioned_file)
 println("done with pf for lesioned metagen")
 
 #End Comment
-=#
+
 
 ################################################################################
 #for writing an output file for a demo using MetaGen
