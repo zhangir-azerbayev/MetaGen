@@ -49,7 +49,7 @@ num_particles = config["num_particles"]
 mcmc_steps_outer = config["mcmc_steps_outer"]
 mcmc_steps_inner = config["mcmc_steps_inner"]
 #@profilehtml unfold_particle_filter(false, num_particles, objects_observed, camera_trajectories, params, file)
-traces, inferred_realities, avg_v = unfold_particle_filter(nothing,
+traces, inferred_world_states, avg_v = unfold_particle_filter(nothing,
 	num_particles, mcmc_steps_outer, mcmc_steps_inner, objects_observed,
 	camera_trajectories, params, online_file)
 close(online_file)
@@ -58,6 +58,7 @@ println("done with pf for online")
 
 
 ## Commented out for testing
+#=
 
 ################################################################################
 #Retrospective MetaGen
@@ -92,13 +93,13 @@ close(lesioned_file)
 println("done with pf for lesioned metagen")
 
 #End Comment
-
+=#
 
 ################################################################################
 #for writing an output file for a demo using MetaGen
 
 ###### add to dictionary
-out = write_to_dict(dict, camera_trajectories, inferred_realities, num_videos, num_frames)
+out = write_to_dict(dict, camera_trajectories, inferred_world_states, num_videos, num_frames)
 
 #open("../../scratch_work_07_16_21/output_tiny_set_detections.json","w") do f
 open(output_dir * "/output.json","w") do f
