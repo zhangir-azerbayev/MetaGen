@@ -318,7 +318,7 @@ const new_location_distribution_noisy_or_gaussian = New_Location_Distribution_No
 function Gen.random(::New_Location_Distribution_Noisy_Or_Gaussian, mu::Vector{Float64},
     cov::Matrix{Float64}, cat::Int64, params::Video_Params, line_segments::Array{Array{Line_Segment,1},1})
 
-    if length(line_segments) > 0
+    if length(line_segments[cat]) > 0
         #coin flip.
         if bernoulli(0.5)
             #println("from data-driven distribution")
