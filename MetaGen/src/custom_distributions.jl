@@ -310,8 +310,49 @@ end
 export new_location_distribution_noisy
 
 ##############################################################################################
+"For changing the location of an object: either by Gaussian noise based on previous location, or resampled along certain line segments with Gaussian noise, category has already been chosen"
+struct New_Location_Distribution_Noisy_Or_Gaussian <: Gen.Distribution{Object3D} end
+
+const new_location_distribution_noisy_or_gaussian = New_Location_Distribution_Noisy_Or_Gaussian()
+
+function Gen.random(::New_Location_Distribution_Noisy_Or_Gaussian, mu::Vector{Float64},
+    cov::Matrix{Float64}, cat::Int64, params::Video_Params, line_segments::Array{Array{Line_Segment,1},1})
+    #coin flip.
+    if bernoulli(0.5)
+        #println("from data-driven distribution")
+        to_return = new_location_distribution_noisy(cat, params, line_segments[cat])
+    else
+        #println("from gaussian around previous location")
+        to_return = object_distribution_present(mu::AbstractVector{Float64}, cov::AbstractMatrix{Float64}, cat::Int64)
+    end
+    return to_return
+end
+
+function Gen.logpdf(::New_Location_Distribution_Noisy_Or_Gaussian, x::Object3D, mu::AbstractVector{Float64},
+    cov::AbstractMatrix{Float64}, cat::Int64, params::Video_Params, line_segments::Array{Array{Line_Segment,1},1})
+
+    p_from_noisy = Gen.logpdf(new_location_distribution_noisy, x, cat, params, line_segments[cat])
+    p_from_gaussian = Gen.logpdf(object_distribution_present, x, mu, cov, cat)
+    return log(0.5*(MathConstants.e^p_from_noisy + MathConstants.e^p_from_gaussian))
+end
+
+function Gen.logpdf_grad(::New_Location_Distribution_Noisy_Or_Gaussian, mu::AbstractVector{Float64},
+    cov::AbstractMatrix{Float64}, cat::Int64, params::Video_Params, line_segments::Array{Line_Segment})
+    gerror("Not implemented")
+    (nothing, nothing)
+end
+
+(::New_Location_Distribution_Noisy_Or_Gaussian)(mu, cov, cat, params, line_segments) = Gen.random(New_Location_Distribution_Noisy_or_Gaussian(), mu, cov, cat, params, line_segments)
+
+has_output_grad(::New_Location_Distribution_Noisy_Or_Gaussian) = false
+has_argument_grads(::New_Location_Distribution_Noisy_Or_Gaussian) = (false,)
+
+export new_location_distribution_noisy_or_gaussian
+
+
+##############################################################################################
 #Sample the category. If the object category has never been observed, sample location from a uniform distribution
-#If it has been observed, sample location with 50% chance from a uniform or from new_object_distribution_noisy
+#If it has been observed, sample location with 10% chance from a uniform or from new_object_distribution_noisy
 struct New_Object_Distribution_Noisy_Or_Uniform <: Gen.Distribution{Object3D} end
 
 const new_object_distribution_noisy_or_uniform = New_Object_Distribution_Noisy_Or_Uniform()
@@ -321,7 +362,7 @@ function Gen.random(::New_Object_Distribution_Noisy_Or_Uniform, params::Video_Pa
     line_segments = line_segments_per_category[cat]
 
     if length(line_segments) > 0
-        coin_flip = bernoulli(0.5)
+        coin_flip = bernoulli(0.9)
         if coin_flip
             #println("from data-driven distribution")
             to_return = new_location_distribution_noisy(cat, params, line_segments)
@@ -344,7 +385,7 @@ function Gen.logpdf(::New_Object_Distribution_Noisy_Or_Uniform, object_3D::Objec
     if length(line_segments) > 0
         p_from_noisy = Gen.logpdf(new_location_distribution_noisy, object_3D, cat, params, line_segments)
         p_from_uniform = Gen.logpdf(location_distribution_uniform, object_3D, cat, params)
-        return p_cat + log(0.5*(MathConstants.e^p_from_noisy + MathConstants.e^p_from_uniform)) #0.5 based on p in coin_flip bernoulli
+        return p_cat + log(0.9*(MathConstants.e^p_from_noisy + MathConstants.e^p_from_uniform)) #0.5 based on p in coin_flip bernoulli
     else #no chance from new_location_distribution_noisy
         p_from_uniform = Gen.logpdf(location_distribution_uniform, object_3D, cat, params)
         return p_cat + p_from_uniform

@@ -18,35 +18,39 @@ include("useful_functions.jl")
 # end
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
-dict = @pipe "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/metagen-data/data_labelled/data_labelled.json" |> open |> read |> String |> JSON.parse
+#dict = @pipe "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/metagen-data/data_labelled/data_labelled.json" |> open |> read |> String |> JSON.parse
+path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/08_27/"
 
-Random.seed!(15) #15 produces -Inf for a particle from video 1, frame 111, no rejuvination steps
+dict = @pipe (path * "output_with_gt.json") |> open |> read |> String |> JSON.parse
+
+Random.seed!(17) #15 produces -Inf for a particle from video 1, frame 111, no rejuvination steps
 #try to make objects_observed::Array{Array{Array{Array{Detection2D}}}} of observed objects.
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
 
 ################################################################################
-num_videos = 10
+num_videos = 1
 num_frames = 200
-threshold = 0.11
+threshold = 0.64
 
 params = Video_Params(n_possible_objects = 2)
 
 receptive_fields = make_receptive_fields(params)
-objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)
+objects_observed, camera_trajectories = make_observations_office_from_gt(dict, receptive_fields, num_videos, num_frames, threshold)
 
 ################################################################################
 #Set up the output file
-online_outfile = "online_output.csv"
+online_outfile = path * "online_output.csv"
 online_file = open(online_outfile, "w")
 file_header(online_file)
 
 ################################################################################
 #Online MetaGen
-num_particles = 1
+num_particles = 100
 mcmc_steps_outer = 500
 mcmc_steps_inner = 1
 #@profilehtml unfold_particle_filter(false, num_particles, objects_observed, camera_trajectories, params, file)
-traces, inferred_realities, avg_v = unfold_particle_filter(nothing,
+
+traces, inferred_world_states, avg_v = unfold_particle_filter(nothing,
 	num_particles, mcmc_steps_outer, mcmc_steps_inner, objects_observed,
 	camera_trajectories, params, online_file)
 close(online_file)
@@ -88,10 +92,10 @@ println("done with pf for lesioned metagen")
 #for writing an output file for a demo using Online MetaGen
 
 ###### add to dictionary
-out = write_to_dict(dict, camera_trajectories, inferred_realities, num_videos, num_frames)
+out = write_to_dict(dict, camera_trajectories, inferred_world_states, num_videos, num_frames)
 
 #open("../../scratch_work_07_16_21/output_tiny_set_detections.json","w") do f
-open("output.json","w") do f
+open(path * "output.json","w") do f
 	JSON.print(f,out)
 end
 

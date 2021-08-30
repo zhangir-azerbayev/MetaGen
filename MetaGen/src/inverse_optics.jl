@@ -62,7 +62,11 @@ function get_line_segment(camera_params::Camera_Params, params::Video_Params, de
     #check each wall for an intersection within limits
     (endpoint_x, endpoint_y, endpoint_z, a, b, c) = check_walls(point, camera_params.camera_location, params)
 
-    return Line_Segment(camera_params.camera_location, Coordinate(endpoint_x, endpoint_y, endpoint_z), a, b, c)
+    #return Line_Segment(camera_params.camera_location, Coordinate(endpoint_x, endpoint_y, endpoint_z), a, b, c)
+    #Flip line segment to LHR coordinate system
+    l = Line_Segment(Coordinate(camera_params.camera_location.x, camera_params.camera_location.y, -camera_params.camera_location.z),
+        Coordinate(endpoint_x, endpoint_y, -endpoint_z), a, b, -c)
+    return l
 end
 
 function get_distance(p1::Coordinate, p2::Coordinate)

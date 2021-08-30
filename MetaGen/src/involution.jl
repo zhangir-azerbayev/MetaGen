@@ -68,12 +68,13 @@ Involution corresponding to `add_remove_proposal`
     end
 end
 
-@gen function change_location_proposal(trace, v::Int64, variance::Float64, perturb_params::Perturb_Params)
+@gen function change_location_proposal(trace, v::Int64, variance::Float64, params::Video_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
     scene = trace[:videos => v => :init_scene]
     n = length(scene)
-
     id = {:id} ~ categorical(fill(1/n, n)) #select element to change
-    new = {:new} ~ object_distribution_present([scene[id][1], scene[id][2], scene[id][3]], diagm([variance, variance, variance]), scene[id][4])
+    new = {:new} ~ new_location_distribution_noisy_or_gaussian([scene[id][1],
+        scene[id][2], scene[id][3]], diagm([variance, variance, variance]),
+        scene[id][4], params, line_segments_per_category)
 end
 
 """
@@ -144,7 +145,7 @@ Involution corresponding to `change_category_proposal`
 end
 
 add_remove_kernel(trace, v, line_segments, perturb_params) = mh(trace, add_remove_proposal, (v, line_segments, perturb_params), add_remove_involution)
-change_location_kernel(trace, v, variance, perturb_params) = mh(trace, change_location_proposal, (v, variance, perturb_params), change_location_involution)
+change_location_kernel(trace, v, variance, params, line_segments) = mh(trace, change_location_proposal, (v, variance, params, line_segments), change_location_involution)
 change_category_kernel(trace, v, perturb_params) = mh(trace, change_category_proposal, (v, perturb_params), change_category_involution)
 
 """

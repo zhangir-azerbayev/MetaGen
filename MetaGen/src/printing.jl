@@ -12,118 +12,51 @@ function countmemb(itr)
 end
 
 ##############################################################################################
+#does weighted average of V, but highest weighted particle for world state.
+function print_Vs_and_Rs_to_file_new(file, traces, num_samples::Int64, params, v::Int64, last_time::Bool=false)
+    print(file, v, " & ")
 
-#function for printing stuff to file
-#needs traces, num_samples, r for which reality to extract
-function print_Vs_and_Rs_to_file(file, tr, num_samples::Int64, params, r::Int64, last_time::Bool=false)
-    #initialize something for tracking average V
-    avg_V = zeros(length(params.possible_objects), 2)
-    #initialize something for realities
-    realities = Array{Array{Any,1}}(undef, num_samples)
-    avg_v = zeros(Float64, length(params.possible_objects), 2)
+    weights = Array{Float64}(undef, num_samples)
+    v_matrixes = Array{Matrix{Float64}}(undef, num_samples)
+    world_states = Array{Array{Any,1}}(undef, num_samples)
+
     for i = 1:num_samples
-        choices = get_choices(tr[i])
-        #extract v
-        for j = 1:length(params.possible_objects)
-            avg_v[j,1] = avg_v[j,1] + choices[:videos => r => :v_matrix => :lambda_fa => j => :fa]/num_samples
-            avg_v[j,2] = avg_v[j,2] + choices[:videos => r => :v_matrix => :miss_rate => j => :miss]/num_samples
+        weights[i] = get_score(traces[i])
+        choices = get_choices(traces[i])
+        v_matrix = zeros(params.n_possible_objects, 2)
+        for j = 1:params.n_possible_objects
+            v_matrix[j,1] = choices[:videos => v => :v_matrix => :lambda_fa => j => :fa]
+            v_matrix[j,2] = choices[:videos => v => :v_matrix => :miss_rate => j => :miss]
         end
-        #extract r
-        #println("r ", r)
-        realities[i] = choices[:videos => r => :init_scene]
-    end
-    # println("avg_V is ", avg_V)
-    print(file, avg_v, " & ")
+        v_matrixes[i] = v_matrix
+        world_states[i] = choices[:videos => v => :init_scene]
 
-    # dictionary_Vs = countmemb(Vs)
-    # print(file, dictionary_Vs, " & ")
-
-    #instead of printing dictionary of realities, just print the mode
-    dictionary_realities = countmemb(realities)
-    print(file, dictionary_realities, " & ")
-    #invert the mapping
-    frequency_realities = Dict()
-    for (k, v) in dictionary_realities
-        if haskey(frequency_realities, v)
-            push!(frequency_realities[v],k)
-        else
-            frequency_realities[v] = [k]
-        end
+        println("particle ", i)
+        println("weight ", weights[i])
+        println("world_state ", world_states[i])
     end
 
-    arr = collect(keys(frequency_realities))
-    arr_as_numeric = convert(Array{Int64,1}, arr)
-    m = maximum(arr_as_numeric) #finding mode
-    #length(frequency_Vs[m])==1 ? V = frequency_Vs[m] : V = frequency_Vs[m][1] #in case of tie, take the first V
-    reality_as_string = frequency_realities[m][1]
-
-    if last_time #if this is the last thing printing, don't put &
-        print(file ,reality_as_string)
-    else
-        print(file ,reality_as_string, " & ")
-    end
-
-    return (frequency_realities[m], avg_v) #return the mode reality and average v
-end
-
-##############################################################################################
-function print_Vs_and_Rs_to_file_new(file, tr, num_samples::Int64, params, r::Int64, last_time::Bool=false)
-    print(file, r, " & ")
-
-    #initialize something for tracking average V
-    avg_V = zeros(length(params.possible_objects), 2)
-    #initialize something for realities
-    realities = Array{Array{Any,1}}(undef, num_samples)
-    avg_v = zeros(Float64, length(params.possible_objects), 2)
-    for i = 1:num_samples
-        choices = get_choices(tr[i])
-        #extract v
-        for j = 1:length(params.possible_objects)
-            avg_v[j,1] = avg_v[j,1] + choices[:videos => r => :v_matrix => :lambda_fa => j => :fa]/num_samples
-            avg_v[j,2] = avg_v[j,2] + choices[:videos => r => :v_matrix => :miss_rate => j => :miss]/num_samples
-        end
-        #extract r
-        #println("r ", r)
-        realities[i] = choices[:videos => r => :init_scene]
-    end
-    # println("avg_V is ", avg_V)
-    n_rows,_ = size(avg_v)
-    for i = 1:n_rows
+    avg_v = sum(weights./sum(weights) .* v_matrixes)
+    for i = 1:params.n_possible_objects
         print(file, avg_v[i,1], "&")
         print(file, avg_v[i,2], "&")
     end
 
-    # dictionary_Vs = countmemb(Vs)
-    # print(file, dictionary_Vs, " & ")
+    print(file, world_states, "&")
 
-    #instead of printing dictionary of realities, just print the mode
-    dictionary_realities = countmemb(realities)
-    print(file, dictionary_realities, "&")
-    #invert the mapping
-    frequency_realities = Dict()
-    for (k, v) in dictionary_realities
-        if haskey(frequency_realities, v)
-            push!(frequency_realities[v],k)
-        else
-            frequency_realities[v] = [k]
-        end
-    end
+    best_world_state = world_states[findmax(weights)[2]] #world state with highest weight
 
-    arr = collect(keys(frequency_realities))
-    arr_as_numeric = convert(Array{Int64,1}, arr)
-    m = maximum(arr_as_numeric) #finding mode
-    #length(frequency_Vs[m])==1 ? V = frequency_Vs[m] : V = frequency_Vs[m][1] #in case of tie, take the first V
-    reality_as_string = frequency_realities[m][1]
+    println("max index ", findmax(weights)[2])
 
     if last_time #if this is the last thing printing, don't put &
-        print(file ,reality_as_string)
+        print(file, best_world_state)
     else
-        print(file ,reality_as_string, "&")
+        print(file, best_world_state, "&")
         print(file, "\n")
     end
 
-    return (frequency_realities[m], avg_v) #return the mode reality and average v
+    return (best_world_state, avg_v) #return the mode reality and average v
 end
 
-export print_Vs_and_Rs_to_file
+export print_Vs_and_Rs_to_file_new
 export countmemb

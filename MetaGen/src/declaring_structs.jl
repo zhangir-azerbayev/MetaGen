@@ -21,8 +21,8 @@ Base.@kwdef struct Video_Params
     #camera parameters that don't change
     image_dim_x::Int64 = 256
     image_dim_y::Int64 = 256
-    horizontal_FoV::Float64 = 35
-    vertical_FoV::Float64 = 35
+    horizontal_FoV::Float64 = 55
+    vertical_FoV::Float64 = 55
 end
 
 "Parametrizes the state of the camera, which changes within a scene"

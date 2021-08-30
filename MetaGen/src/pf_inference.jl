@@ -45,6 +45,9 @@ array for each frame and array for each receptive field and array for those dete
         inferred_realities = Array{Any}(undef, num_videos)
         avg_v = zeros(params.n_possible_objects, 2)
 
+        global acceptance_counter = 0
+        global total = 0
+
         for v=1:num_videos
             @time begin
 
@@ -143,12 +146,12 @@ array for each frame and array for each receptive field and array for those dete
                 Threads.@threads for i = 1:num_particles
                     #for i = 1:num_particles
                     println("score particle i ", i, " before perturbation", get_score(state.traces[i]))
-                    #println("trace ", state.traces[i][:videos => v => :init_scene])
+                    println("trace ", state.traces[i][:videos => v => :init_scene])
                     #println("perturb particle i ", i)
-                    state.traces[i] = perturb(lesioned, state.traces[i], v, perturb_params, mcmc_steps_outer, mcmc_steps_inner, line_segments_per_category)
+                    state.traces[i] = perturb(lesioned, state.traces[i], v, perturb_params, mcmc_steps_outer, mcmc_steps_inner, line_segments_per_category, params)
                     #println("done perturbing i ", i)
                     println("score particle i ", i, " after perturbation", get_score(state.traces[i]))
-                    #println("trace ", state.traces[i][:videos => v => :init_scene])
+                    println("trace ", state.traces[i][:videos => v => :init_scene])
                     #println("trace ", state.traces[i][:videos => v => :init_scene])
                     #println("log score of this trace ", get_score(state.traces[i]))
                     #visualize_trace(state.traces, i, camera_trajectories, v, 1, params)
@@ -173,6 +176,9 @@ array for each frame and array for each receptive field and array for those dete
             end #end timer
         end
 
+        println(acceptance_counter)
+        println(total)
+
         return (sample_unweighted_traces(state, num_particles), inferred_realities, avg_v)
 
     end
@@ -189,7 +195,8 @@ array for each frame and array for each receptive field and array for those dete
         perturb_params::Perturb_Params,
         mcmc_steps_outer::Int,
         mcmc_steps_inner::Int,
-        line_segments_per_category::Array{Array{Line_Segment,1},1})
+        line_segments_per_category::Array{Array{Line_Segment,1},1},
+        params::Video_Params)
         #acceptance_counter = 0
         #proposal_counter = 0
 
@@ -211,7 +218,7 @@ array for each frame and array for each receptive field and array for those dete
             #println("iter ", iter)
             #println("trace ", trace[:videos => v => :init_scene])
 
-            trace = perturb_scene(trace, v, perturb_params, line_segments_per_category)
+            trace = perturb_scene(trace, v, perturb_params, line_segments_per_category, params)
             if lesioned == false
                 for iter2=1:mcmc_steps_inner
                     trace = perturb_whole_v_matrix_mh(trace, v, n)
@@ -245,8 +252,10 @@ array for each frame and array for each receptive field and array for those dete
 
     """
 
-    function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1})
+    function perturb_scene(trace, v::Int64, perturb_params::Perturb_Params, line_segments_per_category::Array{Array{Line_Segment,1},1}, params::Video_Params)
+        #println("trace ", trace[:videos => v => :init_scene])
         trace, accepted = add_remove_kernel(trace, v, line_segments_per_category, perturb_params)
+
         #println("accepted? ", accepted)
         #println("trace ", trace[:videos => v => :init_scene])
 
@@ -255,7 +264,11 @@ array for each frame and array for each receptive field and array for those dete
 
         #only try changing location or category if there's at least one object in the scene
         if length(trace[:videos => v => :init_scene]) > 0
-            trace, accepted = change_location_kernel(trace, v, 0.1, perturb_params)
+            trace, accepted = change_location_kernel(trace, v, 0.1, params, line_segments_per_category)
+
+            #global acceptance_counter = acceptance_counter + accepted
+            #global total = total + 1
+
             #println("accepted? ", accepted)
             #println("trace ", trace[:videos => v => :init_scene])
 

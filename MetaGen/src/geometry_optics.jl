@@ -9,6 +9,12 @@ Returns the object's position on the 2D image in pixel space.
 (0,0) is the center of the image
 """
 function get_image_xy(camera_params::Camera_Params, params::Video_Params, object::Coordinate)
+    #for left-handed coordinate system like TDW, flip the sign of the z-coordinate
+    object = Coordinate(object.x, object.y, -object.z)
+    camera_loc = Coordinate(camera_params.camera_location.x, camera_params.camera_location.y, -camera_params.camera_location.z)
+    camera_look = Coordinate(camera_params.camera_focus.x, camera_params.camera_focus.y, -camera_params.camera_focus.z)
+    camera_params = Camera_Params(camera_loc, camera_look)
+
     if on_right_side(camera_params, object) > 0
         x, y = locate(camera_params, params, object)
     else #on wrong side of camera
