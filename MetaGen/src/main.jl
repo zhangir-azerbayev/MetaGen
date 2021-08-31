@@ -17,7 +17,7 @@ Samples the matrix describing the initial visual system.
 	arg1 = fill(1.0, length(params.possible_objects))
 	arg2 = fill(1.0, length(params.possible_objects))
 	fa = @trace(Map(lambda_fa)(arg1, arg2), :lambda_fa) #these are lambdas per receptive field
-	miss = @trace(Map(miss_rate)(arg1, arg2), :miss_rate)
+	miss = @trace(Map(miss_rate)(arg1, arg2), :miss_rate) #miss rate is misnomer. it's actually more like detection rate. it's mean of geometric distribution
 
 	v = hcat(fa, miss)
    	return convert(Matrix{Real}, v)

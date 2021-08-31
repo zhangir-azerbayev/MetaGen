@@ -19,18 +19,18 @@ include("useful_functions.jl")
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 #dict = @pipe "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/metagen-data/data_labelled/data_labelled.json" |> open |> read |> String |> JSON.parse
-path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/08_30/"
+path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/08_31/"
 
-dict = @pipe (path * "output_with_gt.json") |> open |> read |> String |> JSON.parse
+dict = @pipe (path * "data_labelled.json") |> open |> read |> String |> JSON.parse
 
 Random.seed!(17) #15 produces -Inf for a particle from video 1, frame 111, no rejuvination steps
 #try to make objects_observed::Array{Array{Array{Array{Detection2D}}}} of observed objects.
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
 
 ################################################################################
-num_videos = 10
+num_videos = 1
 num_frames = 200
-threshold = 0.007
+threshold = 0.07
 
 params = Video_Params(n_possible_objects = 2)
 
@@ -58,6 +58,7 @@ close(online_file)
 println("done with pf for online")
 
 ################################################################################
+#=
 
 # #Retrospective MetaGen
 #
@@ -87,7 +88,7 @@ close(lesioned_file)
 
 println("done with pf for lesioned metagen")
 
-
+=#
 ################################################################################
 #for writing an output file for a demo using Online MetaGen
 

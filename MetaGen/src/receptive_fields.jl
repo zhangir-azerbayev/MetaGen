@@ -40,20 +40,20 @@ end
 """
 objects is a list of Detection2Ds. ps is a vector of probabilities indexed by object category
 """
-function to_elements_real(objects::Vector{Detection2D}, misses::Vector{Real})
+function to_elements_real(objects::Vector{Detection2D}, detection_rates::Vector{Real})
     #will probably need to redo this stuff
     sd_x = 40. #might work????
     sd_y = 40.
     cov = [sd_x 0.; 0. sd_y;]
 
     n = length(objects)
-    objects_2D = Vector{BernoulliElement{Detection2D}}(undef, n) #no idea if that will work
+    objects_2D = Vector{GeometricElement{Detection2D}}(undef, n) #no idea if that will work
     for i = 1:n
         x = objects[i][1]#trying to get x from Detection2D Tuple
         y = objects[i][2]
         cat = objects[i][3]
-        miss = misses[cat] #get the fa for this category
-        objects_2D[i] = BernoulliElement{Detection2D}(1-miss, object_distribution_image, ([x, y], cov, cat))
+        detection_rate = detection_rates[cat] #get the detection rate for this category
+        objects_2D[i] = GeometricElement{Detection2D}(detection_rate, object_distribution_image, ([x, y], cov, cat))
     end
     return objects_2D
 end

@@ -177,6 +177,8 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
                 end
             end
 
+            #length(temp) > temp_max ? temp_max = length(temp) : temp_max = temp_max
+
             #slighly change duplicates
             #while exact duplicate in x
             # if length(unique(first.(temp))) < length(first.(temp))
@@ -225,6 +227,10 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
             camera_trajectories[v, f] = c
 
             length(temp) > labels_max ? labels_max = length(temp) : labels_max = labels_max
+            if length(temp) == 21
+                println("v ", v)
+                println("f ", f)
+            end
 
             x > x_max ? x_max = x : x_max = x_max
             x < x_min ? x_min = x : x_min = x_min
@@ -243,7 +249,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
         end
     end
 
-    # println("labels_max ", labels_max)
+    println("labels_max ", labels_max)
     #
     # println("x_max ", x_max)
     # println("x_min ", x_min)
