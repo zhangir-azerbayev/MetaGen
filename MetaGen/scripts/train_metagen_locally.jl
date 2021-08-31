@@ -19,7 +19,7 @@ include("useful_functions.jl")
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 #dict = @pipe "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/metagen-data/data_labelled/data_labelled.json" |> open |> read |> String |> JSON.parse
-path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/08_27/"
+path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/08_30/"
 
 dict = @pipe (path * "output_with_gt.json") |> open |> read |> String |> JSON.parse
 
@@ -28,14 +28,14 @@ Random.seed!(17) #15 produces -Inf for a particle from video 1, frame 111, no re
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
 
 ################################################################################
-num_videos = 1
+num_videos = 10
 num_frames = 200
-threshold = 0.64
+threshold = 0.007
 
 params = Video_Params(n_possible_objects = 2)
 
 receptive_fields = make_receptive_fields(params)
-objects_observed, camera_trajectories = make_observations_office_from_gt(dict, receptive_fields, num_videos, num_frames, threshold)
+objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)
 
 ################################################################################
 #Set up the output file
@@ -58,11 +58,11 @@ close(online_file)
 println("done with pf for online")
 
 ################################################################################
-#=
+
 # #Retrospective MetaGen
 #
 #Set up the output file
-retro_outfile = "retrospective_output.csv"
+retro_outfile = path * "retrospective_output.csv"
 retro_file = open(retro_outfile, "w")
 file_header(retro_file)
 
@@ -74,7 +74,7 @@ close(retro_file)
 # #Lesioned MetaGen
 #
 #Set up the output file
-lesioned_outfile = "lesioned_output.csv"
+lesioned_outfile = path * "lesioned_output.csv"
 lesioned_file = open(lesioned_outfile, "w")
 file_header(lesioned_file)
 
@@ -87,7 +87,7 @@ close(lesioned_file)
 
 println("done with pf for lesioned metagen")
 
-=#
+
 ################################################################################
 #for writing an output file for a demo using Online MetaGen
 
