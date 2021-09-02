@@ -270,9 +270,9 @@ function Gen.logpdf(::Object_Distribution_Delta, placed_objects::Array{Object3D}
     #iterate over all pairwise combindations of objects
     for c in combinations(placed_objects, 2)
         if dist(c[1], c[2]) < params.delta
-            println("c ", c)
-            println("c[1] ", c[1])
-            println("c[2] ", c[2])
+            #println("c ", c)
+            #println("c[1] ", c[1])
+            #println("c[2] ", c[2])
             return -Inf #if the objects aren't far enough apart, log probability is -Inf
         end
     end
