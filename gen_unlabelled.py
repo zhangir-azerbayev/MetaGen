@@ -19,11 +19,11 @@ dimensions = [10, 10]
 data = []
 
 
-# Trajectory generators 
-def CircleTrajectory(num_frames, radius): 
+# Trajectory generators
+def CircleTrajectory(num_frames, radius):
     angles = [2 * math.pi * i / num_frames for i in range(num_frames)]
 
-    for angle in angles: 
+    for angle in angles:
         camera = {"x": radius * math.cos(angle), "y": 3, "z": radius * math.sin(angle)}
         lookat = {"x": -radius * math.cos(angle), "y": 0, "z": -radius * math.sin(angle)}
         yield camera, lookat
@@ -97,10 +97,10 @@ for video in tqdm(range(num_videos)):
 
 
         while collisions:
-            for col in collisions: 
+            for col in collisions:
                 x = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
                 z = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
-                    
+
                 x_1 = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
                 z_1 = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
                 collider = col.get_collider_id()
@@ -133,17 +133,17 @@ for video in tqdm(range(num_videos)):
 
     # saves labels
     resp = c.communicate({"$type": "send_bounds", "ids": list(range(num_objects))})
-    for r in resp: 
+    for r in resp:
         r_id = OutputData.get_data_type_id(r)
-        if r_id == 'boun': 
+        if r_id == 'boun':
             b = Bounds(r)
 
     print('saving labels')
     print('number of responses: ', len(resp))
-    for obj in range(num_objects):
-        position = b.get_center(obj)
+    for index in range(num_objects): #order coming out of response might not match order of object ids
+        obj = b.get_id(index)
+        position = b.get_center(index)
         labels.append({"category_name": category_names[obj], "position": position})
-
 
     c.communicate({"$type": "simulate_physics", "value": False})
     # Creates frames
@@ -188,11 +188,3 @@ for video in tqdm(range(num_videos)):
 
 with open("unlabelled_data.json", "w") as f:
     json.dump(data, f)
-
-
-
-
-
-
-
-
