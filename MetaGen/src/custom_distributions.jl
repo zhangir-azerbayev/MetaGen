@@ -13,33 +13,33 @@ export Detection2D
 export Object3D
 
 ##############################################################################################
-
-struct Multinomial <: Gen.Distribution{Vector{Int}} end
-
-const multinomial = Multinomial()
-
-function Gen.random(::Multinomial, n::Int, probs::AbstractArray{U,1})  where {U <: Real}
-    collect(Int64, map(i -> rand(Distributions.Categorical(probs)), 1:n))
-end
-
-#n is the number of times sampled
-function Gen.logpdf(::Multinomial, x::AbstractArray{Int}, n::Int, probs::AbstractArray{U,1}) where {U <: Real}
-    length(x) != n && return -Inf
-    sum(map(i -> Gen.logpdf(categorical, i, probs), x))
-end
-
-function Gen.logpdf_grad(::Multinomial, x::AbstractArray{Int}, n::Int, probs::AbstractArray{U,1})  where {U <: Real}
-	gerror("Not implemented")
-	(nothing, nothing)
-end
-
-(::Multinomial)(n, probs) = Gen.random(Multinomial(), n, probs)
-is_discrete(::Multinomial) = true
-
-has_output_grad(::Multinomial) = false
-has_argument_grads(::Multinomial) = (false,)
-
-export multinomial
+#
+# struct Multinomial <: Gen.Distribution{Vector{Int}} end
+#
+# const multinomial = Multinomial()
+#
+# function Gen.random(::Multinomial, n::Int, probs::AbstractArray{U,1})  where {U <: Real}
+#     collect(Int64, map(i -> rand(Distributions.Categorical(probs)), 1:n))
+# end
+#
+# #n is the number of times sampled
+# function Gen.logpdf(::Multinomial, x::AbstractArray{Int}, n::Int, probs::AbstractArray{U,1}) where {U <: Real}
+#     length(x) != n && return -Inf
+#     sum(map(i -> Gen.logpdf(categorical, i, probs), x))
+# end
+#
+# function Gen.logpdf_grad(::Multinomial, x::AbstractArray{Int}, n::Int, probs::AbstractArray{U,1})  where {U <: Real}
+# 	gerror("Not implemented")
+# 	(nothing, nothing)
+# end
+#
+# (::Multinomial)(n, probs) = Gen.random(Multinomial(), n, probs)
+# is_discrete(::Multinomial) = true
+#
+# has_output_grad(::Multinomial) = false
+# has_argument_grads(::Multinomial) = (false,)
+#
+# export multinomial
 
 ##############################################################################################
 
@@ -163,6 +163,158 @@ function construct_3D(cat::Int64, params::Video_Params)
     y = uniform(params.y_min, params.y_max)
     z = uniform(params.z_min, params.z_max)
     return (x, y, z, cat)
+end
+
+##############################################################################################
+"For populating the scene with objects spaced out from one another with a graded, Gaussian prior"
+struct Object_Distribution_Gaussian <: Gen.Distribution{Array{Object3D}} end
+
+const object_distribution_gaussian = Object_Distribution_Gaussian()
+
+function Gen.random(::Object_Distribution_Gaussian, params::Video_Params)
+    num_objects = geometric(params.p_objects)
+    placed_objects = Array{Object3D}(undef, 0)
+    for i = 1:num_objects
+        cat = categorical(params.probs_possible_objects)
+        candidate_obj = construct_3D(cat, params) #placed uniformly randomly
+        j = 1 #indexes through the objects that have already been placed and accepted
+        while j <= length(placed_objects)
+            #resample with probabilty given by Gaussian with distance
+            d = dist(candidate_obj, placed_objects[j])
+            p = exp(-0.5*(d/params.delta)^2) #one when dist==0
+            if bernoulli(p) #if too close, resample
+                candidate_obj = construct_3D(cat, params) #placed uniformly randomly
+                j = 1 #restart loop over objects already placed
+            else
+                j = j + 1
+            end
+        end
+        push!(placed_objects, candidate_obj)
+    end
+    return placed_objects
+end
+
+function Gen.logpdf(::Object_Distribution_Gaussian, placed_objects::Array{Object3D}, params::Video_Params)
+    num_objects = length(placed_objects)
+    p_geometric = Gen.logpdf(geometric, num_objects, params.p_objects)
+
+    if num_objects == 0
+        return p_geometric
+    end
+
+    #iterate over all pairwise combindations of objects and get distances
+    p_distance = 0
+    for c in combinations(placed_objects, 2)
+        d = dist(c[1], c[2])
+        p = exp(-0.5*(d/params.delta)^2) #probability of resampling
+        inv = 1-p #probability of sticking with it
+        log_inv = log(inv)
+        p_distance = p_distance + log_inv
+    end
+
+    #categorical
+    cats = last.(placed_objects) #grabbing the category types
+    p_cats = sum(map(i -> Gen.logpdf(categorical, i, params.probs_possible_objects), cats))
+
+    xs = first.(placed_objects)
+    p_xs = sum(map(x -> Gen.logpdf(uniform, x, params.x_min, params.x_max), xs))
+
+    ys = (a->a[2]).(placed_objects)
+    p_ys = sum(map(y -> Gen.logpdf(uniform, y, params.y_min, params.y_max), ys))
+
+    zs = (a->a[3]).(placed_objects)
+    p_zs = sum(map(z -> Gen.logpdf(uniform, z, params.z_min, params.z_max), zs))
+
+    return p_geometric + p_cats + p_xs + p_ys + p_zs + p_distance
+end
+
+function Gen.logpdf_grad(::Object_Distribution_Gaussian, objects_3D::Object3D, params::Video_Params)
+    gerror("Not implemented")
+    (nothing, nothing)
+end
+
+(::Object_Distribution_Gaussian)(params) = Gen.random(Object_Distribution_Gaussian(), params)
+
+has_output_grad(::Object_Distribution_Gaussian) = false
+has_argument_grads(::Object_Distribution_Gaussian) = (false,)
+
+export object_distribution_gaussian
+##############################################################################################
+"For populating the scene with objects spaced out from one another. no two object can be within distance delta of each other"
+struct Object_Distribution_Delta <: Gen.Distribution{Array{Object3D}} end
+
+const object_distribution_delta = Object_Distribution_Delta()
+
+function Gen.random(::Object_Distribution_Delta, params::Video_Params)
+    num_objects = geometric(params.p_objects)
+    placed_objects = Array{Object3D}(undef, 0)
+    for i = 1:num_objects
+        cat = categorical(params.probs_possible_objects)
+        candidate_obj = construct_3D(cat, params) #placed uniformly randomly
+        j = 1 #indexes through the objects that have already been placed and accepted
+        while j <= length(placed_objects)
+            if dist(candidate_obj, placed_objects[j]) < params.delta #if too close, resample
+                candidate_obj = construct_3D(cat, params) #placed uniformly randomly
+                j = 1 #restart loop over objects already placed
+            else
+                j = j + 1
+            end
+        end
+        push!(placed_objects, candidate_obj)
+    end
+    return placed_objects
+end
+
+function Gen.logpdf(::Object_Distribution_Delta, placed_objects::Array{Object3D}, params::Video_Params)
+    #either the objects are spaced out enough or they aren't.
+    #iterate over all pairwise combindations of objects
+    for c in combinations(placed_objects, 2)
+        if dist(c[1], c[2]) < params.delta
+            println("c ", c)
+            println("c[1] ", c[1])
+            println("c[2] ", c[2])
+            return -Inf #if the objects aren't far enough apart, log probability is -Inf
+        end
+    end
+
+    num_objects = length(placed_objects)
+    p_geometric = Gen.logpdf(geometric, num_objects, params.p_objects)
+
+    if num_objects == 0
+        return p_geometric
+    end
+
+    #categorical
+    cats = last.(placed_objects) #grabbing the category types
+    p_cats = sum(map(i -> Gen.logpdf(categorical, i, params.probs_possible_objects), cats))
+
+    xs = first.(placed_objects)
+    p_xs = sum(map(x -> Gen.logpdf(uniform, x, params.x_min, params.x_max), xs))
+
+    ys = (a->a[2]).(placed_objects)
+    p_ys = sum(map(y -> Gen.logpdf(uniform, y, params.y_min, params.y_max), ys))
+
+    zs = (a->a[3]).(placed_objects)
+    p_zs = sum(map(z -> Gen.logpdf(uniform, z, params.z_min, params.z_max), zs))
+
+    return p_geometric + p_cats + p_xs + p_ys + p_zs
+end
+
+function Gen.logpdf_grad(::Object_Distribution_Delta, objects_3D::Object3D, params::Video_Params)
+    gerror("Not implemented")
+    (nothing, nothing)
+end
+
+(::Object_Distribution_Delta)(params) = Gen.random(Object_Distribution_Delta(), params)
+
+has_output_grad(::Object_Distribution_Delta) = false
+has_argument_grads(::Object_Distribution_Delta) = (false,)
+
+export object_distribution_delta
+
+#tiny helper function for getting distance between two objects
+function dist(a::Object3D, b::Object3D)
+    sqrt((a[1]-b[1])^2 + (a[2]-b[2])^2 + (a[3]-b[3])^2)
 end
 
 ##############################################################################################

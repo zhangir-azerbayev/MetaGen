@@ -16,6 +16,11 @@ function within_frame(p::Detection2D)
     p[1] >= 0 && p[1] <= 256 && p[2] >= 0 && p[2] <= 256 #hard-codded frame size because I can't figure out how to use two arguments and filter
 end
 
+#check if p1 and p2 are withing radius r of each other. Euclidean space
+function within_radius(p1::Detection2D, p2::Detection2D, r::Float64)
+    sqrt((p1[1]-p2[1])^2 + (p1[2]-p2[2])^2) <= r
+end
+
 #first approximation
 function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D})
     alphas = deepcopy(alphas_old)
@@ -31,27 +36,33 @@ function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old:
     #println(real_detections)
 
     #lets only do this by category
-    real_detections_cats = last.(real_detections)
-    observations_2D_cats = last.(observations_2D)
+    #real_detections_cats = last.(real_detections)
+    #observations_2D_cats = last.(observations_2D)
 
     #see if actually detected. update miss rate
-    observations_2D_cats_edited = copy(observations_2D_cats)
-    for i = 1:length(real_detections_cats)
-        current_cat = real_detections_cats[i]
-        if current_cat in observations_2D_cats_edited #actually detected
-            betas[current_cat, 2] = betas[current_cat, 2] + 1 #increment
-            #remove
-            observations_2D_cats_edited = deleteat!(observations_2D_cats_edited, findfirst(observations_2D_cats_edited.==current_cat))
-        else #missed
-            alphas[current_cat, 2] = alphas[current_cat, 2] + 1
+    observations_2D_edited = deepcopy(observations_2D)
+    #observations_2D_cats_edited = copy(observations_2D_cats)
+    for i = 1:length(real_detections)
+        real_detection = real_detections[i]
+        cat = real_detection[3] #category
+        alphas[cat, 2] = alphas[cat, 2] + 1 #increase alpha for detection/miss rate
+        j = 1
+        while j <= length(observations_2D_edited) #basically a for loop over observations_2D_edited while it changes sizes
+            obs = observations_2D_edited[j]
+            if obs[3] == cat && within_radius(real_detection, obs, 40.)#if same category and within a distance of each other. 40 matches std on multinormal distribution for detection location
+                observations_2D_edited = deleteat!(observations_2D_edited, j)
+                betas[cat, 2] = betas[cat, 2] + 1 #increase beta for detection/miss rate
+                #keep j the same because something was deleted at j
+            else
+                j = j+1
+            end
         end
     end
 
-    #everything left in observations_2D_cats_edited must have been hallucinated
-    num_cats = size(alphas)[1]
 
-    for i in 1:length(observations_2D_cats_edited)
-        alphas[observations_2D_cats_edited[i], 1] = alphas[observations_2D_cats_edited[i], 1] + 1
+    #everything left in observations_2D_edited must have been hallucinated
+    for i in 1:length(observations_2D_edited)
+        alphas[observations_2D_edited[i][3], 1] = alphas[observations_2D_edited[i][3], 1] + 1
     end
 
     #update beta for hallucinations
@@ -179,9 +190,8 @@ Samples a new scene and a new v_matrix.
     #println("current video ", current_video)
 
     #rfs_element = GeometricElement{Object3D}(params.p_objects, object_distribution, (params,))
-    rfs_element = GeometricElement{Object3D}(params.p_objects, object_distribution, (params,))
-    rfs_element = RFSElements{Object3D}([rfs_element]) #need brackets because rfs has to take an array
-    init_scene = @trace(rfs(rfs_element), :init_scene)
+    #rfs_element = RFSElements{Object3D}([rfs_element]) #need brackets because rfs has to take an array
+    init_scene = @trace(object_distribution_delta(params), :init_scene)
     #make the observations
     previous_v_matrix = v_matrix_state[1]
     previous_alphas = v_matrix_state[2]

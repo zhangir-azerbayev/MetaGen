@@ -3,6 +3,7 @@ module MetaGen
 using Gen
 using GenRFS
 using Distributions
+using Combinatorics
 #using Plots
 using PyPlot
 const plt = PyPlot

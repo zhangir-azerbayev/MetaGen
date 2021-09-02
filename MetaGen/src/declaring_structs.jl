@@ -17,6 +17,7 @@ Base.@kwdef struct Video_Params
     x_max::Float64 = 5
     y_max::Float64 = 3
     z_max::Float64 = 5
+    delta = 0.5 #standard deviation for Gaussian on distance between objects. the larger the number, the stronger the prior
     num_receptive_fields::Int64 = 1
     #camera parameters that don't change
     image_dim_x::Int64 = 256

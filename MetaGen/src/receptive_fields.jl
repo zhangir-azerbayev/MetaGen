@@ -40,7 +40,7 @@ end
 """
 objects is a list of Detection2Ds. ps is a vector of probabilities indexed by object category
 """
-function to_elements_real(objects::Vector{Detection2D}, detection_rates::Vector{Real})
+function to_elements_real(objects::Vector{Detection2D}, miss_rates::Vector{Real})
     #will probably need to redo this stuff
     sd_x = 40. #might work????
     sd_y = 40.
@@ -52,8 +52,8 @@ function to_elements_real(objects::Vector{Detection2D}, detection_rates::Vector{
         x = objects[i][1]#trying to get x from Detection2D Tuple
         y = objects[i][2]
         cat = objects[i][3]
-        detection_rate = detection_rates[cat] #get the detection rate for this category
-        objects_2D[i] = GeometricElement{Detection2D}(detection_rate, object_distribution_image, ([x, y], cov, cat))
+        miss_rate = miss_rates[cat] #get the detection rate for this category
+        objects_2D[i] = GeometricElement{Detection2D}(miss_rate, object_distribution_image, ([x, y], cov, cat))
     end
     return objects_2D
 end
