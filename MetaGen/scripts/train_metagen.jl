@@ -58,7 +58,7 @@ println("done with pf for online")
 
 
 ## Commented out for testing
-#=
+
 
 ################################################################################
 #Retrospective MetaGen
@@ -93,7 +93,7 @@ close(lesioned_file)
 println("done with pf for lesioned metagen")
 
 #End Comment
-=#
+
 
 ################################################################################
 #for writing an output file for a demo using MetaGen
