@@ -36,7 +36,12 @@ params = Video_Params(n_possible_objects = 2)
 receptive_fields = make_receptive_fields(params)
 objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)
 
+num_particles = config["num_particles"]
+mcmc_steps_outer = config["mcmc_steps_outer"]
+mcmc_steps_inner = config["mcmc_steps_inner"]
+
 ################################################################################
+#=
 #Set up the output file
 online_outfile = output_dir * "/online_output.csv"
 online_file = open(online_outfile, "w")
@@ -45,9 +50,7 @@ file_header(online_file)
 ################################################################################
 #Online MetaGen
 println("start pf for online")
-num_particles = config["num_particles"]
-mcmc_steps_outer = config["mcmc_steps_outer"]
-mcmc_steps_inner = config["mcmc_steps_inner"]
+
 #@profilehtml unfold_particle_filter(false, num_particles, objects_observed, camera_trajectories, params, file)
 traces, inferred_world_states, avg_v = unfold_particle_filter(nothing,
 	num_particles, mcmc_steps_outer, mcmc_steps_inner, objects_observed,
@@ -55,6 +58,10 @@ traces, inferred_world_states, avg_v = unfold_particle_filter(nothing,
 close(online_file)
 
 println("done with pf for online")
+
+
+## Commented out for testing
+
 
 ################################################################################
 #Retrospective MetaGen
@@ -71,10 +78,9 @@ close(retro_file)
 
 println("done with pf for retrospective")
 
-#=
-
 ################################################################################
 #run Lesioned MetaGen
+=#
 
 #Set up the output file
 lesioned_outfile = output_dir * "/lesioned_output.csv"
@@ -90,8 +96,7 @@ close(lesioned_file)
 
 println("done with pf for lesioned metagen")
 
-
-=#
+#=
 
 ################################################################################
 #for writing an output file for a demo using MetaGen
