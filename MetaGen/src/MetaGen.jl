@@ -4,6 +4,7 @@ using Gen
 using GenRFS
 using Distributions
 using Combinatorics
+using Random
 #using Plots
 using PyPlot
 const plt = PyPlot
