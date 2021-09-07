@@ -19,18 +19,18 @@ include("useful_functions.jl")
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 #dict = @pipe "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/metagen-data/data_labelled/data_labelled.json" |> open |> read |> String |> JSON.parse
-path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/08_31/"
+path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/09_02/"
 
 dict = @pipe (path * "data_labelled.json") |> open |> read |> String |> JSON.parse
 
-Random.seed!(17) #15 produces -Inf for a particle from video 1, frame 111, no rejuvination steps
+#Random.seed!(17) #15 produces -Inf for a particle from video 1, frame 111, no rejuvination steps
 #try to make objects_observed::Array{Array{Array{Array{Detection2D}}}} of observed objects.
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
 
 ################################################################################
-num_videos = 1
+num_videos = 50
 num_frames = 200
-threshold = 0.07
+threshold = 0.08
 
 params = Video_Params(n_possible_objects = 2)
 
@@ -38,6 +38,7 @@ receptive_fields = make_receptive_fields(params)
 objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)
 
 ################################################################################
+#=
 #Set up the output file
 online_outfile = path * "online_output.csv"
 online_file = open(online_outfile, "w")
@@ -58,7 +59,9 @@ close(online_file)
 println("done with pf for online")
 
 ################################################################################
-#=
+
+=#
+
 
 # #Retrospective MetaGen
 #
@@ -70,7 +73,9 @@ file_header(retro_file)
 unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
 	objects_observed, camera_trajectories, params, retro_file)
 close(retro_file)
-#
+
+#=
+
 # ################################################################################
 # #Lesioned MetaGen
 #
@@ -88,7 +93,6 @@ close(lesioned_file)
 
 println("done with pf for lesioned metagen")
 
-=#
 ################################################################################
 #for writing an output file for a demo using Online MetaGen
 
@@ -101,3 +105,5 @@ open(path * "output.json","w") do f
 end
 
 println("finished writing json")
+
+#=

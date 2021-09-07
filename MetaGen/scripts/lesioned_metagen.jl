@@ -22,7 +22,7 @@ append!(dict, to_add)
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 
 
-Random.seed!(15)
+#Random.seed!(15)
 #try to make objects_observed::Array{Array{Array{Array{Detection2D}}}} of observed objects.
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
 

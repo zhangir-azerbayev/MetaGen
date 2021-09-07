@@ -131,7 +131,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
 
     #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-    office_subset = ["chair", "microwave"]
+    office_subset = ["chair", "microwave", "couch"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
@@ -175,6 +175,11 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
                     y = center[i][2]
                     push!(temp, (x, y, label))
                 end
+            end
+
+            if length(temp) > 10
+                println(length(temp))
+                println("v ", v, " f ", f)
             end
 
             #length(temp) > temp_max ? temp_max = length(temp) : temp_max = temp_max
@@ -227,10 +232,6 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
             camera_trajectories[v, f] = c
 
             length(temp) > labels_max ? labels_max = length(temp) : labels_max = labels_max
-            if length(temp) == 21
-                println("v ", v)
-                println("f ", f)
-            end
 
             x > x_max ? x_max = x : x_max = x_max
             x < x_min ? x_min = x : x_min = x_min
@@ -287,7 +288,7 @@ function make_observations_office_from_gt(dict::Array{Any,1}, receptive_fields::
 
     #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-    office_subset = ["chair", "microwave"]
+    office_subset = ["chair", "microwave", "couch"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
