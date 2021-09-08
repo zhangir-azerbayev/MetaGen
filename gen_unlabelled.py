@@ -131,6 +131,9 @@ for video in tqdm(range(num_videos)):
         print(x, z)
         print('#'*20)
 
+    for obj_id in range(num_objects): 
+        resp = c.communicate({"$type": "set_kinematic_state", "id": obj_id, "is_kinematic": True, "use_gravity": False})
+
     # saves labels
     resp = c.communicate({"$type": "send_bounds", "ids": list(range(num_objects))})
     for r in resp:
