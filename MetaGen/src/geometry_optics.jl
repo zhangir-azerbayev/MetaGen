@@ -102,6 +102,9 @@ Whether the sin is positive or negative depends on the normal.
 function get_angle(a, b, c, x, y, z)
     numerator = a*x + b*y + c*z #took out abs
     denominator = sqrt(a^2+b^2+c^2) * sqrt(x^2+y^2+z^2)
+    val = numerator/denominator #sometimes got -1.0000000000000002
+    val = minimum([val, 1.0])
+    val = maximum([val, -1.0])
     return asin(numerator/denominator) #angle in radians
 end
 

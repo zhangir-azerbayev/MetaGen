@@ -18,13 +18,14 @@ array for each frame and array for each receptive field and array for those dete
 
     """
     function unfold_particle_filter(v_matrix::Union{Matrix{Float64}, Nothing},
-        num_particles::Int,
-        mcmc_steps_outer::Int,
-        mcmc_steps_inner::Int,
+        num_particles::Int64,
+        mcmc_steps_outer::Int64,
+        mcmc_steps_inner::Int64,
         objects_observed::Matrix{Array{Detection2D}},
         camera_trajectories::Matrix{Camera_Params},
         params::Video_Params,
-        file)
+        V_file::IOStream, ws_file::IOStream)
+
         lesioned = !isnothing(v_matrix)
 
         init_obs = Gen.choicemap()
@@ -172,7 +173,7 @@ array for each frame and array for each receptive field and array for those dete
                 ess = effective_sample_size(normalize_weights(state.log_weights)[2])
                 println("ess after rejuvination ", ess)
 
-                inferred_realities[v], avg_v = print_Vs_and_Rs_to_file_new(file, state.traces, num_particles, params, v, v==num_videos)
+                inferred_realities[v], avg_v = print_Vs_and_Rs_to_file(V_file, ws_file, state.traces, num_particles, params, v, v==num_videos)
                 #println("avg_v ", avg_v)
                 #println("time of v ", v)
             end #end timer

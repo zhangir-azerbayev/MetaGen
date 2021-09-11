@@ -1,11 +1,43 @@
-function file_header(file)
+function file_header_V(file, params::Video_Params)
     #set up file header
     print(file, "video_number&")
     for i = 1:params.n_possible_objects
     	print(file, "fa_", string(i), "&")
     	print(file, "m_", string(i), "&")
     end
-    print(file, "inferred_world_states&inferred_best_world_state")
+    print(file, "inferred_best_world_state")
+    print(file, "\n")
+end
+
+function file_header_ws(file, params::Video_Params, num_particles::Int64)
+    #set up file header
+    print(file, "video_number&")
+    print(file, "inferred_best_world_state&")
+    for i = 1:num_particles-1
+        print(file, "world_state_", string(i), "&")
+        print(file, "weight_", string(i), "&")
+    end
+    print(file, "world_state_", num_particles, "&")
+    print(file, "weight_", num_particles)
+    print(file, "\n")
+end
+
+
+
+function file_header(file, params::Video_Params, num_particles::Int64)
+    #set up file header
+    print(file, "video_number&")
+    for i = 1:params.n_possible_objects
+    	print(file, "fa_", string(i), "&")
+    	print(file, "m_", string(i), "&")
+    end
+    print(file, "inferred_world_states&inferred_best_world_state&")
+    for i = 1:num_particles-1
+        print(file, "world_state_", string(i), "&")
+        print(file, "weight_", string(i), "&")
+    end
+    print(file, "world_state_", num_particles, "&")
+    print(file, "weight_", num_particles)
     print(file, "\n")
 end
 
@@ -131,7 +163,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
 
     #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-    office_subset = ["chair", "microwave", "couch"]
+    office_subset = ["chair", "microwave", "backpack", "bed"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
@@ -288,7 +320,7 @@ function make_observations_office_from_gt(dict::Array{Any,1}, receptive_fields::
 
     #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-    office_subset = ["chair", "microwave", "couch"]
+    office_subset = ["chair", "microwave", "backpack", "bed"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix

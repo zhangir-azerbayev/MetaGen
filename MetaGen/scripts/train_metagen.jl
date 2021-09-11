@@ -36,23 +36,27 @@ params = Video_Params(n_possible_objects = 3)
 receptive_fields = make_receptive_fields(params)
 objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)
 
+num_particles = config["num_particles"]
+mcmc_steps_outer = config["mcmc_steps_outer"]
+mcmc_steps_inner = config["mcmc_steps_inner"]
 ################################################################################
-#Set up the output file
-online_outfile = output_dir * "/online_output.csv"
-online_file = open(online_outfile, "w")
-file_header(online_file)
+
+#Set up the output files
+online_V_file = open(path * "online_V.csv", "w")
+file_header_V(online_V_file, params)
+online_ws_file = open(path * "online_ws.csv", "w")
+file_header_ws(online_ws_file, params, num_particles)
 
 ################################################################################
 #Online MetaGen
 println("start pf for online")
-num_particles = config["num_particles"]
-mcmc_steps_outer = config["mcmc_steps_outer"]
-mcmc_steps_inner = config["mcmc_steps_inner"]
+
 #@profilehtml unfold_particle_filter(false, num_particles, objects_observed, camera_trajectories, params, file)
 traces, inferred_world_states, avg_v = unfold_particle_filter(nothing,
 	num_particles, mcmc_steps_outer, mcmc_steps_inner, objects_observed,
-	camera_trajectories, params, online_file)
-close(online_file)
+	camera_trajectories, params, online_V_file, online_ws_file)
+close(online_V_file)
+close(online_ws_file)
 
 println("done with pf for online")
 
@@ -61,13 +65,15 @@ println("done with pf for online")
 println("start retrospective")
 
 #Set up the output file
-retro_outfile = output_dir * "/retrospective_output.csv"
-retro_file = open(retro_outfile, "w")
-file_header(retro_file)
+retro_V_file = open(path * "retro_V.csv", "w")
+file_header_V(retro_V_file, params)
+retro_ws_file = open(path * "retro_ws.csv", "w")
+file_header_ws(retro_ws_file, params, num_particles)
 
 unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
-	objects_observed, camera_trajectories, params, retro_file)
-close(retro_file)
+	objects_observed, camera_trajectories, params, retro_V_file, retro_ws_file)
+close(retro_V_file)
+close(retro_ws_file)
 
 println("done with pf for retrospective")
 

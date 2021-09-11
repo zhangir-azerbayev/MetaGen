@@ -83,16 +83,18 @@ println("done with pf for retrospective")
 =#
 
 #Set up the output file
-lesioned_outfile = output_dir * "/lesioned_output.csv"
-lesioned_file = open(lesioned_outfile, "w")
-file_header(lesioned_file)
+lesioned_V_file = open(path * "lesioned_V.csv", "w")
+file_header_V(lesioned_V_file, params)
+lesioned_ws_file = open(path * "lesioned_ws.csv", "w")
+file_header_ws(lesioned_ws_file, params, num_particles)
 
 v = zeros(length(params.possible_objects), 2)
 v[:,1] .= 1.0
 v[:,2] .= 0.5
 unfold_particle_filter(v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
-	objects_observed, camera_trajectories, params, lesioned_file)
-close(lesioned_file)
+	objects_observed, camera_trajectories, params, lesioned_V_file, lesioned_ws_file)
+close(lesioned_V_file)
+close(lesioned_ws_file)
 
 println("done with pf for lesioned metagen")
 

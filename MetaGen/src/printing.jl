@@ -12,15 +12,46 @@ function countmemb(itr)
 end
 
 ##############################################################################################
-#does weighted average of V, but highest weighted particle for world state.
-function print_Vs_and_Rs_to_file_new(file, traces, num_samples::Int64, params, v::Int64, last_time::Bool=false)
-    print(file, v, " & ")
+#does weighted average of V, but highest weighted particle for world state. also prints world state and weight for each particle
+function print_Vs_and_Rs_to_file(V_file, ws_file, traces, num_particles::Int64, params::Video_Params, v::Int64, last_time::Bool=false)
+    print(V_file, v, " & ")
+    print(ws_file, v, " & ")
 
-    weights = Array{Float64}(undef, num_samples)
-    v_matrixes = Array{Matrix{Float64}}(undef, num_samples)
-    world_states = Array{Array{Any,1}}(undef, num_samples)
+    avg_v, world_states, best_world_state = process(traces, num_particles, params, v)
 
-    for i = 1:num_samples
+    for i = 1:params.n_possible_objects
+        print(V_file, avg_v[i,1], "&")
+        print(V_file, avg_v[i,2], "&")
+    end
+    print(V_file, best_world_state, "&")
+    print(ws_file, best_world_state, "&")
+
+    for j = 1:num_particles
+        choices = get_choices(traces[j])
+        world_state = choices[:videos => v => :init_scene]
+        weight = get_score(traces[j])
+        if j==num_particles && last_time #if this is the last thing printing, don't put &
+            print(ws_file, world_state, "&")
+            print(ws_file, weight)
+        else
+            print(ws_file, world_state, "&")
+            print(ws_file, weight, "&")
+        end
+    end
+    print(V_file, "\n")
+    print(ws_file, "\n")
+    return (best_world_state, avg_v) #return the mode reality and average v
+end
+
+##############################################################################################
+#returns the weighted average v_matrix and the highest-weighted world state for a set particles
+function process(traces, num_particles::Int64, params::Video_Params, v::Int64)
+
+    weights = Array{Float64}(undef, num_particles)
+    v_matrixes = Array{Matrix{Float64}}(undef, num_particles)
+    world_states = Array{Array{Any,1}}(undef, num_particles)
+
+    for i = 1:num_particles
         weights[i] = get_score(traces[i])
         choices = get_choices(traces[i])
         v_matrix = zeros(params.n_possible_objects, 2)
@@ -30,32 +61,11 @@ function print_Vs_and_Rs_to_file_new(file, traces, num_samples::Int64, params, v
         end
         v_matrixes[i] = v_matrix
         world_states[i] = choices[:videos => v => :init_scene]
-
-        println("particle ", i)
-        println("weight ", weights[i])
-        println("world_state ", world_states[i])
     end
-
     avg_v = sum(weights./sum(weights) .* v_matrixes)
-    for i = 1:params.n_possible_objects
-        print(file, avg_v[i,1], "&")
-        print(file, avg_v[i,2], "&")
-    end
+    best_world_state = world_states[findmax(weights)[2]]
 
-    print(file, world_states, "&")
-
-    best_world_state = world_states[findmax(weights)[2]] #world state with highest weight
-
-    println("max index ", findmax(weights)[2])
-
-    if last_time #if this is the last thing printing, don't put &
-        print(file, best_world_state)
-    else
-        print(file, best_world_state, "&")
-        print(file, "\n")
-    end
-
-    return (best_world_state, avg_v) #return the mode reality and average v
+    return avg_v, world_states, best_world_state
 end
 
 export print_Vs_and_Rs_to_file_new
