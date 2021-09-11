@@ -42,9 +42,9 @@ mcmc_steps_inner = config["mcmc_steps_inner"]
 ################################################################################
 
 #Set up the output files
-online_V_file = open(path * "online_V.csv", "w")
+online_V_file = open(output_dir * "online_V.csv", "w")
 file_header_V(online_V_file, params)
-online_ws_file = open(path * "online_ws.csv", "w")
+online_ws_file = open(output_dir * "online_ws.csv", "w")
 file_header_ws(online_ws_file, params, num_particles)
 
 ################################################################################
@@ -65,9 +65,9 @@ println("done with pf for online")
 println("start retrospective")
 
 #Set up the output file
-retro_V_file = open(path * "retro_V.csv", "w")
+retro_V_file = open(output_dir * "retro_V.csv", "w")
 file_header_V(retro_V_file, params)
-retro_ws_file = open(path * "retro_ws.csv", "w")
+retro_ws_file = open(output_dir * "retro_ws.csv", "w")
 file_header_ws(retro_ws_file, params, num_particles)
 
 unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,

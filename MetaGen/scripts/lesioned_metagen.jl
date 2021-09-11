@@ -83,9 +83,9 @@ println("done with pf for retrospective")
 =#
 
 #Set up the output file
-lesioned_V_file = open(path * "lesioned_V.csv", "w")
+lesioned_V_file = open(output_dir * "lesioned_V.csv", "w")
 file_header_V(lesioned_V_file, params)
-lesioned_ws_file = open(path * "lesioned_ws.csv", "w")
+lesioned_ws_file = open(output_dir * "lesioned_ws.csv", "w")
 file_header_ws(lesioned_ws_file, params, num_particles)
 
 v = zeros(length(params.possible_objects), 2)
@@ -112,3 +112,4 @@ open(output_dir * "/output.json","w") do f
 end
 
 println("finished writing json")
+=#
