@@ -19,7 +19,7 @@ include("useful_functions.jl")
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 #dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
 #dict = @pipe "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/metagen-data/data_labelled/data_labelled.json" |> open |> read |> String |> JSON.parse
-path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/09_06/"
+path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/09_10/"
 
 dict = @pipe (path * "data_labelled.json") |> open |> read |> String |> JSON.parse
 
@@ -28,15 +28,15 @@ dict = @pipe (path * "data_labelled.json") |> open |> read |> String |> JSON.par
 #outer array is for scenes, then frames, the receptive fields, then last is an array of detections
 
 ################################################################################
-num_videos = 2
-num_frames = 200
-threshold = 0.24
+num_videos = 50
+num_frames = 100
+threshold = 0.07
 
 num_particles = 100
-mcmc_steps_outer = 1
+mcmc_steps_outer = 500
 mcmc_steps_inner = 1
 
-params = Video_Params(n_possible_objects = 3)
+params = Video_Params(n_possible_objects = 4)
 
 receptive_fields = make_receptive_fields(params)
 objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)

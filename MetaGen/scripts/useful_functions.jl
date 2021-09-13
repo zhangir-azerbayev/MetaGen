@@ -163,7 +163,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
 
     #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-    office_subset = ["chair", "microwave", "backpack", "bed"]
+    office_subset = ["chair", "microwave", "backpack", "toaster"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
@@ -320,7 +320,7 @@ function make_observations_office_from_gt(dict::Array{Any,1}, receptive_fields::
 
     #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-    office_subset = ["chair", "microwave", "backpack", "bed"]
+    office_subset = ["chair", "microwave", "backpack", "toaster"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
