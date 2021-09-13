@@ -31,10 +31,11 @@ num_videos = config["num_videos"]
 num_frames = config["num_frames"]
 threshold = config["threshold"]
 
-params = Video_Params(n_possible_objects = 3)
+params = Video_Params(n_possible_objects = 4)
+top_n = 8
 
 receptive_fields = make_receptive_fields(params)
-objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)
+objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold, top_n)
 
 num_particles = config["num_particles"]
 mcmc_steps_outer = config["mcmc_steps_outer"]

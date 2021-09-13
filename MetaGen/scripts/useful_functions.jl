@@ -145,7 +145,7 @@ function make_observations_full_COCO(dict::Array{Any,1}, receptive_fields::Vecto
     return objects_observed, camera_trajectories
 end
 
-function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field}, num_videos::Int64, num_frames::Int64, threshold=0.5)
+function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field}, num_videos::Int64, num_frames::Int64, threshold=0.5, top_n=Inf)
 
     COCO_CLASSES = ["person", "bicycle", "car", "motorcycle",
     			"airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant",
@@ -163,7 +163,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
 
     #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-    office_subset = ["chair", "microwave", "backpack", "toaster"]
+    office_subset = ["chair", "microwave", "backpack", "bed"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
@@ -190,7 +190,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
     for v=1:num_videos
         for f=1:num_frames
             #indices is where confidence was > 0.5
-            indices = dict[v]["views"][f]["detections"]["scores"] .> threshold
+            indices = dict[v]["views"][f]["detections"]["scores"] .> threshold #indices should be sorted by confidence
             arr = dict[v]["views"][f]["detections"]["labels"][indices]
             center = dict[v]["views"][f]["detections"]["center"][indices]
             #temp = Array{Detection2D}(undef, length(labels))
@@ -209,38 +209,17 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
                 end
             end
 
-            if length(temp) > 10
+            if length(temp) > 5
                 println(length(temp))
                 println("v ", v, " f ", f)
             end
 
-            #length(temp) > temp_max ? temp_max = length(temp) : temp_max = temp_max
-
-            #slighly change duplicates
-            #while exact duplicate in x
-            # if length(unique(first.(temp))) < length(first.(temp))
-            #     println("v ", v)
-            #     println("f ", f)
-            # end
-            # while length(unique(first.(temp))) < length(first.(temp))
-            #     xs = countmemb(first.(temp))
-            #     #invert the mapping
-            #     frequency = Dict()
-            #     for (k, v) in xs
-            #         if haskey(frequency, v)
-            #             push!(frequency[v],k)
-            #         else
-            #             frequency[v] = [k]
-            #         end
-            #     end
-            #     arr = collect(keys(frequency))
-            #     arr_as_numeric = convert(Array{Int64,1}, arr)
-            #     m = maximum(arr_as_numeric) #finding mode
-            #     duplicated_x_val = parse(Float64, frequency[m][1])
-            #     index_of_duplicate = findfirst(first.(temp).==duplicated_x_val)
-            #     new_entry = (temp[index_of_duplicate][1] + 1, temp[index_of_duplicate][2] + 1, temp[index_of_duplicate][3])
-            #     temp[index_of_duplicate] = new_entry
-            # end
+            if length(temp) > top_n #temp should already be sorted by confidence. if it's not, will have to add code to sort it first
+                #println(length(temp))
+                #println("v ", v, " f ", f)
+                println("v gets trimmed ", v)
+                temp = temp[1:top_n]
+            end
 
             #turn that array of detections into an array of an array of detections sorted by receptive_field
             #temp_sorted_into_rfs = map(rf -> filter(p -> within(p, rf), temp), receptive_fields)
@@ -320,7 +299,7 @@ function make_observations_office_from_gt(dict::Array{Any,1}, receptive_fields::
 
     #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-    office_subset = ["chair", "microwave", "backpack"]
+    office_subset = ["chair", "microwave", "backpack", "bed"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
