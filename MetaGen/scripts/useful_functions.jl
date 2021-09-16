@@ -163,7 +163,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
 
     #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-    office_subset = ["chair", "microwave", "backpack", "bed"]
+    office_subset = ["dining table", "microwave", "backpack", "bowl", "couch"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
@@ -210,8 +210,8 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
             end
 
             if length(temp) > 5
-                println(length(temp))
                 println("v ", v, " f ", f)
+                println(length(temp))
             end
 
             if length(temp) > top_n #temp should already be sorted by confidence. if it's not, will have to add code to sort it first
@@ -299,7 +299,7 @@ function make_observations_office_from_gt(dict::Array{Any,1}, receptive_fields::
 
     #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-    office_subset = ["chair", "microwave", "backpack", "bed"]
+    office_subset = ["dining table", "microwave", "backpack", "bowl", "couch"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
