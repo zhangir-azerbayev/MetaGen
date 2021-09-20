@@ -191,7 +191,7 @@ Samples a new scene and a new v_matrix.
 
     #rfs_element = GeometricElement{Object3D}(params.p_objects, object_distribution, (params,))
     #rfs_element = RFSElements{Object3D}([rfs_element]) #need brackets because rfs has to take an array
-    init_scene = @trace(object_distribution_delta(params), :init_scene)
+    init_scene = @trace(object_distribution_gaussian(params), :init_scene)
     #make the observations
     previous_v_matrix = v_matrix_state[1]
     previous_alphas = v_matrix_state[2]

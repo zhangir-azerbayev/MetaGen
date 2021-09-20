@@ -6,43 +6,48 @@ import YAML
 using Pipe: @pipe
 using Random
 
-# config_path = ARGS[1]
-# config = YAML.load_file(config_path)
-# mkdir("results_marlene/$(config["experiment_name"])")
-
 include("useful_functions.jl")
-#dict = []
-# for i = 0:config["batches_upto"]
-# 	to_add =  @pipe "$(config["input_file_dir"])$(i)_data_labelled.json" |> open |> read |> String |> JSON.parse
-# 	append!(dict, to_add)
-# end
-#dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
-#dict = @pipe "../../scratch_work_07_16_21/0_data_labelled.json" |> open |> read |> String |> JSON.parse
-#dict = @pipe "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/metagen-data/data_labelled/data_labelled.json" |> open |> read |> String |> JSON.parse
-path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/09_13_3/"
+
+path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/09_18/"
 
 dict = @pipe (path * "data_labelled.json") |> open |> read |> String |> JSON.parse
 
-#Random.seed!(17) #15 produces -Inf for a particle from video 1, frame 111, no rejuvination steps
-#try to make objects_observed::Array{Array{Array{Array{Detection2D}}}} of observed objects.
-#outer array is for scenes, then frames, the receptive fields, then last is an array of detections
-
 ################################################################################
-num_videos = 50
+#Set up the observations
+num_videos = 4 #total, including test set
 num_frames = 20
 threshold = 0.05
 
-num_particles = 100
-mcmc_steps_outer = 500
-mcmc_steps_inner = 1
-
-n_top = 8
-params = Video_Params(n_possible_objects = 4)
+n_top = 5
+params = Video_Params(n_possible_objects = 5)
 
 receptive_fields = make_receptive_fields(params)
 objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold, n_top)
 
 ################################################################################
+#Set up for MCMC
+num_particles = 10
+mcmc_steps_outer = 1
+mcmc_steps_inner = 1
+
+
+################################################################################
+#Online MetaGen
+shuffle_type = 0 #0, 1, or 2
+num_videos_train = convert(Int64, num_videos/2)
+
+if shuffle_type==0
+	order = collect(1:num_videos_train)
+elseif shuffle_type==1
+	Random.seed!(1)
+	order = shuffle(1:num_videos_train)
+else shuffle_type==2
+	Random.seed!(2)
+	order = shuffle(1:num_videos_train)
+end
+
+training_objects_observed = objects_observed[order, :]
+training_camera_trajectories = camera_trajectories[order, :]
 
 #Set up the output files
 online_V_file = open(path * "online_V.csv", "w")
@@ -50,22 +55,16 @@ file_header_V(online_V_file, params)
 online_ws_file = open(path * "online_ws.csv", "w")
 file_header_ws(online_ws_file, params, num_particles)
 
-
-################################################################################
-#Online MetaGen
-#@profilehtml unfold_particle_filter(false, num_particles, objects_observed, camera_trajectories, params, file)
-
 traces, inferred_world_states, avg_v = unfold_particle_filter(nothing,
-	num_particles, mcmc_steps_outer, mcmc_steps_inner, objects_observed,
-	camera_trajectories, params, online_V_file, online_ws_file)
+	num_particles, mcmc_steps_outer, mcmc_steps_inner, training_objects_observed,
+	training_camera_trajectories, params, online_V_file, online_ws_file)
 close(online_V_file)
 close(online_ws_file)
 #
+println("avg_v ", avg_v)
 println("done with pf for online")
 
 ################################################################################
-
-
 
 # #Retrospective MetaGen
 #
@@ -75,8 +74,12 @@ file_header_V(retro_V_file, params)
 retro_ws_file = open(path * "retro_ws.csv", "w")
 file_header_ws(retro_ws_file, params, num_particles)
 
-unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
-	objects_observed, camera_trajectories, params, retro_V_file, retro_ws_file)
+#training set and test set
+input_objects_observed = vcat(objects_observed[order, :], objects_observed[(num_videos_train+1):num_videos, :])
+input_camera_trajectories = vcat(camera_trajectories[order, :], camera_trajectories[(num_videos_train+1):num_videos, :])
+
+traces, inferred_world_states, avg_v = unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
+	input_objects_observed, input_camera_trajectories, params, retro_V_file, retro_ws_file)
 close(retro_V_file)
 close(retro_ws_file)
 
@@ -101,7 +104,7 @@ close(lesioned_ws_file)
 println("done with pf for lesioned metagen")
 
 ################################################################################
-#for writing an output file for a demo using Online MetaGen
+#for writing an output file for a demo using Retro MetaGen. will only make sense for non-mixed up version
 
 ###### add to dictionary
 out = write_to_dict(dict, camera_trajectories, inferred_world_states, num_videos, num_frames)

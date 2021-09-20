@@ -17,7 +17,8 @@ Base.@kwdef struct Video_Params
     x_max::Float64 = 5
     y_max::Float64 = 3
     z_max::Float64 = 5
-    delta = 0.5 #standard deviation for Gaussian on distance between objects. the larger the number, the stronger the prior
+    delta = 0.5 #sd for gaussian #midpoint of logistic curve for prior over distance between objects
+    #k = 10. #slope of logistic curve for prior over distance between objects
     num_receptive_fields::Int64 = 1
     #camera parameters that don't change
     image_dim_x::Int64 = 256

@@ -166,6 +166,81 @@ function construct_3D(cat::Int64, params::Video_Params)
 end
 
 ##############################################################################################
+"For populating the scene with objects spaced out from one another with a sigmoidal prior"
+struct Object_Distribution_Logistic <: Gen.Distribution{Array{Object3D}} end
+
+const object_distribution_logistic = Object_Distribution_Logistic()
+
+function Gen.random(::Object_Distribution_Logistic, params::Video_Params)
+    num_objects = geometric(params.p_objects)
+    placed_objects = Array{Object3D}(undef, 0)
+    for i = 1:num_objects
+        cat = categorical(params.probs_possible_objects)
+        candidate_obj = construct_3D(cat, params) #placed uniformly randomly
+        j = 1 #indexes through the objects that have already been placed and accepted
+        while j <= length(placed_objects)
+            #resample with probabilty given by Logistic with distance
+            d = dist(candidate_obj, placed_objects[j])
+            p = 1/(1 + exp(-params.k*(d - delta)))
+            if bernoulli(p) #if too close, resample
+                candidate_obj = construct_3D(cat, params) #placed uniformly randomly
+                j = 1 #restart loop over objects already placed
+            else
+                j = j + 1
+            end
+        end
+        push!(placed_objects, candidate_obj)
+    end
+    return placed_objects
+end
+
+function Gen.logpdf(::Object_Distribution_Logistic, placed_objects::Array{Object3D}, params::Video_Params)
+    num_objects = length(placed_objects)
+    p_geometric = Gen.logpdf(geometric, num_objects, params.p_objects)
+
+    if num_objects == 0
+        return p_geometric
+    end
+
+    #iterate over all pairwise combindations of objects and get distances
+    p_distance = 0
+    for c in combinations(placed_objects, 2)
+        d = dist(c[1], c[2])
+        p = 1/(1 + exp(-params.k*(d - delta))) #probability of resampling
+        inv = 1-p #probability of sticking with it
+        log_inv = log(inv)
+        p_distance = p_distance + log_inv
+    end
+
+    #categorical
+    cats = last.(placed_objects) #grabbing the category types
+    p_cats = sum(map(i -> Gen.logpdf(categorical, i, params.probs_possible_objects), cats))
+
+    xs = first.(placed_objects)
+    p_xs = sum(map(x -> Gen.logpdf(uniform, x, params.x_min, params.x_max), xs))
+
+    ys = (a->a[2]).(placed_objects)
+    p_ys = sum(map(y -> Gen.logpdf(uniform, y, params.y_min, params.y_max), ys))
+
+    zs = (a->a[3]).(placed_objects)
+    p_zs = sum(map(z -> Gen.logpdf(uniform, z, params.z_min, params.z_max), zs))
+
+    return p_geometric + p_cats + p_xs + p_ys + p_zs + p_distance
+end
+
+function Gen.logpdf_grad(::Object_Distribution_Logistic, objects_3D::Object3D, params::Video_Params)
+    gerror("Not implemented")
+    (nothing, nothing)
+end
+
+(::Object_Distribution_Logistic)(params) = Gen.random(Object_Distribution_Logistic(), params)
+
+has_output_grad(::Object_Distribution_Logistic) = false
+has_argument_grads(::Object_Distribution_Logistic) = (false,)
+
+export object_distribution_logistic
+
+##############################################################################################
 "For populating the scene with objects spaced out from one another with a graded, Gaussian prior"
 struct Object_Distribution_Gaussian <: Gen.Distribution{Array{Object3D}} end
 

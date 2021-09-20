@@ -40,7 +40,26 @@ objects_observed, camera_trajectories = make_observations_office(dict, receptive
 num_particles = config["num_particles"]
 mcmc_steps_outer = config["mcmc_steps_outer"]
 mcmc_steps_inner = config["mcmc_steps_inner"]
+shuffle_type = config["shuffle_type"]
 ################################################################################
+#Online MetaGen
+
+#Online MetaGen
+shuffle_type = 0 #0, 1, or 2
+num_videos_train = convert(Int64, num_videos/2)
+
+if shuffle_type==0
+	order = collect(1:num_videos_train)
+elseif shuffle_type==1
+	Random.seed!(1)
+	order = shuffle(1:num_videos_train)
+else shuffle_type==2
+	Random.seed!(2)
+	order = shuffle(1:num_videos_train)
+end
+
+training_objects_observed = objects_observed[order, :]
+training_camera_trajectories = camera_trajectories[order, :]
 
 #Set up the output files
 online_V_file = open(output_dir * "/online_V.csv", "w")
@@ -48,22 +67,23 @@ file_header_V(online_V_file, params)
 online_ws_file = open(output_dir * "/online_ws.csv", "w")
 file_header_ws(online_ws_file, params, num_particles)
 
-################################################################################
-#Online MetaGen
 println("start pf for online")
 
-#@profilehtml unfold_particle_filter(false, num_particles, objects_observed, camera_trajectories, params, file)
 traces, inferred_world_states, avg_v = unfold_particle_filter(nothing,
-	num_particles, mcmc_steps_outer, mcmc_steps_inner, objects_observed,
-	camera_trajectories, params, online_V_file, online_ws_file)
+	num_particles, mcmc_steps_outer, mcmc_steps_inner, training_objects_observed,
+	training_camera_trajectories, params, online_V_file, online_ws_file)
 close(online_V_file)
 close(online_ws_file)
 
+println("avg_v ", avg_v)
 println("done with pf for online")
 
 ################################################################################
 #Retrospective MetaGen
-println("start retrospective")
+
+#training set and test set
+input_objects_observed = vcat(objects_observed[order, :], objects_observed[(num_videos_train+1):num_videos, :])
+input_camera_trajectories = vcat(camera_trajectories[order, :], camera_trajectories[(num_videos_train+1):num_videos, :])
 
 #Set up the output file
 retro_V_file = open(output_dir * "/retro_V.csv", "w")
@@ -71,8 +91,10 @@ file_header_V(retro_V_file, params)
 retro_ws_file = open(output_dir * "/retro_ws.csv", "w")
 file_header_ws(retro_ws_file, params, num_particles)
 
-unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
-	objects_observed, camera_trajectories, params, retro_V_file, retro_ws_file)
+println("start retrospective")
+
+traces, inferred_world_states, avg_v = unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
+	input_objects_observed, input_camera_trajectories, params, retro_V_file, retro_ws_file)
 close(retro_V_file)
 close(retro_ws_file)
 
@@ -101,7 +123,7 @@ println("done with pf for lesioned metagen")
 =#
 
 ################################################################################
-#for writing an output file for a demo using MetaGen
+#for writing an output file for a demo using Retro MetaGen. will only make sense for non-mixed up version
 
 ###### add to dictionary
 out = write_to_dict(dict, camera_trajectories, inferred_world_states, num_videos, num_frames)

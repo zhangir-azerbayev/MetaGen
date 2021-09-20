@@ -5,6 +5,14 @@ function file_header_V(file, params::Video_Params)
     	print(file, "fa_", string(i), "&")
     	print(file, "m_", string(i), "&")
     end
+
+    for j = 1:num_particles
+        for i = 1:params.n_possible_objects
+        	print(file, "fa_", string(i), "_", string(j), "&")
+        	print(file, "m_", string(i), "_", string(j), "&")
+        end
+        print(file, "weight_", string(j), "&")
+    end
     print(file, "inferred_best_world_state")
     print(file, "\n")
 end
