@@ -1,4 +1,5 @@
 ##############################################################################################
+
 #Setting up helper functions
 function countmemb(itr)
     d = Dict{String, Int}()
@@ -23,7 +24,24 @@ function print_Vs_and_Rs_to_file(V_file, ws_file, traces, num_particles::Int64, 
         print(V_file, avg_v[i,1], "&")
         print(V_file, avg_v[i,2], "&")
     end
-    print(V_file, best_world_state, "&")
+
+    v_matrix = zeros(params.n_possible_objects, 2)
+    for j = 1:num_particles
+        choices = get_choices(traces[j])
+        weight = get_score(traces[j])
+        for i = 1:params.n_possible_objects
+            v_matrix[i,1] = choices[:videos => v => :v_matrix => :lambda_fa => i => :fa]
+            v_matrix[i,2] = choices[:videos => v => :v_matrix => :miss_rate => i => :miss]
+            print(V_file, v_matrix[i,1], "&")
+            print(V_file, v_matrix[i,2], "&")
+        end
+        print(V_file, weight, "&")
+    end
+
+
+    print(V_file, best_world_state)
+    ###########################################
+    #switch to ws file
     print(ws_file, best_world_state, "&")
 
     for j = 1:num_particles
@@ -62,7 +80,8 @@ function process(traces, num_particles::Int64, params::Video_Params, v::Int64)
         v_matrixes[i] = v_matrix
         world_states[i] = choices[:videos => v => :init_scene]
     end
-    avg_v = sum(weights./sum(weights) .* v_matrixes)
+    normalized_log_weights = weights ./ (sum(weights))
+    avg_v = sum(exp.(normalized_log_weights)./sum(exp.(normalized_log_weights)) .* v_matrixes)#change out of log
     best_world_state = world_states[findmax(weights)[2]]
 
     return avg_v, world_states, best_world_state
