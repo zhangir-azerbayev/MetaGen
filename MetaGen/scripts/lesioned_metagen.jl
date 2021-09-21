@@ -83,6 +83,25 @@ println("done with pf for retrospective")
 #run Lesioned MetaGen
 =#
 
+shuffle_type = config["shuffle_type"]
+
+if shuffle_type==0
+	order = collect(1:num_videos_train)
+elseif shuffle_type==1
+	Random.seed!(1)
+	order = shuffle(1:num_videos_train)
+else shuffle_type==2
+	Random.seed!(2)
+	order = shuffle(1:num_videos_train)
+end
+
+training_objects_observed = objects_observed[order, :]
+training_camera_trajectories = camera_trajectories[order, :]
+#training set and test set
+input_objects_observed = vcat(objects_observed[order, :], objects_observed[(num_videos_train+1):num_videos, :])
+input_camera_trajectories = vcat(camera_trajectories[order, :], camera_trajectories[(num_videos_train+1):num_videos, :])
+
+
 #Set up the output file
 lesioned_V_file = open(output_dir * "/lesioned_V.csv", "w")
 file_header_V(lesioned_V_file, params)
@@ -93,7 +112,8 @@ v = zeros(length(params.possible_objects), 2)
 v[:,1] .= 1.0
 v[:,2] .= 0.5
 unfold_particle_filter(v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
-	objects_observed, camera_trajectories, params, lesioned_V_file, lesioned_ws_file)
+	input_objects_observed, input_camera_trajectories, params, lesioned_V_file,
+	lesioned_ws_file)
 close(lesioned_V_file)
 close(lesioned_ws_file)
 
