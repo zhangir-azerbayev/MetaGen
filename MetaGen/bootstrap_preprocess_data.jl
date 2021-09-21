@@ -25,8 +25,6 @@ dict = @pipe path * "output.json" |> open |> read |> String |> JSON.parse
 
 num_videos = 100
 num_frames = 20
-threshold = 0.0
-top_n = 5
 
 num_particles = 100
 
@@ -92,9 +90,9 @@ sim_lesioned, sim_lesioned_lower_ci, sim_lesioned_upper_ci = jacccard_sim_2D(num
     num_frames, params, dict, ground_truth_world_states, lesioned_world_states,
     1000, 0.95)
 
-sim_NN = jacccard_sim_2D(num_videos, num_frames, params, dict, ground_truth_world_states, threshold)
+sim_NN_fitted = jacccard_sim_2D(num_videos, num_frames, params, dict, ground_truth_world_states, threshold = 0.09)
 
-sim_NN_input = jacccard_sim_2D(num_videos, num_frames, params, dict, ground_truth_world_states, threshold, top_n)
+sim_NN_input = jacccard_sim_2D(num_videos, num_frames, params, dict, ground_truth_world_states, threshold = 0.0, top_n = 5)
 
 new_df = DataFrame(video = 1:num_videos,
     sim_online = vcat(sim_online, fill(NaN, num_videos - num_training_videos)),
@@ -106,7 +104,7 @@ new_df = DataFrame(video = 1:num_videos,
     sim_lesioned = sim_lesioned,
     sim_lesioned_lower_ci = sim_lesioned_lower_ci,
     sim_lesioned_upper_ci = sim_lesioned_upper_ci,
-    sim_NN = sim_NN,
+    sim_NN_fitted = sim_NN_fitted,
     sim_NN_input = sim_NN_input)
 
 CSV.write(path * "similarity2D.csv", new_df)

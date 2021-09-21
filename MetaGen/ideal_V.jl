@@ -8,23 +8,25 @@ using Pipe: @pipe
 include("helper_function.jl")
 include("scripts/useful_functions.jl")
 
+path = "../../scratch_work_07_16_21/09_18/shuffle_0/"
+
 #could equally use input dictionary
 #dict = @pipe "output.json" |> open |> read |> String |> JSON.parse
-dict = @pipe "../Data/output.json" |> open |> read |> String |> JSON.parse
+dict = @pipe (path * "output.json") |> open |> read |> String |> JSON.parse
 
 
-num_videos = 10
-num_frames = 200
+num_videos = 50
+num_frames = 20
+threshold = 0.0
+top_n = 5
 
-threshold = 0.11
-
-params = Video_Params(n_possible_objects = 2)
-receptive_fields = make_receptive_fields()
-objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)
+params = Video_Params(n_possible_objects = 5)
+receptive_fields = make_receptive_fields(params)
+objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold, top_n)
 
 ###############################################################################
 #Set up the output file
-outfile = string("../Data/ideal_v_matrix.csv")
+outfile = string(path * "ideal_v_matrix.csv")
 file = open(outfile, "w")
 
 #return
@@ -106,7 +108,7 @@ close(file)
 
 ################################################################################
 #ground truth
-file = open(string("../Data/ground_truth_V.csv"), "w")
+file = open(string(path * "ground_truth_V.csv"), "w")
 
 print(file, "video_number&")
 for i = 1:params.n_possible_objects
@@ -131,6 +133,6 @@ close(file)
 #add ground truth per frame to dictionary
 out = write_gt_to_dict(dict, camera_trajectories, gt_objects)
 
-open("../Data/output_with_gt.json","w") do f
+open(path * "output_with_gt.json","w") do f
 	JSON.print(f,out)
 end

@@ -25,6 +25,6 @@ online_ci_averages = confidence_interval(online_data, num_particles, n_possible_
 online_ci_MSE = MSE_and_confidence_interval(online_data, ground_truth_data, num_particles, n_possible_objects, 1000, 0.95)
 
 #merge them all together
-online_V_processed = hcat(select(online_data, 1:2*n_possible_objects+1), online_ci_MSE, select(online_data, length(names(online_data))))
+online_V_processed = hcat(select(online_data, 1:2*n_possible_objects+1), online_ci_averages, online_ci_MSE, select(online_data, length(names(online_data))))
 
 CSV.write(path * "online_V_processed.csv", online_V_processed)
