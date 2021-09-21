@@ -24,7 +24,7 @@ array for each frame and array for each receptive field and array for those dete
         objects_observed::Matrix{Array{Detection2D}},
         camera_trajectories::Matrix{Camera_Params},
         params::Video_Params,
-        V_file::IOStream, ws_file::IOStream)
+        V_file::IOStream, ws_file::IOStream, order::Vector{Int64})
 
         lesioned = !isnothing(v_matrix)
 
@@ -173,7 +173,7 @@ array for each frame and array for each receptive field and array for those dete
                 ess = effective_sample_size(normalize_weights(state.log_weights)[2])
                 println("ess after rejuvination ", ess)
 
-                inferred_realities[v], avg_v = print_Vs_and_Rs_to_file(V_file, ws_file, state.traces, num_particles, params, v, v==num_videos)
+                inferred_realities[v], avg_v = print_Vs_and_Rs_to_file(V_file, ws_file, state.traces, num_particles, params, v, order, v==num_videos)
                 #println("avg_v ", avg_v)
                 #println("time of v ", v)
             end #end timer

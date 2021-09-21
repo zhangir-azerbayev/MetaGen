@@ -46,15 +46,16 @@ shuffle_type = config["shuffle_type"]
 
 #Online MetaGen
 num_videos_train = convert(Int64, num_videos/2)
+@assert num_videos_train==50
 
 if shuffle_type==0
 	order = collect(1:num_videos_train)
 elseif shuffle_type==1
-	Random.seed!(1)
-	order = shuffle(1:num_videos_train)
-else shuffle_type==2
-	Random.seed!(2)
-	order = shuffle(1:num_videos_train)
+	order = vcat(reverse(collect(26:50)), reverse(collect(1:25)))
+elseif shuffle_type==2
+	order = vcat(collect(26:50), collect(1:25))
+elseif shuffle_type==3
+	order = vcat(reverse(collect(1:25)), reverse(collect(26:50)))
 end
 
 training_objects_observed = objects_observed[order, :]
@@ -70,7 +71,7 @@ println("start pf for online")
 
 traces, inferred_world_states, avg_v = unfold_particle_filter(nothing,
 	num_particles, mcmc_steps_outer, mcmc_steps_inner, training_objects_observed,
-	training_camera_trajectories, params, online_V_file, online_ws_file)
+	training_camera_trajectories, params, online_V_file, online_ws_file, order)
 close(online_V_file)
 close(online_ws_file)
 
@@ -81,8 +82,9 @@ println("done with pf for online")
 #Retrospective MetaGen
 
 #training set and test set
-input_objects_observed = vcat(objects_observed[order, :], objects_observed[(num_videos_train+1):num_videos, :])
-input_camera_trajectories = vcat(camera_trajectories[order, :], camera_trajectories[(num_videos_train+1):num_videos, :])
+order = vcat(order, 51:100)
+input_objects_observed = vcat(objects_observed[order, :])
+input_camera_trajectories = vcat(camera_trajectories[order, :])
 
 #Set up the output file
 retro_V_file = open(output_dir * "/retro_V.csv", "w")
@@ -93,7 +95,7 @@ file_header_ws(retro_ws_file, params, num_particles)
 println("start retrospective")
 
 traces, inferred_world_states, avg_v = unfold_particle_filter(avg_v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
-	input_objects_observed, input_camera_trajectories, params, retro_V_file, retro_ws_file)
+	input_objects_observed, input_camera_trajectories, params, retro_V_file, retro_ws_file, order)
 close(retro_V_file)
 close(retro_ws_file)
 
@@ -122,7 +124,10 @@ println("done with pf for lesioned metagen")
 =#
 
 ################################################################################
-#for writing an output file for a demo using Retro MetaGen. will only make sense for non-mixed up version
+#for writing an output file for a demo using Retro MetaGen.
+
+#undor re-ordering of inferred_world_states
+inferred_world_states = inferred_world_states[order]
 
 ###### add to dictionary
 out = write_to_dict(dict, camera_trajectories, inferred_world_states, num_videos, num_frames)

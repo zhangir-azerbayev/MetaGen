@@ -14,9 +14,12 @@ end
 
 ##############################################################################################
 #does weighted average of V, but highest weighted particle for world state. also prints world state and weight for each particle
-function print_Vs_and_Rs_to_file(V_file, ws_file, traces, num_particles::Int64, params::Video_Params, v::Int64, last_time::Bool=false)
+function print_Vs_and_Rs_to_file(V_file, ws_file, traces, num_particles::Int64, params::Video_Params, v::Int64, order::Vector{Int64}, last_time::Bool=false)
     print(V_file, v, " & ")
     print(ws_file, v, " & ")
+
+    print(V_file, order[v], " & ")
+    print(ws_file, order[v], " & ")
 
     avg_v, world_states, best_world_state = process(traces, num_particles, params, v)
 

@@ -1,5 +1,6 @@
 function file_header_V(file, params::Video_Params)
     #set up file header
+    print(file, "order_run&")
     print(file, "video_number&")
     for i = 1:params.n_possible_objects
     	print(file, "fa_", string(i), "&")
