@@ -17,7 +17,7 @@ COCO_CLASSES = ["person", "bicycle", "car", "motorcycle",
 
 #for now, remove books
 #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
-office_subset = ["chair", "microwave"]
+office_subset = ["dining table", "microwave", "backpack", "bowl", "couch"]
 
 # dictionary_scenenet_to_office = Dict("chair" => "chair",
 # "straightchair" => "chair", "swivelchair" => "chair", "windsorchair" => "chair",
@@ -31,7 +31,8 @@ office_subset = ["chair", "microwave"]
 # "bottle" => "bottle", "winebottle" => "bottle")
 
 #dictionary_gt_to_office = Dict("chair" => "chair", "sofa" => "couch")
-dictionary_gt_to_office = Dict("chair" => "chair", "microwave" => "microwave")
+#dictionary_gt_to_office = Dict("chair" => "chair", "microwave" => "microwave", "sofa" => "couch")
+dictionary_gt_to_office = Dict("table" => "dining table", "microwave" => "microwave", "backpack" => "backpack", "bowl" => "bowl", "sofa" => "couch")
 
 
 
@@ -70,11 +71,43 @@ function extract_category(world_states::Any)
 end
 
 ################################################################################
-function threeD2twoD(threeDobjects::Vector{Any}, v::Int64, f::Int64,
+function extract_category(data::DataFrame, num_videos::Int64, num_particles::Int64)
+    categories_only = deepcopy(data)
+
+	temp = Array{Any}(undef, num_videos)
+	for v = 1:num_videos
+		temp[v] = last.(data[v, "inferred_best_world_state"])
+    end
+	categories_only[!,"inferred_best_world_state"] = temp
+
+	for j = 1:num_particles
+		temp = Array{Any}(undef, num_videos) #length(online_names) should be the same as num_videos
+		str = "world_state_" * string(j)
+    	for v = 1:num_videos
+        	temp[v] = last.(data[v, str])
+		end
+		categories_only[!, str] = temp
+    end
+    return categories_only
+end
+
+################################################################################
+function threeD2twoD_new(threeDobjects::Vector{Any}, v::Int64, f::Int64,
 		params::Video_Params, camera_trajectories::Matrix{Camera_Params})
-	paramses = fill(params, length(threeDobjects[v]))
-	camera_paramses = fill(camera_trajectories[v, f], length(threeDobjects[v]))
-	threeDobjects_2D = map(render, paramses, camera_paramses, threeDobjects[v])
+	paramses = fill(params, length(threeDobjects))
+	camera_paramses = fill(camera_trajectories[v, f], length(threeDobjects))
+	threeDobjects_2D = map(render, paramses, camera_paramses, threeDobjects)
+	threeDobjects_2D = Array{Detection2D}(threeDobjects_2D)
+	threeDobjects_2D = filter(p -> within_frame(p), threeDobjects_2D)
+	categories = last.(threeDobjects_2D)
+end
+
+################################################################################
+function threeD2twoD_new(threeDobjects::Vector{Tuple{Float64, Float64, Float64, Int64}}, v::Int64, f::Int64,
+		params::Video_Params, camera_trajectories::Matrix{Camera_Params})
+	paramses = fill(params, length(threeDobjects))
+	camera_paramses = fill(camera_trajectories[v, f], length(threeDobjects))
+	threeDobjects_2D = map(render, paramses, camera_paramses, threeDobjects)
 	threeDobjects_2D = Array{Detection2D}(threeDobjects_2D)
 	threeDobjects_2D = filter(p -> within_frame(p), threeDobjects_2D)
 	categories = last.(threeDobjects_2D)
@@ -103,9 +136,30 @@ end
 function new_parse_data(data::DataFrame, num_videos::Int64)
     world_states = Array{Any}(undef, num_videos) #length(online_names) should be the same as num_videos
     for i = 1:num_videos
-        world_states[i] = eval(Meta.parse(data[i, "inferred_mode_realities"])) #1 is for the first row. we only have 1 row
+        world_states[i] = eval(Meta.parse(data[i, "inferred_best_world_state"])) #1 is for the first row. we only have 1 row
     end
     return world_states
+end
+
+################################################################################
+#parse the dataframe and return a dataframe of world states
+function new_parse_data(data::DataFrame, num_videos::Int64, num_particles::Int64)
+	world_states = Array{Any}(undef, num_videos) #length(online_names) should be the same as num_videos
+	for i = 1:num_videos
+        world_states[i] = eval(Meta.parse(data[i, "inferred_best_world_state"])) #1 is for the first row. we only have 1 row
+    end
+	data[!, "inferred_best_world_state"] = world_states
+
+	for j = 1:num_particles
+		temp = Array{Any}(undef, num_videos) #length(online_names) should be the same as num_videos
+		str = "world_state_" * string(j)
+		for i = 1:num_videos
+	        temp[i] = eval(Meta.parse(data[i, str])) #1 is for the first row. we only have 1 row
+	    end
+		data[!, str] = temp
+	end
+
+    return data
 end
 
 ################################################################################
@@ -135,6 +189,149 @@ function jaccard_similarity(a::Union{Array{Any}, Vector{Int64}}, b::Union{Array{
     else
         return length(overlap_of_sets)/length(union_of_sets)
     end
+end
+
+################################################################################
+#Jaccard similarity for each column of data compared to ground_truth
+function jaccard_similarity(ground_truth_categories::Array{Any}, data::DataFrame, num_particles::Int64)
+	similarity_data = deepcopy(data)
+	similarity_data[!, "inferred_best_world_state"] = map(jaccard_similarity, ground_truth_categories, data[!, "inferred_best_world_state"])
+	for j=1:num_particles
+		str = "world_state_" * string(j)
+		similarity_data[!, str] = map(jaccard_similarity, ground_truth_categories, data[!, str])
+	end
+	return similarity_data
+end
+
+################################################################################
+#function for rangling the dataframe.
+#returns a dataframe just like t
+function add_confidence_interval(df::DataFrame, n_boot::Int64, cil::Float64)
+	from = findfirst(names(df).=="world_state_1")
+	to = length(names(df))
+
+	data = select(df, from:to)#now we have just the columns we need
+	num_particles = convert(Int64, size(data)[2]/2)
+	num_videos = size(data)[1]
+	lower_ci = Array{Float64}(undef, num_videos)
+	upper_ci = Array{Float64}(undef, num_videos)
+	for v = 1:num_videos
+		weights = Array{Float64}(undef, num_particles)
+		world_states = Array{Float64}(undef, num_particles)
+		for j = 1:num_particles
+			str = "weight_" * string(j)
+			weights[j] = data[v, str] #why 1 and not v?
+			str = "world_state_" * string(j)
+			world_states[j] = data[v, str] #why 1 and not v
+		end
+		new_df = DataFrame(weights = weights, values = world_states)
+		bs = bootstrap(highest_weighted_world_state, new_df, BasicSampling(n_boot))
+		bci = confint(bs, PercentileConfInt(cil))
+		lower_ci[v] = bci[1][2]
+		upper_ci[v] = bci[1][3]
+	end
+
+	#make the dataframe I want to return
+	return df[!, "inferred_best_world_state"], lower_ci, upper_ci
+end
+
+################################################################################
+#this one is for getting sim for the NN
+function jacccard_sim_2D(num_videos::Int64, num_frames::Int64, params::Video_Params, dict::Any,
+    ground_truth_world_states::Vector{Any}, threshold::Float64, top_n = Inf)
+
+    receptive_fields = make_receptive_fields(params)
+
+    objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold, top_n)
+
+    sim_NN = zeros(num_videos)
+    for v = 1:num_videos
+        for f = 1:num_frames
+            gt_categories = threeD2twoD_new(ground_truth_world_states[v], v, f, params, camera_trajectories)
+            NN_categories = last.(objects_observed[v,f])
+            sim_NN[v] = sim_NN[v] + jaccard_similarity(gt_categories, NN_categories)
+        end
+        sim_NN[v] = sim_NN[v]/num_frames
+    end
+    return sim_NN
+end
+
+################################################################################
+#this one is for getting sim and confidence interval for a DataFrame
+function jacccard_sim_2D(num_videos::Int64, num_frames::Int64, params::Video_Params, dict::Any,
+    ground_truth_world_states::Vector{Any}, df::DataFrame, num_bootstraps::Int64, cil::Float64)
+
+    receptive_fields = make_receptive_fields(params)
+
+    objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)
+
+    sim = zeros(num_videos)
+    for v = 1:num_videos
+        for f = 1:num_frames
+			gt_categories = threeD2twoD_new(ground_truth_world_states[v], v, f, params, camera_trajectories)
+			model_categories = threeD2twoD_new(df[v, "inferred_best_world_state"], v, f, params, camera_trajectories)
+            sim[v] = sim[v] + jaccard_similarity(gt_categories, model_categories)
+        end
+        sim[v] = sim[v]/num_frames
+    end
+
+	#let's make confidence intervals
+	from = findfirst(names(df).=="world_state_1")
+	to = length(names(df))
+	data = select(df, from:to)#now we have just the columns we need
+	num_particles = convert(Int64, size(data)[2]/2)
+	lower_ci = Array{Float64}(undef, num_videos)
+	upper_ci = Array{Float64}(undef, num_videos)
+	sim_values = zeros(num_videos, num_particles)
+
+	#bootstrapping happens for each video
+	for v = 1:num_videos
+		weights = Array{Float64}(undef, num_particles)
+		for j = 1:num_particles
+			str = "weight_" * string(j)
+			weights[j] = df[v, str]
+			for f = 1:num_frames
+				gt_categories = threeD2twoD_new(ground_truth_world_states[v], v, f, params, camera_trajectories)
+				str = "world_state_" * string(j)
+				model_categories = threeD2twoD_new(df[v, str], v, f, params, camera_trajectories)
+				sim_values[v, j] = sim_values[v, j] + jaccard_similarity(gt_categories, model_categories)
+			end
+			sim_values[v,j] = sim_values[v,j]/num_frames
+		end
+		new_df = DataFrame(weights = weights, values = sim_values[v,:])
+		#println("new_df ", new_df)
+		bs = bootstrap(highest_weighted_world_state, new_df, BasicSampling(num_bootstraps))
+		#println("bs ", bs)
+		bci = confint(bs, PercentileConfInt(cil))
+		#println("bci ", bci)
+		lower_ci[v] = bci[1][2]
+		upper_ci[v] = bci[1][3]
+	end
+    return sim, lower_ci, upper_ci
+end
+
+################################################################################
+# #some data is a dataframe with just one row. it has num_particles values and num_particles weights
+# #returns the value of the highest weighted particle
+# function highest_weighted_world_state(some_data::DataFrame)
+# 	num_particles = convert(Int64, size(some_data)[2]/2)
+# 	world_states = Array{Float64}(undef, num_particles)
+# 	weights = Array{Float64}(undef, num_particles)
+# 	for j = 1:num_particles
+# 		str = "world_state_" * string(j)
+# 		world_states[j] = some_data[1, str]
+# 		str = "weight_" * string(j)
+# 		weights[j] = some_data[1, str]
+# 	end
+# 	best_world_state = world_states[findmax(weights)[2]]
+# 	return best_world_state
+# end
+
+#some data is a dataframe with two columns (sim and weights) and num_particles rows.
+#returns the value of the highest weighted particle
+function highest_weighted_world_state(some_data::DataFrame)
+	row = findmax(some_data[!, "weights"])[2]
+	return some_data[row, "values"]
 end
 
 ################################################################################

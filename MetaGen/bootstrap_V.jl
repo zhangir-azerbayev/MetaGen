@@ -7,10 +7,10 @@ using Pipe: @pipe
 
 include("helper_bootstrap_V.jl")
 
-path = "../../scratch_work_07_16_21/09_18/"
+ppath = "../../scratch_work_07_16_21/09_18/shuffle_0/"
 
-num_videos = 2
-num_particles = 10
+num_videos = 50
+num_particles = 100
 n_possible_objects = 5
 
 online_data = CSV.read(path * "online_V.csv", DataFrame; delim = "&")
@@ -22,10 +22,9 @@ ground_truth_data = CSV.read(path * "ground_truth_V.csv", DataFrame; delim = "&"
 online_ci_averages = confidence_interval(online_data, num_particles, n_possible_objects, 1000, 0.95)
 
 #get MSE for each particle
-online_MSE = make_MSE(online_data, ground_truth_data, num_particles, n_possible_objects)
-online_ci_MSE = confidence_interval(online_data, online_MSE, num_particles, n_possible_objects, 1000, 0.95)
+online_ci_MSE = MSE_and_confidence_interval(online_data, ground_truth_data, num_particles, n_possible_objects, 1000, 0.95)
 
 #merge them all together
-online_V_processed = hcat(select(online_data, 1:2*n_possible_objects+1), online_MSE[!,"MSE"], online_ci_MSE, select(online_data, length(names(online_data))))
+online_V_processed = hcat(select(online_data, 1:2*n_possible_objects+1), online_ci_MSE, select(online_data, length(names(online_data))))
 
 CSV.write(path * "online_V_processed.csv", online_V_processed)
