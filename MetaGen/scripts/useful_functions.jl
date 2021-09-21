@@ -20,6 +20,7 @@ end
 
 function file_header_ws(file, params::Video_Params, num_particles::Int64)
     #set up file header
+    print(file, "order_run&")
     print(file, "video_number&")
     print(file, "inferred_best_world_state&")
     for i = 1:num_particles-1
