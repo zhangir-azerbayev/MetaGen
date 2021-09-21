@@ -85,6 +85,8 @@ println("done with pf for retrospective")
 
 shuffle_type = config["shuffle_type"]
 
+num_videos_train = convert(Int64, num_videos/2)
+
 if shuffle_type==0
 	order = collect(1:num_videos_train)
 elseif shuffle_type==1

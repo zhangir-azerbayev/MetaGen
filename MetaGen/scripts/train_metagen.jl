@@ -45,7 +45,6 @@ shuffle_type = config["shuffle_type"]
 #Online MetaGen
 
 #Online MetaGen
-shuffle_type = 0 #0, 1, or 2
 num_videos_train = convert(Int64, num_videos/2)
 
 if shuffle_type==0
