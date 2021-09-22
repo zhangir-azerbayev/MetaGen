@@ -144,9 +144,9 @@ array for each frame and array for each receptive field and array for those dete
                 line_segments_per_category = get_line_segments_per_category(params, objects_observed, camera_trajectories, v, num_frames)
                 #line_segments = get_line_segments(objects_observed, camera_trajectories, params, v, num_frames, num_receptive_fields, total_n_objects)
                 #to-do: threads here
-                seeds = collect(1:num_particles)
+                #seeds = collect(1:num_particles)
                 Threads.@threads for i = 1:num_particles
-                    Random.seed!(seeds[i])
+                    #Random.seed!(seeds[i])
                     #for i = 1:num_particles
                     println("score particle i ", i, " before perturbation", get_score(state.traces[i]))
                     println("trace ", state.traces[i][:videos => v => :init_scene])
