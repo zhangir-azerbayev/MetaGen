@@ -7,13 +7,16 @@ from random import randrange
 from tqdm import tqdm
 random.seed(18)
 
+import numpy as np 
+from scipy.spatial.distance import cdist as cdist 
+
 from pathlib import Path
 from tdw.controller import Controller
 from tdw.tdw_utils import TDWUtils
 from tdw.librarian import ModelLibrarian
 from tdw.output_data import OutputData, Bounds, Images, Collision, EnvironmentCollision
 
-num_videos = 20
+num_videos = 5
 num_frames = 250
 dimensions = [10, 10]
 data = []
@@ -27,6 +30,38 @@ def CircleTrajectory(num_frames, radius):
         camera = {"x": radius * math.cos(angle), "y": 3, "z": radius * math.sin(angle)}
         lookat = {"x": -radius * math.cos(angle), "y": 0, "z": -radius * math.sin(angle)}
         yield camera, lookat
+
+
+def gp_noise_trajectory(num_frames, radius, camera_var, camera_l, 
+        lookat_var, lookat_l, dimensions): 
+    def rbf_kernel(xa, xb, var, l): 
+        sq_norm = -0.5 * cdist(xa, xb, 'sqeuclidean') / l**2
+        return var * np.exp(sq_norm)
+    
+    angles = [2 * math.pi * i / num_frames for i in range(num_frames)]
+    ts = np.expand_dims(np.linspace(0, 10, num_frames), 1)
+    camera_cov = rbf_kernel(ts, ts, camera_var, camera_l) 
+    lookat_cov = rbf_kernel(ts, ts, lookat_var, lookat_l)
+
+    camera_dx = np.random.multivariate_normal(mean=np.zeros(num_frames), 
+            cov=camera_cov, size=2) 
+
+    lookat_dx = np.random.multivariate_normal(mean=np.zeros(num_frames) + 0.7, 
+            cov=lookat_cov, size=3)
+
+    for t in range(num_frames): 
+        camera_x = radius * math.cos(angles[t]) + camera_dx[0, t],
+        camera_z = radius * math.sin(angles[t]) + camera_dx[1, t]
+
+        camera = {"x": np.clip(camera_x, -dimensions[0]/2+1, dimensions[0]/2-1).item(),
+                  "y": 3, 
+                  "z": np.clip(camera_z, -dimensions[1]/2+1, dimensions[1]/2-1).item()}
+        lookat = {"x": lookat_dx[0, t], 
+                  "y": lookat_dx[2, t], 
+                  "z": lookat_dx[1, t]}
+
+        yield camera, lookat
+
 
 
 # Creates objects dictionary
@@ -164,7 +199,9 @@ for video in tqdm(range(num_videos)):
     print("created avatar")
 
     views = []
-    trajectories = CircleTrajectory(num_frames, dimensions[0]/2 - 2)
+    radius = dimensions[0]/2 - 2
+    trajectories = gp_noise_trajectory(num_frames, radius, 1.35, 1.65, 0.4, 1.2, 
+            dimensions)
     for frame, (camera, lookat) in zip(range(num_frames), trajectories):
         resp = c.communicate([{"$type": "teleport_avatar_to",
                                "position": camera,
