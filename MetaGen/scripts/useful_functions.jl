@@ -79,7 +79,7 @@ function make_observations_full_COCO(dict::Array{Any,1}, receptive_fields::Vecto
         for f=1:num_frames
             #indices is where confidence was > 0.5
             indices = dict[v]["views"][f]["detections"]["scores"] .> 0.5
-            labels = round.(dict[v]["views"][f]["detections"]["labels"][indices])
+            labels = round.(Int64, dict[v]["views"][f]["detections"]["labels"][indices])
             center = dict[v]["views"][f]["detections"]["center"][indices]
             temp = Array{Detection2D}(undef, length(labels))
             if length(labels) > 5
@@ -201,7 +201,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
         for f=1:num_frames
             #indices is where confidence was > 0.5
             indices = dict[v]["views"][f]["detections"]["scores"] .> threshold #indices should be sorted by confidence
-            arr = round.(dict[v]["views"][f]["detections"]["labels"][indices]) #for turning to ints
+            arr = round.(Int64, dict[v]["views"][f]["detections"]["labels"][indices]) #for turning to ints
             center = dict[v]["views"][f]["detections"]["center"][indices]
             #temp = Array{Detection2D}(undef, length(labels))
             # if length(labels) > 5
