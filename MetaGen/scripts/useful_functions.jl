@@ -155,7 +155,7 @@ function make_observations_full_COCO(dict::Array{Any,1}, receptive_fields::Vecto
     return objects_observed, camera_trajectories
 end
 
-function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field}, num_videos::Int64, num_frames::Int64, threshold=0.5, top_n=Inf)
+function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field}, office_subset::Vector{String}, num_videos::Int64, num_frames::Int64, threshold=0.5, top_n=Inf)
 
     COCO_CLASSES = ["person", "bicycle", "car", "motorcycle",
     			"airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant",
@@ -173,7 +173,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
 
     #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-    office_subset = ["dining table", "microwave", "backpack", "bowl", "couch"]
+    #office_subset = ["dining table", "microwave", "backpack", "bowl", "couch"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
@@ -291,7 +291,8 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
 end
 
 #for testing: feed ground-truth 2D detections
-function make_observations_office_from_gt(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field}, num_videos::Int64, num_frames::Int64, threshold=0.5)
+function make_observations_office_from_gt(dict::Array{Any,1}, receptive_fields::Vector{Receptive_Field}, office_subset::Vector{String},
+    num_videos::Int64, num_frames::Int64, threshold=0.5)
 
     COCO_CLASSES = ["person", "bicycle", "car", "motorcycle",
     			"airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant",
@@ -309,7 +310,7 @@ function make_observations_office_from_gt(dict::Array{Any,1}, receptive_fields::
 
     #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
     #office_subset = ["book", "chair", "keyboard", "laptop", "table", "potted plant", "cell phone", "wine bottle"]
-    office_subset = ["dining table", "microwave", "backpack", "bowl", "couch"]
+    #office_subset = ["dining table", "microwave", "backpack", "bowl", "couch"]
 
     objects_observed = Matrix{Array{Detection2D}}(undef, num_videos, num_frames)
     #getting undefined reference when I change to Array{Array{}} instead of matrix
