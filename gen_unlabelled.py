@@ -18,7 +18,13 @@ from tdw.output_data import OutputData, Bounds, Images, Collision, EnvironmentCo
 
 num_videos = 5
 num_frames = 250
-dimensions = [10, 10]
+place_dimensions = [10, 10]
+room_dimensions = [13, 13]
+traj_radius = 5.8
+camera_var = .7
+camera_l = 2.5
+lookat_var = .7
+lookat_l = 2
 data = []
 
 
@@ -32,8 +38,13 @@ def CircleTrajectory(num_frames, radius):
         yield camera, lookat
 
 
-def gp_noise_trajectory(num_frames, radius, camera_var, camera_l, 
-        lookat_var, lookat_l, dimensions): 
+def gp_noise_trajectory(num_frames, 
+                        radius, 
+                        camera_var, 
+                        camera_l, 
+                        lookat_var, 
+                        lookat_l, 
+                        room_dimensions): 
     def rbf_kernel(xa, xb, var, l): 
         sq_norm = -0.5 * cdist(xa, xb, 'sqeuclidean') / l**2
         return var * np.exp(sq_norm)
@@ -46,18 +57,20 @@ def gp_noise_trajectory(num_frames, radius, camera_var, camera_l,
     camera_dx = np.random.multivariate_normal(mean=np.zeros(num_frames), 
             cov=camera_cov, size=2) 
 
-    lookat_dx = np.random.multivariate_normal(mean=np.zeros(num_frames) + 0.7, 
+    lookat_dx = np.random.multivariate_normal(mean=np.zeros(num_frames), 
             cov=lookat_cov, size=3)
 
     for t in range(num_frames): 
         camera_x = radius * math.cos(angles[t]) + camera_dx[0, t],
         camera_z = radius * math.sin(angles[t]) + camera_dx[1, t]
 
-        camera = {"x": np.clip(camera_x, -dimensions[0]/2+1, dimensions[0]/2-1).item(),
-                  "y": 3, 
-                  "z": np.clip(camera_z, -dimensions[1]/2+1, dimensions[1]/2-1).item()}
+        wall_offset =.8
+
+        camera = {"x": np.clip(camera_x, -room_dimensions[0]/2 + wall_offset, room_dimensions[0]/2 - wall_offset).item(),
+                  "y": 2, 
+                  "z": np.clip(camera_z, -room_dimensions[1]/2 + wall_offset, room_dimensions[1]/2 - wall_offset).item()}
         lookat = {"x": lookat_dx[0, t], 
-                  "y": lookat_dx[2, t], 
+                  "y": lookat_dx[2, t] + 0.7, 
                   "z": lookat_dx[1, t]}
 
         yield camera, lookat
@@ -66,14 +79,6 @@ def gp_noise_trajectory(num_frames, radius, camera_var, camera_l,
 
 # Creates objects dictionary
 lib = ModelLibrarian(library="models_core.json")
-"""
-objects = dict({})
-search_terms = ["chair", "sofa"]
-
-for search_term in search_terms:
-    records = lib.search_records(search_term)
-    objects[search_term] = [record.name for record in records]
-"""
 
 objects = dict({'chair': ['blue_club_chair', 'blue_side_chair', 'brown_leather_dining_chair', 'brown_leather_side_chair', 'chair_annabelle', 'chair_billiani_doll', 'chair_willisau_riale', 'dark_red_club_chair', 'emeco_navy_chair', 'green_side_chair', 'lapalma_stil_chair', 'linbrazil_diz_armchair', 'linen_dining_chair', 'red_side_chair', 'tan_lounger_chair', 'tan_side_chair', 'vitra_meda_chair', 'white_club_chair', 'wood_chair', 'yellow_side_chair'], 'sofa': ['arflex_hollywood_sofa', 'arflex_strips_sofa', 'meridiani_freeman_sofa', 'minotti_helion_3_seater_sofa', 'napoleon_iii_sofa', 'on_the_rocks_sofa', 'sayonara_sofa']})
 
@@ -93,7 +98,7 @@ for video in tqdm(range(num_videos)):
 
     resp = c.communicate([{"$type": "load_scene",
                            "scene_name": "ProcGenScene"},
-                          TDWUtils.create_empty_room(*dimensions)])
+                          TDWUtils.create_empty_room(*room_dimensions)])
     print("created empty scene")
     # Populates scene with objects (placement is uniform random)
     num_objects = randrange(2, 6)
@@ -102,9 +107,11 @@ for video in tqdm(range(num_videos)):
     labels = []
     category_names = []
     placement_height = 0
+    x_lim = place_dimensions[0]/2 
+    z_lim = place_dimensions[1]/2 
     for obj_id in range(num_objects):
-        x = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
-        z = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
+        x = random.uniform(-x_lim, x_lim)
+        z = random.uniform(-z_lim, z_lim)
 
         angle = random.uniform(0, 360)
 
@@ -127,17 +134,15 @@ for video in tqdm(range(num_videos)):
             if r_id == "coll":
                 collisions.append(Collision(r))
 
-        x_lim = dimensions[0]/2 - 2
-        z_lim = dimensions[1]/2 - 2
 
 
         while collisions:
             for col in collisions:
-                x = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
-                z = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
+                x = random.uniform(-x_lim, x_lim)
+                z = random.uniform(-z_lim, z_lim)
 
-                x_1 = random.uniform(-(dimensions[0]/2 - 2), dimensions[0]/2 - 2)
-                z_1 = random.uniform(-(dimensions[1]/2 - 2), dimensions[1]/2 - 2)
+                x_1 = random.uniform(-x_lim, x_lim)
+                z_1 = random.uniform(-z_lim, z_lim)
                 collider = col.get_collider_id()
                 collidee = col.get_collidee_id()
                 print(f"collision between objects {collider}, {collidee}")
@@ -185,7 +190,6 @@ for video in tqdm(range(num_videos)):
 
     c.communicate({"$type": "simulate_physics", "value": False})
     # Creates frames
-    radius = dimensions[0]/2 - 2
     angles = [2 * math.pi * i / num_frames for i in range(num_frames)]
 
     avatar_id = "a"
@@ -199,9 +203,8 @@ for video in tqdm(range(num_videos)):
     print("created avatar")
 
     views = []
-    radius = dimensions[0]/2 - 2
-    trajectories = gp_noise_trajectory(num_frames, radius, 1.35, 1.65, 0.4, 1.2, 
-            dimensions)
+    trajectories = gp_noise_trajectory(num_frames, traj_radius, camera_var, camera_l, lookat_var, lookat_l, 
+            room_dimensions)
     for frame, (camera, lookat) in zip(range(num_frames), trajectories):
         resp = c.communicate([{"$type": "teleport_avatar_to",
                                "position": camera,
