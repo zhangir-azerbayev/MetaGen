@@ -84,7 +84,7 @@ println("done with pf for online")
 #Retrospective MetaGen
 
 #training set and test set
-order = vcat(order, 51:100)
+order = vcat(order, 101:200)
 input_objects_observed = vcat(objects_observed[order, :])
 input_camera_trajectories = vcat(camera_trajectories[order, :])
 

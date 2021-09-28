@@ -12,7 +12,7 @@ Base.@kwdef struct Video_Params
     possible_objects::Vector{Int64} = collect(1:n_possible_objects)
     probs_possible_objects = collect(ones(n_possible_objects)./n_possible_objects)
     x_min::Float64 = -13/2
-    y_min::Float64 = 0
+    y_min::Float64 = -2 #empirically the camera sometimes looks down at -1.35
     z_min::Float64 = -13/2
     x_max::Float64 = 13/2
     y_max::Float64 = 3
