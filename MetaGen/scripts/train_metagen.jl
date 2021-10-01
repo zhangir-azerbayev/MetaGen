@@ -52,7 +52,7 @@ half = convert(Int64, num_videos_train/2)
 if shuffle_type==0
 	order = collect(1:num_videos_train)
 elseif shuffle_type==1
-	order = vcat(reverse(collect((half+1):num_videos_train)), reverse(collect(1:(half+1))))
+	order = vcat(reverse(collect((half+1):num_videos_train)), reverse(collect(1:half)))
 elseif shuffle_type==2
 	order = vcat(collect((half+1):num_videos_train), collect(1:half))
 elseif shuffle_type==3
