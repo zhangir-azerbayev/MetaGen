@@ -183,7 +183,7 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
     #temporary for getting min and max values of positions
     x_min = 0
     x_max = 0
-    y_min = 3
+    y_min = 0
     y_max = 0
     z_min = 0
     z_max = 0
@@ -199,7 +199,12 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
 
     for v=1:num_videos
         for f=1:num_frames
-            #indices is where confidence was > 0.5
+            #first sort by confidence level
+            idx = sortperm(-1 .* dict[v]["views"][f]["detections"]["scores"]) #descending order
+            dict[v]["views"][f]["detections"]["scores"] = dict[v]["views"][f]["detections"]["scores"][idx]
+            dict[v]["views"][f]["detections"]["center"] = dict[v]["views"][f]["detections"]["center"][idx]
+            dict[v]["views"][f]["detections"]["labels"] = dict[v]["views"][f]["detections"]["labels"][idx]
+
             indices = dict[v]["views"][f]["detections"]["scores"] .> threshold #indices should be sorted by confidence
             arr = round.(Int64, dict[v]["views"][f]["detections"]["labels"][indices]) #for turning to ints
             center = dict[v]["views"][f]["detections"]["center"][indices]
@@ -273,19 +278,19 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
 
     println("labels_max ", labels_max)
     #
-    # println("x_max ", x_max)
-    # println("x_min ", x_min)
-    # println("y_max ", y_max)
-    # println("y_min ", y_min)
-    # println("z_max ", z_max)
-    # println("z_min ", z_min)
-    #
-    # println("f_x_max ", f_x_max)
-    # println("f_x_min ", f_x_min)
-    # println("f_y_max ", f_y_max)
-    # println("f_y_min ", f_y_min)
-    # println("f_z_max ", f_z_max)
-    # println("f_z_min ", f_z_min)
+    println("x_max ", x_max)
+    println("x_min ", x_min)
+    println("y_max ", y_max)
+    println("y_min ", y_min)
+    println("z_max ", z_max)
+    println("z_min ", z_min)
+
+    println("f_x_max ", f_x_max)
+    println("f_x_min ", f_x_min)
+    println("f_y_max ", f_y_max)
+    println("f_y_min ", f_y_min)
+    println("f_z_max ", f_z_max)
+    println("f_z_min ", f_z_min)
 
     return objects_observed, camera_trajectories
 end

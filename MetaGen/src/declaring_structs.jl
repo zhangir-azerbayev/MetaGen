@@ -12,12 +12,12 @@ Base.@kwdef struct Video_Params
     possible_objects::Vector{Int64} = collect(1:n_possible_objects)
     probs_possible_objects = collect(ones(n_possible_objects)./n_possible_objects)
     x_min::Float64 = -13/2
-    y_min::Float64 = -2 #empirically the camera sometimes looks down at -1.35
+    y_min::Float64 = 0
     z_min::Float64 = -13/2
     x_max::Float64 = 13/2
     y_max::Float64 = 3
     z_max::Float64 = 13/2
-    delta = 0.5 #sd for gaussian #midpoint of logistic curve for prior over distance between objects
+    delta = 1 #sd for gaussian #midpoint of logistic curve for prior over distance between objects
     #k = 10. #slope of logistic curve for prior over distance between objects
     num_receptive_fields::Int64 = 1
     #camera parameters that don't change

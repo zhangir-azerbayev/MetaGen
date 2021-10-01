@@ -46,18 +46,16 @@ shuffle_type = config["shuffle_type"]
 ################################################################################
 #Online MetaGen
 
-#Online MetaGen
 num_videos_train = convert(Int64, num_videos/2)
-@assert num_videos_train==100
 
 if shuffle_type==0
 	order = collect(1:num_videos_train)
 elseif shuffle_type==1
-	order = vcat(reverse(collect(51:100)), reverse(collect(1:50)))
+	order = vcat(reverse(collect((num_videos_train/2+1):num_videos_train)), reverse(collect(1:(num_videos_train/2+1))))
 elseif shuffle_type==2
-	order = vcat(collect(51:100), collect(1:50))
+	order = vcat(collect((num_videos_train/2+1):num_videos_train), collect(1:num_videos_train/2))
 elseif shuffle_type==3
-	order = vcat(reverse(collect(1:50)), reverse(collect(51:100)))
+	order = vcat(reverse(collect(1:num_videos_train/2)), reverse(collect((num_videos_train/2+1):num_videos_train)))
 end
 
 training_objects_observed = objects_observed[order, :]
@@ -84,7 +82,7 @@ println("done with pf for online")
 #Retrospective MetaGen
 
 #training set and test set
-order = vcat(order, 101:200)
+order = vcat(order, (num_videos_train+1):num_videos)
 input_objects_observed = vcat(objects_observed[order, :])
 input_camera_trajectories = vcat(camera_trajectories[order, :])
 
