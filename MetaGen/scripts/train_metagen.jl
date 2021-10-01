@@ -47,15 +47,16 @@ shuffle_type = config["shuffle_type"]
 #Online MetaGen
 
 num_videos_train = convert(Int64, num_videos/2)
+half = convert(Int64, num_videos_train/2)
 
 if shuffle_type==0
 	order = collect(1:num_videos_train)
 elseif shuffle_type==1
-	order = vcat(reverse(collect((num_videos_train/2+1):num_videos_train)), reverse(collect(1:(num_videos_train/2+1))))
+	order = vcat(reverse(collect((half+1):num_videos_train)), reverse(collect(1:(half+1))))
 elseif shuffle_type==2
-	order = vcat(collect((num_videos_train/2+1):num_videos_train), collect(1:num_videos_train/2))
+	order = vcat(collect((half+1):num_videos_train), collect(1:half))
 elseif shuffle_type==3
-	order = vcat(reverse(collect(1:num_videos_train/2)), reverse(collect((num_videos_train/2+1):num_videos_train)))
+	order = vcat(reverse(collect(1:half)), reverse(collect((half+1):num_videos_train)))
 end
 
 training_objects_observed = objects_observed[order, :]
