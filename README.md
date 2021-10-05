@@ -10,11 +10,11 @@ $ conda activate metagen_data_env
 ```
 Generate the unlabelled data (data without neural network detections) by running 
 ```
-$ python make_data/gen_unlabelled.py
+$ python data/gen_unlabelled.py
 ```
 Next, set up one an object detector by running
 ```
-$ python make_data/models/download_[model].py
+$ python data/models/download_[model].py
 ```
 where `[model]` is replaced by `retinanet`, `detr`, or `fasterrcnn`. Then generate the labelled data by running
 ```
