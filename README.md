@@ -20,3 +20,13 @@ where `[model]` is replaced by `retinanet`, `detr`, or `fasterrcnn`. Then genera
 ```
 $ python gen_labelled.py [model]
 ```
+## Training MetaGen
+To install the MetaGen Julia package, run the following Julia code. 
+```
+import Pkg
+Pkg.develop("MetaGen/")
+```
+Hyperparameters for training MetaGen are set in a `yaml` file located in `configs`. To train MetaGen given `example_config.yaml`, run
+```
+julia MetaGen/scripts/train_metagen.jl configs/example_config.yaml
+```
