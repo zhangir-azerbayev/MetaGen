@@ -4,15 +4,15 @@
 
 MetaGen takes as input the output of an object detection system. In this example, the object detection system is RetinaNet.
 
-![alt text](https://github.com/zhangir-azerbayev/MetaGen/blob/main/retinanet_0.0.gif "Logo Title Text 1")
+RetinaNet's output: ![alt text](https://github.com/zhangir-azerbayev/MetaGen/blob/main/retinanet_0.0.gif "Logo Title Text 1")
 
 MetaGen infers what objects are actually present.
 
-![alt text](https://github.com/zhangir-azerbayev/MetaGen/blob/main/MetaGen.gif "Logo Title Text 1")
+MetaGen's inference: ![alt text](https://github.com/zhangir-azerbayev/MetaGen/blob/main/MetaGen.gif "Logo Title Text 1")
 
 In doing so, MetaGen outperforms RetinaNet even with a confidence threshold fitted to maximize accuracy.
 
-![alt text](https://github.com/zhangir-azerbayev/MetaGen/blob/main/retinanet_0.14.gif "Logo Title Text 1")
+RetainaNet with fitted confidence threshold: ![alt text](https://github.com/zhangir-azerbayev/MetaGen/blob/main/retinanet_0.14.gif "Logo Title Text 1")
 
 Unlimited to just RetinaNet, MetaGen can work with any object detection system, regardless of architecture or what dataset it was trained on!
 
