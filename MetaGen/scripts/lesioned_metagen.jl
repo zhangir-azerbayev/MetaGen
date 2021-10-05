@@ -8,7 +8,7 @@ using Random
 
 config_path = ARGS[1]
 config = YAML.load_file(config_path)
-output_dir = "results_marlene/$(config["experiment_name"])_" * ENV["SLURM_JOB_ID"]
+output_dir = "results/$(config["experiment_name"])_" * ENV["SLURM_JOB_ID"]
 mkdir(output_dir)
 
 include("useful_functions.jl")
