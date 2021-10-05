@@ -1,5 +1,38 @@
 # MetaGen
 
+## Demo
+
+MetaGen takes as input the output of an object detection system. In this example, the object detection system is RetinaNet.
+
+<p align="center">
+RetinaNet's output:
+</p>
+<p align="center">
+<img src="https://github.com/zhangir-azerbayev/MetaGen/blob/main/retinanet_0.0.gif" alt="animated" />
+</p>
+
+
+MetaGen infers what objects are actually present.
+
+<p align="center">
+MetaGen's inference:
+</p>
+<p align="center">
+<img src="https://github.com/zhangir-azerbayev/MetaGen/blob/main/MetaGen.gif" alt="animated" />
+</p>
+
+In doing so, MetaGen outperforms RetinaNet even with a confidence threshold fitted to maximize accuracy.
+
+<p align="center">
+MetaGen's inference:
+</p>
+<p align="center">
+<img src="https://github.com/zhangir-azerbayev/MetaGen/blob/main/retinanet_0.14.gif" alt="animated" />
+</p>
+
+Unlimited to just RetinaNet, MetaGen can work with any object detection system, regardless of architecture or what dataset it was trained on!
+
+
 ## Generating Data
 
 The data used in the paper is provided in JSON format in `data_labelled`. Alternatively, this repo also provides code for procedurally generating data. 
