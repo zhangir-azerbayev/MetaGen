@@ -1,4 +1,4 @@
-from visual_system import VisualSystem
+from VisualSystem import VisualSystem
 import torch
 import torchvision.models as models
 import torchvision.transforms as transforms

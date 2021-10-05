@@ -1,4 +1,4 @@
-from visual_system import VisualSystem
+from VisualSystem import VisualSystem
 import torch
 import torchvision.models as models
 import torchvision.transforms as transforms
@@ -51,7 +51,7 @@ class FasterRcnn(VisualSystem):
     def __init__(self): 
         self.device = 'cuda'
         self.model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True).to(self.device)
-        self.model.load_state_dict(torch.load('faster_rcnn_state_dict'))
+        #self.model.load_state_dict(torch.load('retinanet_state_dict'))
         self.model.eval()
         self.transform = transforms.Compose([transforms.ToTensor()])
         
