@@ -4,7 +4,9 @@
 
 MetaGen takes as input the output of an object detection system. In this example, the object detection system is RetinaNet.
 
+<p align="center">
 RetinaNet's output: ![alt text](https://github.com/zhangir-azerbayev/MetaGen/blob/main/retinanet_0.0.gif "Logo Title Text 1")
+</p>
 
 MetaGen infers what objects are actually present.
 
