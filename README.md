@@ -30,8 +30,9 @@ Hyperparameters for training MetaGen are set in a `yaml` file located in `config
 ```
 julia MetaGen/scripts/train_metagen.jl configs/example_config.yaml
 ```
-##Preprocessing the outputs from MetaGen
+
+## Preprocessing the outputs from MetaGen
 The outputs from running MetaGen (two .csv files, and one .json) are pre-processed in Julia using the scripts in the MetaGen/Preprocessing folder.
 
-##Reproducing figures from the paper
+## Reproducing figures from the paper
 The figures are generated using the R scripts in the Analysis folder. learning_V.R generates figure 1A. average_accuaracy_across_videos.R generates figures 3B and 3C.
