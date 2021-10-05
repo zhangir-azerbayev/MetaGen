@@ -4,7 +4,7 @@
 
 MetaGen takes as input the output of an object detection system. In this example, the object detection system is RetinaNet.
 
-![alt text](https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 1")
+![alt text](https://github.com/zhangir-azerbayev/MetaGen/blob/main/retinanet_0.0.gif "Logo Title Text 1")
 
 MetaGen infers what objects are actually present.
 
@@ -12,7 +12,7 @@ MetaGen infers what objects are actually present.
 
 In doing so, MetaGen outperforms even RetinaNet with a confidence threshold fitted to maximize accuracy.
 
-![alt text](https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 1")
+![alt text](https://github.com/zhangir-azerbayev/MetaGen/blob/main/retinanet_0.14.gif "Logo Title Text 1")
 
 
 ## Generating Data
