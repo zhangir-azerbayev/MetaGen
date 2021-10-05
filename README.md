@@ -10,6 +10,7 @@ RetinaNet's output:
 <p align="center">
 <img src="https://github.com/zhangir-azerbayev/MetaGen/blob/main/retinanet_0.0.gif" alt="animated" />
 </p>
+(If the gif doesn't display, please see retinanet_0.0.gif)
 
 
 MetaGen infers what objects are actually present.
@@ -20,6 +21,7 @@ MetaGen's inference:
 <p align="center">
 <img src="https://github.com/zhangir-azerbayev/MetaGen/blob/main/MetaGen.gif" alt="animated" />
 </p>
+(If the gif doesn't display, please see MetaGen.gif)
 
 In doing so, MetaGen outperforms RetinaNet even with a confidence threshold fitted to maximize accuracy.
 
@@ -29,6 +31,7 @@ MetaGen's inference:
 <p align="center">
 <img src="https://github.com/zhangir-azerbayev/MetaGen/blob/main/retinanet_0.14.gif" alt="animated" />
 </p>
+(If the gif doesn't display, please see retinanet_0.14.gif)
 
 Unlimited to just RetinaNet, MetaGen can work with any object detection system, regardless of architecture or what dataset it was trained on!
 
