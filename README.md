@@ -30,7 +30,7 @@ MetaGen's inference:
 In doing so, MetaGen outperforms RetinaNet even with a confidence threshold fitted to maximize accuracy.
 
 <p align="center">
-MetaGen's inference:
+RetinaNet with fitted threshold:
 </p>
 <p align="center">
 <img src="https://github.com/zhangir-azerbayev/MetaGen/blob/main/retinanet_0.14.gif" alt="animated" />
